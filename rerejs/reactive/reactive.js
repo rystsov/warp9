@@ -1,9 +1,10 @@
 define(
-	["rere/reactive/Variable"], 
-	function(Variable) {
+	["rere/reactive/Variable", "rere/reactive/ObservableList"], 
+	function(Variable, ObservableList) {
     
     return {
-        "Variable" : Variable
+        "Variable" : Variable,
+        "ObservableList" : ObservableList
     };
 
 });

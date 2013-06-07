@@ -11,6 +11,9 @@ define(
         this.getData = function() {
             return this.data;
         };
+        this.values = function() {
+            return this.data.map(function(e){return e.value;});
+        }
         this.setData = function(data) {
             this.data = data.map(function(item){
                 return {
@@ -102,6 +105,35 @@ define(
             return result;
         }
     };
+
+    ObservableList.collector = function(f) {
+        var list = new ObservableList([]);
+        
+        var add = {};
+        add.value = function(e) {
+            list.add(function(key){
+                return e;
+            })
+        };
+        add.rv = function(rv) {
+            var lastKey = null;
+            rv.onEvent(function(e){
+                if (lastKey!=null) {
+                    list.remove(lastKey);
+                    lastKey = null;
+                }
+                if (e[0]==="set") {
+                    list.add(function(key){
+                        lastKey = key;
+                        return e[1];
+                    });
+                }
+            });
+        }
+
+        f(add);
+        return list;
+    }
 
     return ObservableList;
 });
