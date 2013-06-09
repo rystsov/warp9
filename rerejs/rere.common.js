@@ -9,5 +9,6 @@ requirejs.config({
 });
 
 module.exports = {
-    reactive: requirejs("rere/reactive/reactive")
+    reactive: requirejs("rere/reactive/reactive"),
+    adt: requirejs("rere/adt/adt")
 };

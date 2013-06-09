@@ -4,7 +4,8 @@ define(
     function ObservableList(data) {
         var self = this;
         this.id = 0;
-        this.handlers = [];
+        this["handlers"] = [];
+        this["handlers/id"] = 0;
         this["rere/reactive/ObservableList"] = true;
         this.list = new ChannelWithMemory();
 
@@ -22,7 +23,7 @@ define(
                 }
             });
             for (var i in this.handlers) {
-                this.handlers[i]([
+                this.handlers[i].f([
                     "data", 
                     this.data.map(function(x){return x})
                 ]);
@@ -40,7 +41,7 @@ define(
             }
             this.data = data;
             for (var i in this.handlers) {
-                this.handlers[i](["remove", key]);
+                this.handlers[i].f(["remove", key]);
             }
             this.list.set(this.data)
         };
@@ -54,7 +55,7 @@ define(
             }
             this.data.push(e);
             for (var i in this.handlers) {
-                this.handlers[i](["add", e]);
+                this.handlers[i].f(["add", e]);
             }
             this.list.set(this.data)
         };
@@ -76,11 +77,18 @@ define(
         };
 
         this.subscribe = function(f) {
-            this.handlers.push(f);
+            var id = this["handlers/id"];
+            this["handlers/id"]++;
+            this["handlers"].push({key: id, f:f});
             f([
                 "data", 
                 this.data.map(function(x){return x})
-            ])
+            ]);
+            return function() {
+                self["handlers"] = self["handlers"].filter(function(handler) {
+                    return handler.key!=id;
+                });
+            }
         };
 
         this.reduceCA = function(f) {
@@ -106,6 +114,44 @@ define(
         }
     };
 
+    ObservableList.tolist = {
+        rv: {
+            list: function(rv) {
+                var list = new ObservableList([]);
+                var keys = {};
+                var dispose = function() {};
+                rv.onEvent(function(e){
+                    dispose();
+                    for (var key in keys) {
+                        list.remove(key);
+                    }
+                    keys = {};
+                    dispose = function() {};
+                    if (e[0]==="set") {
+                        dispose = e[1].subscribe(function(e){
+                            if (e[0]==="data") {
+                                for (var i in e[1]) {
+                                    keys[e[1][i].key] = true;
+                                    list.add({key: e[1][i].key, value: e[1][i].value});
+                                }
+                            } else if (e[0]==="add") {
+                                keys[e[1].key] = true;
+                                list.add({key: e[1].key, value: e[1].value});
+                            } else if (e[0]==="remove") {
+                                delete keys[e[1]]
+                                list.remove(e[1]);
+                            } else {
+                                throw new Error("Unknown event: " + e[0]);
+                            }
+                        });
+                    }
+                });
+                return list;
+            }
+        }
+    };
+
+
     ObservableList.collector = function(f) {
         var list = new ObservableList([]);
         
@@ -130,10 +176,28 @@ define(
                 }
             });
         }
+        add.rv.maybe = function(rv) {
+            var lastKey = null;
+            rv.onEvent(function(e){
+                if (lastKey!=null) {
+                    list.remove(lastKey);
+                    lastKey = null;
+                }
+                if (e[0]==="set") {
+                    if (!(e[1]._m_is_maybe)) throw new Error();
+                    if (!e[1].isempty()) {
+                        list.add(function(key){
+                            lastKey = key;
+                            return e[1].value();
+                        });
+                    }
+                }
+            });
+        }
 
         f(add);
         return list;
-    }
+    };
 
     return ObservableList;
 });
