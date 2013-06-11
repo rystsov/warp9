@@ -1,23 +1,7 @@
 define(
     ["rere/reactive/Variable", "rere/adt/adt"], 
     function(Variable, adt) {
-        function logical(args, op, seed) {
-            var result = new Variable();
-            for (var i in args) args[i].subscribe(check);
-            return result;
-            function check() {
-                var r = seed;
-                for (var i in args) {
-                    if (args[i].value().isempty()) {
-                        result.unset();
-                        return;
-                    };
-                    r = op(r, args[i].value().value());
-                }
-                result.set(r);
-            }
-        }
-        return {
+        var self = {
             log: function(rv, mark) {
                 var result = new Variable();
                 rv.onEvent(function(e){
@@ -135,22 +119,52 @@ define(
                 }
             },
             maybe: {
-                unwrap: function(rv, none) {
+                unwrapDefault: function(rv, none) {
                     if (typeof(none) != "function") {
                         var obj = none;
                         none = function() { return obj; }
                     }
                     var result = new Variable();
-                    rv.subscribe(function(val){
-                        if (!val["_m_is_maybe"]) throw new Error();
-                        
-                        if (val.isempty()) {
+                    rv.onEvent(function(e){
+                        if (e[0]==="set") {
+                            if (!e[1]["_m_is_maybe"]) throw new Error("Must be a maybe");
+                            if (e[1].isempty()) {
+                                result.set(none());
+                            } else {
+                                result.set(e[1].value());
+                            }
+                        } else if (e[0]==="unset") {
                             result.set(none());
                         } else {
-                            result.set(val.value());
+                            throw new Error("Unknown event: " + e[0]);
                         }
                     });
                     return result;
+                },
+                unwrapUnset: function(rv) {
+                    var result = new Variable();
+                    rv.onEvent(function(e){
+                        if (e[0]==="set") {
+                            if (!e[1]["_m_is_maybe"]) throw new Error("Must be a maybe");
+                            if (e[1].isempty()) {
+                                result.unset();
+                            } else {
+                                result.set(e[1].value());
+                            }
+                        } else if (e[0]==="unset") {
+                            result.unset();
+                        } else {
+                            throw new Error("Unknown event: " + e[0]);
+                        }
+                    });
+                    return result;
+                },
+                unwrap: function(rv, none) {
+                    if (arguments.length==1) {
+                        return self.maybe.unwrapUnset(rv);
+                    } else {
+                        return self.maybe.unwrapDefault(rv, none);
+                    }
                 },
                 lift: function(rv, fn) {
                     var result = new Variable();
@@ -190,6 +204,23 @@ define(
                     });
                     return result;
                 }
+            }
+        };
+        return self;
+        function logical(args, op, seed) {
+            var result = new Variable();
+            for (var i in args) args[i].subscribe(check);
+            return result;
+            function check() {
+                var r = seed;
+                for (var i in args) {
+                    if (args[i].value().isempty()) {
+                        result.unset();
+                        return;
+                    };
+                    r = op(r, args[i].value().value());
+                }
+                result.set(r);
             }
         }
     }
