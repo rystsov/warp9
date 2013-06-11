@@ -92,13 +92,20 @@ define(
         };
 
         this.reduceCA = function(f) {
+            var args = arguments;
             var head = new Variable();
             var result = rv.rv.unwrap(head);
             var tree = null;
             this.subscribe(function(e){
                 if (e[0]==="data") {
                     head.unset();
-                    tree = new ReduceTree(f);
+                    
+                    if (args.length==1) {
+                        tree = new ReduceTree(f);
+                    } else {
+                        tree = new ReduceTree(f, args[1]);
+                    }
+                    
                     for (var i in e[1]) {
                         tree.add(e[1][i].key, e[1][i].value);
                     }

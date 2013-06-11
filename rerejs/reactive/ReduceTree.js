@@ -5,7 +5,13 @@ define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
         this.root = null;
         this.base = null;
         this.baseMark = null;
-        this.head = rv.batch(rv.rv.unwrap(head), "prebatch");
+
+        if (arguments.length==2) {
+            this.head = rv.batch(rv.coalesce(rv.rv.unwrap(head), arguments[1]));
+        } else {
+            this.head = rv.batch(rv.rv.unwrap(head));
+        }
+        
 
         this.add = function(key, value) {
             this.head.batch();

@@ -14,6 +14,19 @@ define(
                 });
                 return result;
             },
+            coalesce: function(rv, filler) {
+                var result = new Variable();
+                rv.onEvent(function(e){
+                    if (e[0]==="set") {
+                        result.set(e[1]);
+                    } else if (e[0]==="unset") {
+                        result.set(filler);
+                    } else {
+                        throw new Eror("Unknown event: " + e[0]);
+                    }
+                });
+                return result;
+            },
             batch: function(rv) {
                 var id = function(x){ return x; }
 

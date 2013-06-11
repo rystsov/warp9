@@ -19,7 +19,9 @@ define(["rere/adt/maybe"], function(maybe) {
             var id = this["rere/reactive/Channel/dependants/id"];
             this["rere/reactive/Channel/dependants/id"]++;
             this["rere/reactive/Channel/dependants"].push({key: id, f:f});
-            if (!this["rere/reactive/Variable/value"].isempty()) {
+            if (this["rere/reactive/Variable/value"].isempty()) {
+                f(["unset"]);
+            } else {
                 f(["set", this["rere/reactive/Variable/value"].value()]);
             }
             return function() {
