@@ -1,26 +1,24 @@
 var rere = require('../rerejs/rere.common');
+var checkObservableList = require('../testutils/ObservableList').checkObservableList;
 
 var ObservableList = rere.reactive.ObservableList;
 var Variable = rere.reactive.Variable;
 var adt = rere.adt;
 
 exports.value = function(test){
-    test.expect(3);
+    test.expect(1);
     
     var list = ObservableList.collector(function(add){
-    	add.value(1);
-    	add.value(2);
+        add.value(1);
+        add.value(2);
     });
 
-    var values = list.values();
-    test.equal(values.length, 2);
-    test.equal(values[0], 1);
-    test.equal(values[1], 2);
+    checkObservableList(test, list, [1, 2]);
     test.done();
 };
 
 exports.rv = function(test){
-    test.expect(8);
+    test.expect(2);
     
     var rv = new Variable(5);
 
@@ -30,18 +28,40 @@ exports.rv = function(test){
     });
 
     var values = list.values();
-    test.equal(values.length, 2);
-    test.ok(values.indexOf(1)>=0);
-    test.ok(values.indexOf(5)>=0);
-    test.ok(values.indexOf(4)<0);
+    checkObservableList(test, list, [1, 5]);
 
     rv.set(4)
 
     var values = list.values();
-    test.equal(values.length, 2);
-    test.ok(values.indexOf(1)>=0);
-    test.ok(values.indexOf(4)>=0);
-    test.ok(values.indexOf(5)<0);
+    checkObservableList(test, list, [1, 4]);
+
+    test.done();
+};
+
+exports.list = function(test){
+    test.expect(3);
+    
+    var source1 = new ObservableList([]);
+    var source2 = new ObservableList([]);
+    var key1 = null;
+    source1.add(function(key){
+        key1 = key;
+        return 1;
+    });
+
+    var list = ObservableList.collector(function(add){
+        add.list(source1);
+        add.list(source2);
+    });
+    checkObservableList(test, list, [1]);
+    
+    source2.add(function(key){
+        return 2;
+    });
+    checkObservableList(test, list, [1, 2]);
+
+    source1.remove(key1);
+    checkObservableList(test, list, [2]);
 
     test.done();
 };

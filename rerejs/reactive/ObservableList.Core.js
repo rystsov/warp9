@@ -46,13 +46,25 @@ define(
             this.list.set(this.data)
         };
         this.add = function(f) {
-            var e = null;
-            if (typeof(f) == "function") {
-                var key = self.id++;
-                e = {key: key, value: f(key)};
-            } else {
-                e = f;
+            if (typeof(f) != "function") throw new Error();
+            var key = self.id++;
+            var e = {key: key, value: f(key)};
+            this.data.push(e);
+            for (var i in this.handlers) {
+                this.handlers[i].f(["add", e]);
             }
+            this.list.set(this.data)
+        };
+        this.addValue = function(value) {
+            var key = null;
+            this.add(function(k){
+                key = k;
+                return value;
+            });
+            return key;
+        };
+        this.addKeyValue = function(key, value) {
+            var e = {key: key, value: value};
             this.data.push(e);
             for (var i in this.handlers) {
                 this.handlers[i].f(["add", e]);
@@ -66,7 +78,7 @@ define(
                 if (e[0]=="data") {
                     nova.setData(e[1].map(f));
                 } else if (e[0]=="add") {
-                    nova.add({key:e[1].key, value:f(e[1].value)});
+                    nova.addKeyValue(e[1].key, f(e[1].value));
                 } else if (e[0]=="remove") {
                     nova.remove(e[1]);
                 } else {

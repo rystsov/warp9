@@ -25,11 +25,11 @@ var tolist = {
                         if (e[0]==="data") {
                             for (var i in e[1]) {
                                 keys[e[1][i].key] = true;
-                                list.add({key: e[1][i].key, value: e[1][i].value});
+                                list.addKeyValue(e[1][i].key, e[1][i].value);
                             }
                         } else if (e[0]==="add") {
                             keys[e[1].key] = true;
-                            list.add({key: e[1].key, value: e[1].value});
+                            list.addKeyValue(e[1].key, e[1].value);
                         } else if (e[0]==="remove") {
                             delete keys[e[1]]
                             list.remove(e[1]);
