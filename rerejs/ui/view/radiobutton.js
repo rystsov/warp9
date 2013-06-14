@@ -1,4 +1,4 @@
-define(["rere/adt/maybe", "rere/ui/elements/FragmentElement"], function(maybe, FragmentElement) {
+define(["rere/ui/elements/FragmentElement"], function(FragmentElement) {
     var id = 0;
 
     return (function(element) {
@@ -15,15 +15,15 @@ define(["rere/adt/maybe", "rere/ui/elements/FragmentElement"], function(maybe, F
                 replace("MYID", myid).
                 replace("TEXT", element.data.label)
         ));
-        element.isset.subscribe(function(value){
-            if (value.hasvalue(true)) {
+        element.isset.onEvent(function(e){
+            if (e[0]==="set" && e[1]===true) {
                 radio.prop("checked", true);
             } else {
                 radio.prop("checked", false);
             }
         })
         radio.change(function(){
-            element.isset.raise(new maybe.Some(true));
+            element.isset.set(true);
         });
         return new FragmentElement(span);
     });
