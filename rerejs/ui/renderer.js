@@ -21,7 +21,7 @@ define(
                 } else if (e["_m_is_maybe"] ) {
                     return e.lift(flow);
                 } else if (e["rere/reactive/ObservableList"] ) {
-                    return e.lift(flow);
+                    return e.lift(lift);
                 } else {
                     throw Error();
                 }
