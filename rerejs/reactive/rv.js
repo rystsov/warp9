@@ -20,20 +20,6 @@ define(
                 })
                 return result;
             },
-
-            // TOREVIEW
-            log: function(rv, mark) {
-                var result = new Variable();
-                rv.onEvent(function(e){
-                    if (mark) {
-                        console.info(mark);
-                    } 
-                    console.info(e);
-                    
-                    Variable.replay(result, e, function(x){return x});
-                });
-                return result;
-            },
             batch: function(rv) {
                 var id = function(x){ return x; }
 
@@ -60,7 +46,22 @@ define(
                 });
                 return result;
             },
-            binary: function(rvs, f) {
+            log: function(rv, mark) {
+                var result = new Variable();
+                rv.onEvent(function(e){
+                    if (mark) {
+                        console.info(mark);
+                    } 
+                    console.info(e);
+                    
+                    Variable.replay(result, e, function(x){return x});
+                });
+                return result;
+            },
+            not: function(rv) {
+                return rv.lift(function(value){ return !value; });
+            },
+            sequence: function(rvs) {
                 var result = new Variable();
                 var handlers = [];
                 for (var i in rvs) {
@@ -76,139 +77,29 @@ define(
                     var args = []
                     for (var i in rvs) {
                         if (rvs[i].value().isempty()) {
+                            result.unset();
                             return;
                         }
                         args.push(rvs[i].value().value());
                     }
-                    result.set(f.apply(null, args));
+                    result.set(args);
                 }
             },
+            sequenceMap: function(rvs, f) {
+                var collected = self.sequence(rvs);
+                var result = collected.lift(function(e){
+                    return f.apply(null, e);
+                });
+                result.dispose = collected.dispose;
+                return result;
+            },
+
+            // TOREVIEW
             or: function() {
                 return logical(arguments, function(a,b){return a||b}, false);
             },
             and: function() {
                 return logical(arguments, function(a,b){return a&&b}, true);
-            },
-            not: function(rv) {
-                return rv.lift(function(value){ return !value; });
-            },
-            rv: {
-                unwrap: function(rv) {
-                    var watermark = 0;
-                    var result = new Variable();
-                    
-                    rv.onEvent(function(e){
-                        watermark++;
-                        if (e[0]==="set") {
-                            var mark = watermark;
-                            e[1].onEvent(function(e){
-                                if (mark!=watermark) return;
-                                if (e[0]==="set") {
-                                    result.set(e[1]);
-                                } else if (e[0]==="unset") {
-                                    result.unset()
-                                } else {
-                                    throw new Error();
-                                }
-                            });
-                        } else if (e[0]==="unset") {
-                            result.unset()
-                        } else {
-                            throw new Error();
-                        }
-                    });
-
-                    return result;
-                }
-            },
-            maybe: {
-                unwrapDefault: function(rv, none) {
-                    if (typeof(none) != "function") {
-                        var obj = none;
-                        none = function() { return obj; }
-                    }
-                    var result = new Variable();
-                    rv.onEvent(function(e){
-                        if (e[0]==="set") {
-                            if (!e[1]["_m_is_maybe"]) throw new Error("Must be a maybe");
-                            if (e[1].isempty()) {
-                                result.set(none());
-                            } else {
-                                result.set(e[1].value());
-                            }
-                        } else if (e[0]==="unset") {
-                            result.set(none());
-                        } else {
-                            throw new Error("Unknown event: " + e[0]);
-                        }
-                    });
-                    return result;
-                },
-                unwrapUnset: function(rv) {
-                    var result = new Variable();
-                    rv.onEvent(function(e){
-                        if (e[0]==="set") {
-                            if (!e[1]["_m_is_maybe"]) {
-                                throw new Error("Must be a maybe");
-                            }
-                            if (e[1].isempty()) {
-                                result.unset();
-                            } else {
-                                result.set(e[1].value());
-                            }
-                        } else if (e[0]==="unset") {
-                            result.unset();
-                        } else {
-                            throw new Error("Unknown event: " + e[0]);
-                        }
-                    });
-                    return result;
-                },
-                unwrap: function(rv, none) {
-                    if (arguments.length==1) {
-                        return self.maybe.unwrapUnset(rv);
-                    } else {
-                        return self.maybe.unwrapDefault(rv, none);
-                    }
-                },
-                lift: function(rv, fn) {
-                    var result = new Variable();
-                    rv.subscribe(function(val){
-                        if (!val["_m_is_maybe"]) throw new Error();
-                        
-                        if (val.isempty()) {
-                            result.set(new adt.maybe.None());
-                        } else {
-                            result.set(new adt.maybe.Some(fn(val.value())));
-                        }
-                    });
-                    return result;
-                },
-                when: function() {
-                    if (arguments.length<3) {
-                        throw new Error();
-                    }
-                    var rv = arguments[0];
-                    var obj = arguments[1];
-                    var fn = arguments[2];
-                    var none = arguments.length==3 ? new adt.maybe.None() : arguments[3];
-
-                    var result = new Variable(none);
-                    rv.subscribe(function(val){
-                        if (!val["_m_is_maybe"]) throw new Error();
-                        
-                        if (val.isempty()) {
-                            result.set(none);
-                        } else {
-                            if (val.hasvalue(obj)) {
-                                result.set(new adt.maybe.Some(fn(val.value())));
-                            } else {
-                                result.set(none);
-                            }
-                        }
-                    });
-                    return result;
-                }
             }
         };
         return self;

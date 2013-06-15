@@ -1,5 +1,6 @@
 define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
     return function(f) {
+        function id(x) { return x; }
         var head = new Variable();
         
         this.root = null;
@@ -7,9 +8,9 @@ define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
         this.baseMark = null;
 
         if (arguments.length==2) {
-            this.head = rv.batch(rv.rv.unwrap(head).coalesce(arguments[1]));
+            this.head = rv.batch(head.bind(id).coalesce(arguments[1]));
         } else {
-            this.head = rv.batch(rv.rv.unwrap(head));
+            this.head = rv.batch(head.bind(id));
         }
         
 
@@ -152,7 +153,7 @@ define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
                 };
             } else {
                 this.isActive = true;
-                var combed = rv.binary([active[0].value.data, active[1].value.data], f);
+                var combed = rv.sequenceMap([active[0].value.data, active[1].value.data], f);
                 var unsubscribe = this.data.follows(combed);
                 this.dispose = function() {
                     unsubscribe();
