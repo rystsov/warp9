@@ -7,7 +7,7 @@ define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
         this.baseMark = null;
 
         if (arguments.length==2) {
-            this.head = rv.batch(rv.coalesce(rv.rv.unwrap(head), arguments[1]));
+            this.head = rv.batch(rv.rv.unwrap(head).coalesce(arguments[1]));
         } else {
             this.head = rv.batch(rv.rv.unwrap(head));
         }

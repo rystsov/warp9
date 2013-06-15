@@ -10,7 +10,9 @@ define(
         },
         render : function(canvas, element) {
             function lift(e) {
-                if (e["rere/reactive/Channel"]) {
+                if (e["_is_html_element"]) {
+                    return flow(e.element);
+                } else if (e["rere/reactive/Channel"]) {
                     return e.lift(function(v){
                         return lift(v);
                     });

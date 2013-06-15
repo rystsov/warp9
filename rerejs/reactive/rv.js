@@ -2,6 +2,26 @@ define(
     ["rere/reactive/Variable", "rere/adt/adt"], 
     function(Variable, adt) {
         var self = {
+            when: function(rv, condition, fn) {
+                if (typeof(fn) != "function") {
+                    fn = (function(obj) { return function() { return obj; }; })(fn);
+                }
+                if (typeof(condition) != "function") {
+                    condition = (function(obj) { return function(x) { return x===obj; }; })(condition);
+                }
+
+                var result = new Variable();
+                rv.onEvent(function(e){
+                    if (e[0]==="set" && condition(e[1])) {
+                        result.set(fn(e[1]));
+                    } else {
+                        result.unset();
+                    }
+                })
+                return result;
+            },
+
+            // TOREVIEW
             log: function(rv, mark) {
                 var result = new Variable();
                 rv.onEvent(function(e){
@@ -11,19 +31,6 @@ define(
                     console.info(e);
                     
                     Variable.replay(result, e, function(x){return x});
-                });
-                return result;
-            },
-            coalesce: function(rv, filler) {
-                var result = new Variable();
-                rv.onEvent(function(e){
-                    if (e[0]==="set") {
-                        result.set(e[1]);
-                    } else if (e[0]==="unset") {
-                        result.set(filler);
-                    } else {
-                        throw new Eror("Unknown event: " + e[0]);
-                    }
                 });
                 return result;
             },
@@ -85,23 +92,6 @@ define(
             not: function(rv) {
                 return rv.lift(function(value){ return !value; });
             },
-            when: function(rv, condition, fn) {
-                if (typeof(fn) != "function") {
-                    var obj = fn;
-                    fn = function() { return obj; }
-                }
-                return rv.lift(function(data){
-                    if (typeof(condition) == "function") {
-                        if (condition(data)) {
-                            return new adt.maybe.Some(fn(data));
-                        } else {
-                            return new adt.maybe.None();
-                        }
-                    } else {
-                        return condition===data ? new adt.maybe.Some(fn(data)) : new adt.maybe.None();
-                    }
-                })
-            },
             rv: {
                 unwrap: function(rv) {
                     var watermark = 0;
@@ -158,7 +148,9 @@ define(
                     var result = new Variable();
                     rv.onEvent(function(e){
                         if (e[0]==="set") {
-                            if (!e[1]["_m_is_maybe"]) throw new Error("Must be a maybe");
+                            if (!e[1]["_m_is_maybe"]) {
+                                throw new Error("Must be a maybe");
+                            }
                             if (e[1].isempty()) {
                                 result.unset();
                             } else {

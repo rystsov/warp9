@@ -1,27 +1,40 @@
-define(function() {
-    return (function(renderer, rv) {
-        var self = this;
-        this.last = null;
-        this.head = null;
-        this.bindto = function(element) {
-            this.head = element;
-            rv.subscribe(function(obj){
+define(
+["rere/reactive/Variable"], 
+function(Variable) {
+
+return (function(renderer, rv) {
+    var self = this;
+    this.last = null;
+    this.head = null;
+    this.bindto = function(element) {
+        this.head = element;
+        
+        rv.onEvent(Variable.handler({
+            set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
                 };
-                self.last = renderer.render(obj);
+                self.last = renderer.render(e);
                 self.last.bindto(element);
-            });
-        };
-        this.place = function(html) {
-            if (this.last==null) {
-                this.head.place(html);
-            } else {
-                this.last.place(html);
+            },
+            unset: function() {
+                if (self.last!=null) {
+                    self.last.remove();
+                    self.last = null;
+                };
             }
-        };
-        this.remove = function() {
-            throw new Error();
-        };
-    });
+        }));
+    };
+    this.place = function(html) {
+        if (this.last==null) {
+            this.head.place(html);
+        } else {
+            this.last.place(html);
+        }
+    };
+    this.remove = function() {
+        throw new Error();
+    };
+});
+
 });
