@@ -1,9 +1,9 @@
 define(
     [
-      "rere/reactive/Variable", "rere/reactive/variable/vector", 
+      "rere/reactive/Variable", 
       "rere/adt/maybe", "rere/ui/view/stickybutton"
     ], 
-    function(Variable, vector, maybe, view) {
+    function(Variable, maybe, view) {
         function StickyButton() {
             this._ui_is = true;
             this._ui_is_stickybutton = true;

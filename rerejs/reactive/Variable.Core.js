@@ -34,10 +34,8 @@ define(["rere/adt/maybe"], function(maybe) {
             return this["rere/reactive/Variable/value"]
         };
         this.raise = function(value) {
-            if (!this["rere/reactive/Variable/value"].hasvalue(value)) {
-                this["rere/reactive/Variable/value"] = new maybe.Some(value)
-                variable.raise(this, ["set", value])
-            }
+            this["rere/reactive/Variable/value"] = new maybe.Some(value)
+            variable.raise(this, ["set", value])
         };
         this.follows = function() {
             var self = this;
