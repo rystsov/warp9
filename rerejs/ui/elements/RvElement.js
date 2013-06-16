@@ -6,10 +6,11 @@ return (function(renderer, rv) {
     var self = this;
     this.last = null;
     this.head = null;
+    this.dispose = function() {};
     this.bindto = function(element) {
         this.head = element;
         
-        rv.onEvent(Variable.handler({
+        self.dispose = rv.onEvent(Variable.handler({
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
@@ -33,7 +34,11 @@ return (function(renderer, rv) {
         }
     };
     this.remove = function() {
-        throw new Error();
+        self.dispose();
+        if (self.last!=null) {
+            self.last.remove();
+            self.last = null;
+        };
     };
 });
 

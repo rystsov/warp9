@@ -19,8 +19,8 @@ define(function() {
             }
         };
         this.remove = function() {
-            for (var i=0;i<this.elements.length;i++) {
-                this.elements[i].remove();
+            for (var i=0;i<elements.length;i++) {
+                elements[i].remove();
             }
         };
     }
