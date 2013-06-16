@@ -4,6 +4,10 @@ define(function() {
             throw new Error();
         };
         this.place = function(html) {
-            container.prepend(html);
+            if (container.childNodes.length==0) {
+                container.appendChild(html);
+            } else {
+                container.insertBefore(html, container.childNodes.item(0));
+            }
         };
 }});

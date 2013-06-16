@@ -1,30 +1,38 @@
-define(["rere/ui/elements/FragmentElement"], function(FragmentElement) {
-    var id = 0;
+define(
+["rere/reactive/Variable", "rere/ui/elements/FragmentElement"], 
+function(Variable, FragmentElement) {
 
-    return (function(element) {
-        var myid = "rere_ui_view_radiobutton_" + (id++);
-        var radio = $(
-            "<input id=\"MYID\" type=\"radio\" name=\"MYID\" />".replace(
-                "MYID", 
-                myid
-        ));
-        var span = $("<span class=\"uiRereRadio\" />");
-        span.append(radio);
-        span.append($(
-            "<label for=\"MYID\">TEXT</label>".
-                replace("MYID", myid).
-                replace("TEXT", element.data.label)
-        ));
-        element.isset.onEvent(function(e){
-            if (e[0]==="set" && e[1]===true) {
-                radio.prop("checked", true);
-            } else {
-                radio.prop("checked", false);
-            }
-        })
-        radio.change(function(){
-            element.isset.set(true);
-        });
-        return new FragmentElement(span);
-    });
+var id = 0;
+return (function(element) {
+    var myid = "rere_ui_view_radiobutton_" + (id++);
+    
+    var span = document.createElement("span");
+    span.classList.add("uiRereRadio");
+
+    var radio = document.createElement("input");
+    radio.id = myid;
+    radio.type = "radio";
+    radio.name = myid;
+
+    var label = document.createElement("label");
+    label.htmlFor = myid;
+    label.appendChild(document.createTextNode(element.data.label));
+
+    span.appendChild(radio);
+    span.appendChild(label);
+    
+    element.isset.onEvent(Variable.handler({
+        set: function(e) {
+            radio.checked = (e===true);
+        },
+        unset: function() {
+            radio.checked = false;
+        }
+    }));
+    radio.addEventListener("change", function() {
+        element.isset.set(radio.checked);
+    }, false);
+    return new FragmentElement(span);
+});
+
 });

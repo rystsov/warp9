@@ -5,29 +5,32 @@ function(maybe, FragmentElement, Variable) {
 var id = 0;
 return (function(element) {
     var myid = "rere_ui_view_checkbutton_" + (id++);
-    var check = $(
-        "<input id=\"MYID\" type=\"checkbox\" />".replace(
-            "MYID", 
-            myid
-    ));
-    var span = $("<span class=\"uiRereCheckbox\" />");
-    span.append(check);
-    span.append($(
-        "<label for=\"MYID\">TEXT</label>".
-            replace("MYID", myid).
-            replace("TEXT", element.data.label)
-    ));
+    
+    var span = document.createElement("span");
+    span.class = "uiRereCheckbox";
+
+    var check = document.createElement("input");
+    check.id = myid;
+    check.type = "checkbox";
+
+    var label = document.createElement("label");
+    label.htmlFor = myid;
+    label.appendChild(document.createTextNode(element.data.label));
+
+    span.appendChild(check);
+    span.appendChild(label);
+    
     element.isset.onEvent(Variable.handler({
         set: function(e) {
-            check.prop("checked", e===true);
+            check.checked = (e===true);
         },
         unset: function() {
-            check.prop("checked", false);
+            check.checked = false;
         }
     }));
-    check.change(function(){
-        element.isset.set(check.prop("checked"));
-    });
+    check.addEventListener("change", function() {
+        element.isset.set(check.checked);
+    }, false);
     return new FragmentElement(span);
 });
 

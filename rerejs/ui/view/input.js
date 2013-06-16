@@ -1,34 +1,38 @@
 define(
-["rere/adt/maybe", "rere/ui/elements/FragmentElement", "rere/reactive/Variable"], 
-function(maybe, FragmentElement, Variable) {
+["rere/ui/jq", "rere/adt/maybe", "rere/ui/elements/FragmentElement", "rere/reactive/Variable"], 
+function(jq, maybe, FragmentElement, Variable) {
     
 return (function(element) {
-    var input = $("<input type='text'/>");
+    var input = document.createElement("input");
+    input.type = "text";
     if ("class" in element.attributes) {
         var cls = element.attributes["class"];
-        
         if (cls["rere/reactive/Channel"]) {
             cls.onEvent(Variable.handler({
                 set: function(e) {
-                    input.removeClass();
-                    input.addClass(e);
+                    jq.removeClass(input);
+                    input.classList.add(e);
                 },
                 unset: function() {
-                    input.removeClass();
+                    jq.removeClass(input);
                 }
             }));
         } else {
-            input.addClass(cls);
+            input.classList.add(cls);
         };
     }
-    element.text.subscribe(function(value){
-        if (input.val()!=value) {
-            input.val(value);
+    element.text.onEvent(Variable.handler({
+        set: function(value) {
+            if (input.value!=value) input.value = value;
+        },
+        unset: function() { 
+            if (input.value!="") input.value = "";
         }
-    });
-    input.bind("input", function(){
-        element.text.set(input.val());
-    });
+    }));
+
+    input.addEventListener("input", function(){
+        element.text.set(input.value);
+    }, false);
     return new FragmentElement(input);
 });
 

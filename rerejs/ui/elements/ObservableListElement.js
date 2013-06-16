@@ -1,6 +1,6 @@
 define(["rere/ui/elements/FragmentElement"], function(FragmentElement) {
     return function(list) {
-        this.last = new FragmentElement($("<span/>"));
+        this.last = new FragmentElement(document.createElement("span"));
         this.head = null;
         this.elements = null;
         this.hash = {};
