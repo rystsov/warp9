@@ -1,6 +1,6 @@
 define(
-["rere/reactive/Variable", "rere/reactive/ReduceTree", "rere/reactive/ChannelWithMemory", "rere/reactive/rv"], 
-function(Variable, ReduceTree, ChannelWithMemory, rv) {
+["rere/reactive/Variable", "rere/reactive/ReduceTree", "rere/reactive/rv"], 
+function(Variable, ReduceTree, rv) {
 
 function ObservableList(data) {
     var self = this;
@@ -8,7 +8,7 @@ function ObservableList(data) {
     this["handlers"] = [];
     this["handlers/id"] = 0;
     this["rere/reactive/ObservableList"] = true;
-    this.list = new ChannelWithMemory();
+    this.list = new Variable();
 
     this.getData = function() {
         return this.data;

@@ -1,4 +1,4 @@
-define(["rere/reactive/Channel", "rere/ui/view/button"], function(Channel, view) {
+define(["rere/ui/view/button"], function(view) {
     return (function() {
         this._ui_is = true;
         this._ui_is_button = true;
