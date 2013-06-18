@@ -1,4 +1,4 @@
-define(["require", "rere/reactive/Variable"], function(require, Variable) {
+define(["require", "rere/reactive/Variable", "rere/reactive/rv"], function(require, Variable, rv) {
     var rv = require("rere/reactive/rv");
     return function(f) {
         function id(x) { return x; }

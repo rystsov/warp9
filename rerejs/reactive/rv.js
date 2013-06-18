@@ -1,6 +1,6 @@
 define(
-    ["require", "rere/reactive/Variable"], 
-    function(require, Variable) {
+    ["require", "rere/reactive/Variable", "rere/reactive/ReduceTree"], 
+    function(require, Variable, ReduceTree) {
         var ReduceTree = require("rere/reactive/ReduceTree");
 
         var self = {
