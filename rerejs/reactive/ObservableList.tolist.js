@@ -1,11 +1,13 @@
-define(
-["rere/reactive/rv", "rere/reactive/ObservableList.Core"], 
-function(rv, ObservableListCore) {
+define([], function() {
+return function(rere) {
 
-var tolist = {
+//var rv = rere.future("reactive/rv");
+var ObservableList = rere.future("reactive/ObservableList");
+
+return {
     rv: {
         list: function(rv) {
-            var list = new ObservableListCore([]);
+            var list = new (ObservableList())([]);
             var keys = {};
             var dispose = function() {};
             rv.onEvent(function(e){
@@ -16,7 +18,7 @@ var tolist = {
                 keys = {};
                 dispose = function() {};
                 if (e[0]==="set") {
-                    dispose = e[1].subscribe(ObservableListCore.handler({
+                    dispose = e[1].subscribe((ObservableList()).handler({
                         data: function(e) { 
                             for (var i in e) {
                                 keys[e[i].key] = true;
@@ -38,6 +40,6 @@ var tolist = {
         }
     }
 };
-return tolist;
 
+};
 });

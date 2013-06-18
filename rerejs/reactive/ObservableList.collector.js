@@ -1,10 +1,11 @@
-define(
-["rere/reactive/ObservableList.Core"], 
-function(ObservableListCore) {
+define([], function() {
+return function(rere) {
+
+var ObservableList = rere.future("reactive/ObservableList");
 
 var collector = {
     add: function(f) {
-        var list = new ObservableListCore([]);
+        var list = new (ObservableList())([]);
         
         var add = {};
         add.value = function(e) {
@@ -83,4 +84,5 @@ var collector = {
 
 return collector;
 
+};
 });

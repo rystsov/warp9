@@ -1,11 +1,12 @@
-define(
-["rere/reactive/ObservableList.Core"], 
-function(ObservableListCore) {
+define([], function() {
+return function(rere) {
+
+var ObservableList = rere.future("reactive/ObservableList");
 
 return function() {
-    var result = new ObservableListCore([]);
+    var result = new (ObservableList())([]);
     var groups = {};
-    this.subscribe(ObservableListCore.handler({
+    this.subscribe((ObservableList()).handler({
         data: function(items) {
             for (var i in items) {
                 this.add(items[i]);
@@ -15,7 +16,7 @@ return function() {
             groups[item.key] = new Object();
             var sublist = item.value, group = groups[item.key];
             group.remap = {};
-            group.dispose = sublist.subscribe(ObservableListCore.handler({
+            group.dispose = sublist.subscribe((ObservableList()).handler({
                 data: function(items) {
                     for (var i in items) {
                         this.add(items[i]);
@@ -38,6 +39,7 @@ return function() {
         }
     }));
     return result;
-}
+};
 
+};
 });

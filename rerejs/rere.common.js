@@ -8,7 +8,4 @@ requirejs.config({
     nodeRequire: require
 });
 
-module.exports = {
-    reactive: requirejs("rere/reactive/reactive"),
-    adt: requirejs("rere/adt/adt")
-};
+module.exports = requirejs("rere/rere");

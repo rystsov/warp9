@@ -1,12 +1,13 @@
-define(
-["rere/reactive/Variable.Core"], 
-function(VariableCore) {
+define([], function() {
+return function(rere) {
 
-var extensions = {
+return {
     coalesce: function(filler) {
+        var Variable = rere.reactive.Variable;
+
         var self = this;
-        var result = new VariableCore();
-        result.onDispose(self.onEvent(VariableCore.handler({
+        var result = new Variable();
+        result.onDispose(self.onEvent(Variable.handler({
             set: function (e) { result.set(e); },
             unset: function () { result.set(filler); }
         })));
@@ -14,6 +15,5 @@ var extensions = {
     }
 };
 
-return extensions;
-
+};
 });

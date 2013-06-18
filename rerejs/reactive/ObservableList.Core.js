@@ -1,21 +1,24 @@
-define(
-["rere/reactive/Variable", "rere/reactive/ReduceTree", "rere/reactive/rv"], 
-function(Variable, ReduceTree, rv) {
+define([], function() {
+return function(rere) {
 
-function ObservableList(data) {
+var Variable = rere.future("reactive/Variable");
+var ReduceTree = rere.future("reactive/ReduceTree");
+//var rv = rere.future("reactive/rv");
+
+var ObservableList = function(data) {
     var self = this;
     this.id = 0;
     this["handlers"] = [];
     this["handlers/id"] = 0;
     this["rere/reactive/ObservableList"] = true;
-    this.list = new Variable();
+    this.list = new (Variable())();
 
     this.getData = function() {
         return this.data;
     };
     this.values = function() {
         return this.data.map(function(e){return e.value;});
-    }
+    };
     this.setData = function(data) {
         this.data = data.map(function(item){
             return {
@@ -29,11 +32,10 @@ function ObservableList(data) {
                 this.data.map(function(x){return x})
             ]);
         }
-        this.list.set(this.data)
+        this.list.set(this.data);
     };
+    
     this.setData(data);
-
-
     this.remove = function(key) {
         var data = [];
         for (var i=0;i<this.data.length;i++){
@@ -100,13 +102,13 @@ function ObservableList(data) {
 
     this.reduceCA = function(f) {
         var args = arguments;
-        var head = new Variable();
+        var head = new (Variable())();
         var result = head.bind(function(x) { return x; });
         var tree = null;
         this.subscribe(ObservableList.handler({
             data: function(e) {
                 head.unset();
-                tree = args.length==1 ? new ReduceTree(f) : new ReduceTree(f, args[1]);
+                tree = args.length==1 ? new (ReduceTree())(f) : new (ReduceTree())(f, args[1]);
                 for (var i in e) {
                     tree.add(e[i].key, e[i].value);
                 }
@@ -116,8 +118,9 @@ function ObservableList(data) {
             remove: function(e) { tree.remove(e); }
         }));
         return result;
-    }
+    };
 };
+
 ObservableList.handler = function(handlers) {
     return function(e) {
         while(true) {
@@ -128,8 +131,9 @@ ObservableList.handler = function(handlers) {
         }
         handlers[e[0]].call(handlers, e[1]);
     };
-}
+};
 
 return ObservableList;
 
+};
 });
