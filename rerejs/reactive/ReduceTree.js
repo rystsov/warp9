@@ -1,4 +1,5 @@
-define(["rere/reactive/Variable", "rere/reactive/rv"], function(Variable, rv) {
+define(["require", "rere/reactive/Variable"], function(require, Variable) {
+    var rv = require("rere/reactive/rv");
     return function(f) {
         function id(x) { return x; }
         var head = new Variable();

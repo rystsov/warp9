@@ -1,6 +1,8 @@
 define(
-    ["rere/reactive/Variable", "rere/adt/adt"], 
-    function(Variable, adt) {
+    ["require", "rere/reactive/Variable"], 
+    function(require, Variable) {
+        var ReduceTree = require("rere/reactive/ReduceTree");
+
         var self = {
             when: function(rv, condition, fn) {
                 if (typeof(fn) != "function") {
@@ -61,16 +63,11 @@ define(
             not: function(rv) {
                 return rv.lift(function(value){ return !value; });
             },
+            // named by Hoogle ("[m a] -> m [a]")
             sequence: function(rvs) {
                 var result = new Variable();
-                var handlers = [];
                 for (var i in rvs) {
-                    handlers.push(rvs[i].onEvent(check));
-                }
-                result.dispose = function() {
-                    for (var i in handlers) {
-                        handlers[i]();
-                    }
+                    result.onDispose(rvs[i].onEvent(check))
                 }
                 return result;
                 function check() {
@@ -90,9 +87,20 @@ define(
                 var result = collected.lift(function(e){
                     return f.apply(null, e);
                 });
-                result.dispose = collected.dispose;
+                result.onDispose(function() { collected.dispose(); });
                 return result;
             },
+            /*merge: function(rvs) {
+                var ts = 0;
+                var tree = new ReduceTree(function(a,b) {
+                    if (a.ts===b.ts) throw new Error();
+                    return a.ts>b.ts ? a : b;
+                });
+                var handlers = [];
+                for (var i in rvs) {
+                    rvs[i]
+                }
+            },*/
 
             // TOREVIEW
             or: function() {

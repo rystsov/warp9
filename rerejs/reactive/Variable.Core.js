@@ -5,6 +5,7 @@ define(["rere/adt/maybe"], function(maybe) {
         this["rere/reactive/Channel/dependants"] = [];
         this["rere/reactive/Channel/dependants/id"] = 0;
         this["rere/reactive/Variable/value"] = new maybe.None();
+        this["rere/reactive/Channel/on/dispose"] = [];
     
         this.T = variable;
         this.subscribe = function(f) {
@@ -14,6 +15,14 @@ define(["rere/adt/maybe"], function(maybe) {
                 }
             });
         };
+        this.onDispose = function(f) {
+            this["rere/reactive/Channel/on/dispose"].push(f);
+        };
+        this.dispose = function() {
+            this["rere/reactive/Channel/on/dispose"].map(function(f){
+                f();
+            });
+        }
         this.onEvent = function(f) {
             var self = this;
             var id = this["rere/reactive/Channel/dependants/id"];
@@ -28,7 +37,7 @@ define(["rere/adt/maybe"], function(maybe) {
                 self["rere/reactive/Channel/dependants"] = self["rere/reactive/Channel/dependants"].filter(function(dependant) {
                     return dependant.key!=id;
                 });
-            }
+            };
         };
         this.value = function() {
             return this["rere/reactive/Variable/value"]
@@ -60,16 +69,16 @@ define(["rere/adt/maybe"], function(maybe) {
 
     variable.prototype.lift = function(f) {
         var channel = new this.T();
-        this.onEvent(function(e){
+        channel.onDispose(this.onEvent(function(e){
             variable.replay(channel, e, f);
-        })
+        }));
         return channel;
     };
 
     variable.prototype.bind = function(f) {
         var result = new variable();
         var dispose = function() {};
-        this.onEvent(variable.handler({
+        result.onDispose(this.onEvent(variable.handler({
             set: function(e) {
                 dispose();
                 dispose = f(e).onEvent(variable.handler(result));
@@ -79,7 +88,8 @@ define(["rere/adt/maybe"], function(maybe) {
                 dispose = function() {};
                 result.unset();
             }
-        }));
+        })));
+        result.onDispose(dispose);
         return result;
     };
 
