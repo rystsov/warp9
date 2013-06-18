@@ -90,17 +90,29 @@ define(
                 result.onDispose(function() { collected.dispose(); });
                 return result;
             },
-            /*merge: function(rvs) {
-                var ts = 0;
+            merge: function(rvs) {
+                var ts = 1;
                 var tree = new ReduceTree(function(a,b) {
-                    if (a.ts===b.ts) throw new Error();
                     return a.ts>b.ts ? a : b;
                 });
-                var handlers = [];
-                for (var i in rvs) {
-                    rvs[i]
-                }
-            },*/
+                var result = self.when(
+                    tree.head, 
+                    function(v) { return v.ts!=0; },
+                    function(v) { return v.value; }
+                );
+                var sources = rvs.map(function(item){ 
+                    var input = item.clone();
+                    var source = input.lift(function(value){
+                        return {ts:ts++, value:value };
+                    }).coalesce({ts:0, value:null });
+                    tree.add("" + ts, source);
+                    return input;
+                });
+                result.onDispose(function(){
+                    sources.map(function(item) { item.dispose(); });
+                });
+                return result;
+            },
 
             // TOREVIEW
             or: function() {

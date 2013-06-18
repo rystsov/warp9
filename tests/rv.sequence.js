@@ -1,10 +1,9 @@
 var rere = require('../rerejs/rere.common');
-var checkObservableList = require('../testutils/ObservableList').checkObservableList;
 
 var Variable = rere.reactive.Variable;
 var rv = rere.reactive.rv;
 
-exports.sequenceLeak = function(test){
+exports.leak = function(test){
     test.expect(6);
 
     var a = new Variable(1);
@@ -23,7 +22,7 @@ exports.sequenceLeak = function(test){
     test.done();
 };
 
-exports.sequenceMapLeak = function(test){
+exports.mapLeak = function(test){
     test.expect(6);
 
     var a = new Variable(1);

@@ -4,11 +4,12 @@ function(VariableCore) {
 
 var extensions = {
     coalesce: function(filler) {
+        var self = this;
         var result = new VariableCore();
-        this.onEvent(VariableCore.handler({
+        result.onDispose(self.onEvent(VariableCore.handler({
             set: function (e) { result.set(e); },
             unset: function () { result.set(filler); }
-        }));
+        })));
         return result;
     }
 };

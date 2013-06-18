@@ -50,9 +50,11 @@ define(["rere/adt/maybe"], function(maybe) {
             var self = this;
             var what = arguments[0];
             var how = arguments.length>1 ? arguments[1] : function(x) { return x; };
-            return what.onEvent(function(e){
+            var dispose = what.onEvent(function(e){
                 variable.replay(self, e, how);
-            })
+            });
+            self.onDispose(dispose);
+            return dispose;
         }
         this.set = function(value) {
             this.raise(value);
@@ -66,6 +68,12 @@ define(["rere/adt/maybe"], function(maybe) {
             this.raise(arguments[0])
         }
     }
+
+    variable.prototype.clone = function(f) {
+        var result = new Variable();
+        result.follows(this);
+        return result;
+    };
 
     variable.prototype.lift = function(f) {
         var channel = new this.T();
