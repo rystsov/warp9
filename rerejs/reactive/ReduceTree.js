@@ -100,7 +100,6 @@ return function(f) {
     };
     this.dump = function() {
         this.checkInited();
-        console.info(dump(this.root));
 
         function dump(node) {
             if (node.isLeaf()) {

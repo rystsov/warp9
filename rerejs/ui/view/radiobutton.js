@@ -1,9 +1,11 @@
-define(
-["rere/reactive/Variable", "rere/ui/elements/FragmentElement"], 
-function(Variable, FragmentElement) {
+define([], function() {
+return function(rere) {
 
 var id = 0;
 return (function(element) {
+    var FragmentElement = rere.ui.elements.FragmentElement;
+    var Variable = rere.reactive.Variable;
+
     var myid = "rere_ui_view_radiobutton_" + (id++);
     
     var span = document.createElement("span");
@@ -35,4 +37,5 @@ return (function(element) {
     return new FragmentElement(span);
 });
 
+};
 });

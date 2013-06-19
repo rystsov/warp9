@@ -13,6 +13,14 @@ rere.future = function(path) {
 		return obj;
 	}
 };
+rere.collect = function(ctors, names) {
+	if (names.length!=ctors.length) throw new Error();
+	var obj = {};
+	for (var i=0;i<names.length;i++) {
+		obj[names[i]] = ctors[i](rere);
+	}
+	return obj;
+};
 rere.adt = adt(rere);
 rere.reactive = reactive(rere);
 return rere;

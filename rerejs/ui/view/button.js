@@ -1,8 +1,9 @@
-define(
-["rere/ui/elements/FragmentElement"], 
-function(FragmentElement) {
+define([], function() {
+return function(rere) {
 
 return (function(element) {
+	var FragmentElement = rere.ui.elements.FragmentElement;
+
     var button = document.createElement("input");
     button.type = "button";
     button.value = element.data.label;
@@ -12,4 +13,5 @@ return (function(element) {
     return new FragmentElement(button);
 });
 
+};
 });

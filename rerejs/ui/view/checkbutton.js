@@ -1,9 +1,11 @@
-define(
-["rere/adt/maybe", "rere/ui/elements/FragmentElement", "rere/reactive/Variable"], 
-function(maybe, FragmentElement, Variable) {
+define([], function() {
+return function(rere) {
 
 var id = 0;
 return (function(element) {
+    var FragmentElement = rere.ui.elements.FragmentElement;
+    var Variable = rere.reactive.Variable;
+
     var myid = "rere_ui_view_checkbutton_" + (id++);
     
     var span = document.createElement("span");
@@ -34,4 +36,5 @@ return (function(element) {
     return new FragmentElement(span);
 });
 
+};
 });

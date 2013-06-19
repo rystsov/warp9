@@ -1,8 +1,10 @@
-define(
-["rere/ui/jq", "rere/ui/elements/FragmentElement"], 
-function(jq, FragmentElement) {
+define([], function() {
+return function(rere) {
 
 return function(){
+    var jq = rere.ui.jq;
+    var FragmentElement = rere.ui.elements.FragmentElement;
+
     var css = {};
     if (arguments.length==1) {
         css = arguments[0]
@@ -29,4 +31,5 @@ return function(){
     }
 };
 
+};
 });

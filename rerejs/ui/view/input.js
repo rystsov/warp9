@@ -1,8 +1,11 @@
-define(
-["rere/ui/jq", "rere/adt/maybe", "rere/ui/elements/FragmentElement", "rere/reactive/Variable"], 
-function(jq, maybe, FragmentElement, Variable) {
-    
+define([], function() {
+return function(rere) {
+
 return (function(element) {
+    var jq = rere.ui.jq;
+    var FragmentElement = rere.ui.elements.FragmentElement;
+    var Variable = rere.reactive.Variable;
+
     var input = document.createElement("input");
     input.type = "text";
     if ("class" in element.attributes) {
@@ -36,4 +39,5 @@ return (function(element) {
     return new FragmentElement(input);
 });
 
+};
 });

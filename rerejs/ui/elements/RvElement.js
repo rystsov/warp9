@@ -1,8 +1,9 @@
-define(
-["rere/reactive/Variable"], 
-function(Variable) {
+define([], function() {
+return function(rere) {
 
 return (function(renderer, rv) {
+    var Variable = rere.reactive.Variable;
+
     var self = this;
     this.last = null;
     this.head = null;
@@ -42,4 +43,5 @@ return (function(renderer, rv) {
     };
 });
 
+};
 });

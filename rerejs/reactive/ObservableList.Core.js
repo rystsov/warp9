@@ -4,6 +4,13 @@ return function(rere) {
 var Variable = rere.future("reactive/Variable");
 var ReduceTree = rere.future("reactive/ReduceTree");
 //var rv = rere.future("reactive/rv");
+var $new = function(f) { 
+    var obj = {}
+    var args = [];
+    for (var i=1;i<arguments.length;i++) args.push(args[i]);
+    (f()).apply(obj, args);
+    return obj;
+};
 
 var ObservableList = function(data) {
     var self = this;
@@ -11,7 +18,8 @@ var ObservableList = function(data) {
     this["handlers"] = [];
     this["handlers/id"] = 0;
     this["rere/reactive/ObservableList"] = true;
-    this.list = new (Variable())();
+    //this.list = new (Variable())();
+    this.list = $new(Variable);
 
     this.getData = function() {
         return this.data;

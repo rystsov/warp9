@@ -1,8 +1,12 @@
-define(
-["rere/ui/jq", "rere/ui/elements/renderer", "rere/ui/elements/Container", "rere/reactive/Variable"], 
-function(jq, renderer, Container, Variable) {
+define([], function() {
+return function(rere) {
 
 return (function(element) {
+    var jq = rere.ui.jq;
+    var Variable = rere.reactive.Variable;
+    var renderer = rere.ui.elements.renderer;
+    var Container = rere.ui.elements.Container;
+
     var span = document.createElement("span");
     for (var name in element.data.attributes) {
         if (name=="css") continue;
@@ -43,4 +47,5 @@ return (function(element) {
     };
 });
 
+};
 });

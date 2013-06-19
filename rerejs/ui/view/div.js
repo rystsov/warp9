@@ -1,8 +1,11 @@
-define(
-["rere/ui/jq", "rere/ui/elements/renderer", "rere/ui/elements/Container"], 
-function(jq, renderer, Container) {
+define([], function() {
+return function() {
 
 return (function(element) {
+    var jq = rere.ui.jq;
+    var renderer = rere.ui.elements.renderer;
+    var Container = rere.ui.elements.Container;
+
     var div = document.createElement("div");
     for (var name in element.data.attributes) {
         if (name=="css") continue;
@@ -43,4 +46,5 @@ return (function(element) {
     };
 });
 
+};
 });
