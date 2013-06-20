@@ -1,6 +1,6 @@
 define(
-["rere/adt/adt", "rere/reactive/reactive"], 
-function(adt, reactive) {
+["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui2"], 
+function(adt, reactive, ui) {
 
 var rere = {}
 rere.future = function(path) {
@@ -23,6 +23,7 @@ rere.collect = function(ctors, names) {
 };
 rere.adt = adt(rere);
 rere.reactive = reactive(rere);
+rere.ui = ui(rere);
 return rere;
 
 });

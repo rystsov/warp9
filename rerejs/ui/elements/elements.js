@@ -1,7 +1,6 @@
 define(
 [
   "rere/ui/elements/Container", 
-  "rere/ui/elements/Element", 
   "rere/ui/elements/FragmentElement", 
   "rere/ui/elements/ListElement", 
   "rere/ui/elements/MaybeElement", 
@@ -10,7 +9,6 @@ define(
   "rere/ui/elements/renderer"], 
 function(
   Container, 
-  Element, 
   FragmentElement, 
   ListElement, 
   MaybeElement, 
@@ -21,7 +19,6 @@ return function(rere) {
 
 return {
     Container: Container(rere), 
-    Element: Element(rere), 
     FragmentElement: FragmentElement(rere), 
     ListElement: ListElement(rere), 
     MaybeElement: MaybeElement(rere), 

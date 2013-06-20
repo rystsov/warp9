@@ -1,5 +1,5 @@
 define([], function() {
-return function() {
+return function(rere) {
 
 return (function(element) {
     var jq = rere.ui.jq;

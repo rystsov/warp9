@@ -1,27 +1,27 @@
-define(
-["rere/ui/elements/FragmentElement", "rere/reactive/Variable"], 
-function(FragmentElement, Variable) {
+define([], function() {
+return function(rere) {
 
-function view(element) {
-    var span = document.createElement("span");
-
-    if (element.text["rere/reactive/Channel"]) {
-        element.text.onEvent(Variable.handler({
-            set: function(e) { setText(span, e); },
-            unset: function() { setText(span, null); }
-        }));
-    } else {
-        setText(span, element.text);
-    }
-    return new FragmentElement(span);
-}
 return (function(text) {
     this._ui_is = true;
     this._ui_is_span = true;
     this.text = text;
-    this.view = view;
-});
+    this.view = function(element) {
+        var FragmentElement = rere.ui.elements.FragmentElement;
+        var Variable = rere.reactive.Variable;
 
+        var span = document.createElement("span");
+
+        if (element.text["rere/reactive/Channel"]) {
+            element.text.onEvent(Variable.handler({
+                set: function(e) { setText(span, e); },
+                unset: function() { setText(span, null); }
+            }));
+        } else {
+            setText(span, element.text);
+        }
+        return new FragmentElement(span);
+    };
+});
 function setText(span, text) {
     while(span.firstChild) {
         span.removeChild(span.firstChild);
@@ -31,4 +31,5 @@ function setText(span, text) {
     }
 }
 
+};
 });

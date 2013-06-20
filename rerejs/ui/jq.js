@@ -1,6 +1,5 @@
-define(
-[], 
-function() {
+define([], function() {
+return function(rere) {
 
 var getComputedStyle = document.defaultView.getComputedStyle;
 
@@ -44,4 +43,5 @@ function dasherize(str) {
            .toLowerCase();
 }
 
+};
 });
