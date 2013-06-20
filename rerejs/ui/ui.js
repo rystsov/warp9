@@ -1,34 +1,25 @@
-define([], function() {
+define(
+[
+  "rere/ui/Button", 
+  "rere/ui/ComboBox", 
+  "rere/ui/Div", 
+  "rere/ui/Input", 
+  "rere/ui/Span",
+  "rere/ui/StickyButton",
+  "rere/ui/Text",
+  "rere/ui/jq",
+  "rere/ui/renderer",
+  "rere/ui/tk",
+  "rere/ui/view/view",
+  "rere/ui/elements/elements"], 
+function() {
+var args = arguments;
 return function(rere) {
 
-return {
-    "button" : function() { return new rere.ui.Button(); },
-    "linkbutton" : function() { 
-        var button = new rere.ui.Button()
-        button.css = function(css) {
-            this.view = rere.ui.view.linkbutton(css);
-            return this;
-        }
-        button.view = rere.ui.view.linkbutton();
-        return button; 
-    },
-    "div" : function() { return new rere.ui.Div(); },
-    "input" : function() { return new rere.ui.Input(); },
-    "span" : function() { return new rere.ui.Span(); },
-    "text" : function(text) { return new rere.ui.Text(text); },
-    "stickybutton" : function() { return new rere.ui.StickyButton(); },
-    "radiobutton" : function() { 
-        var button = new rere.ui.StickyButton();
-        button.view = rere.ui.view.radiobutton;
-        return button; 
-    },
-    "checkbutton" : function() { 
-        var button = new rere.ui.StickyButton();
-        button.view = rere.ui.view.checkbutton;
-        return button; 
-    },
-    "combobox" : function() { return new rere.ui.ComboBox(); }
-};
+return rere.collect(args, [
+  "Button", "ComboBox", "Div", "Input", "Span", "StickyButton", 
+  "Text", "jq", "renderer", "tk", "view", "elements"
+]);
 
 };
 });

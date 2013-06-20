@@ -1,5 +1,5 @@
 define(
-["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui2"], 
+["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui"], 
 function(adt, reactive, ui) {
 
 var rere = {}

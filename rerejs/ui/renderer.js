@@ -9,7 +9,7 @@ return {
         }
     },
     render : function(canvas, element) {
-        var ui = rere.ui.ui;
+        var tk = rere.ui.tk;
         var renderer = rere.ui.elements.renderer;
         var Container = rere.ui.elements.Container;
 
@@ -33,7 +33,7 @@ return {
         function flow(e) {
             if (e instanceof Array ) {
                 if (e[0]=="div") {
-                    var div = ui.div();
+                    var div = tk.div();
                     var i = 1;
                     if (e.length>1) {
                         if ((e[1] instanceof Array)&&(e[1][0]=="@")) {
@@ -62,7 +62,7 @@ return {
                     div.content(content);
                     return div.get();
                 } else if (e[0]=="span") {
-                    var div = ui.span();
+                    var div = tk.span();
                     var i = 1;
                     if (e.length>1) {
                         if ((e[1] instanceof Array)&&(e[1][0]=="@")) {
@@ -85,7 +85,7 @@ return {
                     var content = [];
                     for(;i<e.length;i++) {
                         if (typeof e[i] == 'string' || e[i] instanceof String) {
-                            content.push(ui.text(e[i]));
+                            content.push(tk.text(e[i]));
                         } else {
                             content.push(flow(e[i]));
                         }
@@ -93,7 +93,7 @@ return {
                     div.content(content);
                     return div.get();
                 } else if (e[0]=="combobox") {
-                    return ui.combobox().of(e[1]).default(e[2]).get();
+                    return tk.combobox().of(e[1]).default(e[2]).get();
                 } else {
                     throw new Error();
                 }
