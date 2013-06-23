@@ -1,6 +1,8 @@
 define([], function() {
 return function(rere) {
 
+var knownEvents = {"click": true};
+
 return (function(element) {
     var jq = rere.ui.jq;
     var Variable = rere.reactive.Variable;
@@ -11,6 +13,17 @@ return (function(element) {
     for (var name in element.data.attributes) {
         if (name=="css") continue;
         span.setAttribute(name, element.data.attributes[name]);
+    }
+
+    for (var name in element.data.events) {
+        if (!knownEvents[name]<0) {
+            throw new Error("Unknown event: " + name);
+        }
+        if ("click"==name) {
+            span.addEventListener("click", function(){
+                element.data.events["click"](element);
+            }, false);
+        }
     }
     
     if ("css" in element.data.attributes) {
