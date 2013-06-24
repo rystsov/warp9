@@ -1,10 +1,10 @@
 define([], function() {
 return function(rere) {
 
-var getComputedStyle = document.defaultView.getComputedStyle;
-
 return {
     css: function(self, property, value){
+        var getComputedStyle = document.defaultView.getComputedStyle;
+
         if (arguments.length < 3 && typeof property == 'string') {
             return self.style[camelize(property)] || getComputedStyle(self, '').getPropertyValue(property);
         }

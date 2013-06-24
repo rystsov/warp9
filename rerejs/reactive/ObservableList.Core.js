@@ -1,25 +1,16 @@
 define([], function() {
 return function(rere) {
 
-var Variable = rere.future("reactive/Variable");
-var ReduceTree = rere.future("reactive/ReduceTree");
-//var rv = rere.future("reactive/rv");
-var $new = function(f) { 
-    var obj = {}
-    var args = [];
-    for (var i=1;i<arguments.length;i++) args.push(args[i]);
-    (f()).apply(obj, args);
-    return obj;
-};
-
 var ObservableList = function(data) {
+    var Variable = rere.reactive.Variable;
+    var ReduceTree = rere.reactive.ReduceTree;
+
     var self = this;
     this.id = 0;
     this["handlers"] = [];
     this["handlers/id"] = 0;
     this["rere/reactive/ObservableList"] = true;
-    //this.list = new (Variable())();
-    this.list = $new(Variable);
+    this.list = new Variable();
 
     this.getData = function() {
         return this.data;
@@ -110,13 +101,13 @@ var ObservableList = function(data) {
 
     this.reduceCA = function(f) {
         var args = arguments;
-        var head = new (Variable())();
+        var head = new Variable();
         var result = head.bind(function(x) { return x; });
         var tree = null;
         this.subscribe(ObservableList.handler({
             data: function(e) {
                 head.unset();
-                tree = args.length==1 ? new (ReduceTree())(f) : new (ReduceTree())(f, args[1]);
+                tree = args.length==1 ? new ReduceTree(f) : new ReduceTree(f, args[1]);
                 for (var i in e) {
                     tree.add(e[i].key, e[i].value);
                 }
