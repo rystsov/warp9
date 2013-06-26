@@ -4,15 +4,19 @@ return function(rere) {
 return function(fragment) {
 	var jq = rere.ui.jq;
 
+    this.head = null;
     this.bindto = function(element) {
         element.place(fragment);
+        this.head = element;
     };
     this.place = function(html) {
-        fragment.parentNode.insertBefore(html, fragment.nextSibling);
         jq.after(fragment, html);
     };
     this.remove = function() {
-        html.remove();
+        fragment.remove();
+        this.place = function(html) {
+            this.head.place(html);
+        };
     };
 };
 

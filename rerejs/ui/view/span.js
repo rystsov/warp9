@@ -8,6 +8,7 @@ return (function(element) {
     var Variable = rere.reactive.Variable;
     var renderer = rere.ui.elements.renderer;
     var Container = rere.ui.elements.Container;
+    var FragmentElement = rere.ui.elements.FragmentElement;
 
     var span = document.createElement("span");
     for (var name in element.data.attributes) {
@@ -41,23 +42,13 @@ return (function(element) {
         };
     };
 
-    return {
-        head: null,
-        bindto: function(head) {
-            renderer.render(element.data.content).bindto(new Container(span));
-            head.place(span);
-            this.head = head;
-        },
-        place: function(html) {
-            jq.after(span, html);
-        },
-        remove: function() {
-            jq.remove(span);
-            this.place = function(html) {
-                this.head.place(html);
-            };
-        }
+    var fragment = new FragmentElement(span);
+    var bindto = fragment.bindto;
+    fragment.bindto = function(head) {
+        bindto.apply(fragment, [head]);
+        renderer.render(element.data.content).bindto(new Container(span));
     };
+    return fragment;
 });
 
 };

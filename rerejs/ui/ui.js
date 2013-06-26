@@ -2,6 +2,7 @@ define(
 [
   "rere/ui/HtmlInput", 
   "rere/ui/RadioInput",
+  "rere/ui/Label",
   "rere/ui/Button", 
   "rere/ui/ComboBox", 
   "rere/ui/Div", 
@@ -19,7 +20,7 @@ var args = arguments;
 return function(rere) {
 
 return rere.collect(args, [
-  "HtmlInput", "RadioInput", "Button", "ComboBox", "Div", "Input", "Span", "StickyButton", 
+  "HtmlInput", "RadioInput", "Label", "Button", "ComboBox", "Div", "Input", "Span", "StickyButton", 
   "Text", "jq", "renderer", "tk", "view", "elements"
 ]);
 

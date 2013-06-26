@@ -89,7 +89,7 @@ return (function() {
         if ("css" in element.data.attributes) {
             for (var property in element.data.attributes["css"]) {
                 (function(property, value){
-                    if (value["rere/reactive/Channel"]) {
+                    if (typeof value==="object" && value["rere/reactive/Channel"]) {
                         value.onEvent(Variable.handler({
                             set: function(e) { jq.css(input, property, e); },
                             unset: function() { jq.css(input, property, null); }
