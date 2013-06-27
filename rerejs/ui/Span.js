@@ -2,9 +2,6 @@ define([], function(){
 return function(rere) {
 
 return (function() {
-    var Variable = rere.reactive.Variable;
-    var span = rere.ui.view.span;
-
     var self = this;
     this._ui_is = true;
     this._ui_is_span = true;
@@ -28,7 +25,9 @@ return (function() {
     this.get = function() {
         return this;
     };
-    this.view = span;
+    this.view = function(element){
+        return rere.ui.Element.renderContainer(element, document.createElement("span"));
+    };
 });
 
 };

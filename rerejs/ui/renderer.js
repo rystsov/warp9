@@ -33,66 +33,13 @@ return {
         function flow(e) {
             if (e instanceof Array ) {
                 if (e[0]=="div") {
-                    var div = tk.div();
-                    var i = 1;
-                    if (e.length>1) {
-                        if ((e[1] instanceof Array)&&(e[1][0]=="@")) {
-                            var attributes = {}
-                            var attr = e[1]
-                            for(i=1;i<attr.length;i++) {
-                                if (attr[i][0]=="#visibility") {
-                                    div.visibility.follows(attr[i][1]);
-                                } else if (attr[i][0]=="css") {
-                                    attributes.css = {};
-                                    for (var j=1;j<attr[i].length;j++) {
-                                        attributes.css[attr[i][j][0]] = attr[i][j][1];
-                                    }
-                                } else {
-                                    attributes[attr[i][0]]=attr[i][1];
-                                }
-                            }
-                            div.attributes(attributes);
-                            i=2;
-                        }
-                    }
-                    var content = [];
-                    for(;i<e.length;i++) {
-                        content.push(flow(e[i]));
-                    }
-                    div.content(content);
-                    return div.get();
+                    return initContainer(tk.div(), e, 1).get();
                 } else if (e[0]=="span") {
-                    var div = tk.span();
-                    var i = 1;
-                    if (e.length>1) {
-                        if ((e[1] instanceof Array)&&(e[1][0]=="@")) {
-                            var attributes = {}
-                            var attr = e[1]
-                            for(i=1;i<attr.length;i++) {
-                                if (attr[i][0]=="css") {
-                                    attributes.css = {};
-                                    for (var j=1;j<attr[i].length;j++) {
-                                        attributes.css[attr[i][j][0]] = attr[i][j][1];
-                                    }
-                                } else {
-                                    attributes[attr[i][0]]=attr[i][1];
-                                }
-                            }
-                            div.attributes(attributes);
-                            i=2;
-                        }
-                    }
-                    var content = [];
-                    for(;i<e.length;i++) {
-                        if (typeof e[i] == 'string' || e[i] instanceof String) {
-                            content.push(tk.text(e[i]));
-                        } else {
-                            content.push(flow(e[i]));
-                        }
-                    }
-                    div.content(content);
-                    return div.get();
+                    return initContainer(tk.span(), e, 1).get();
                 } else if (e[0]=="combobox") {
+                    return tk.combobox().of(e[1]).default(e[2]).get();
+                } else if (e[0]=="input-radio") {
+                    rere.ui
                     return tk.combobox().of(e[1]).default(e[2]).get();
                 } else {
                     throw new Error();
@@ -101,6 +48,37 @@ return {
                 return lift(e.element);
             } else {
                 return e;
+            }
+
+            function initContainer(container, html, i) {
+                if (html.length>1) {
+                    if ((html[1] instanceof Array)&&(html[1][0]=="@")) {
+                        var attributes = {}
+                        var attr = html[1]
+                        for(i=1;i<attr.length;i++) {
+                            if (attr[i][0]=="css") {
+                                attributes.css = {};
+                                for (var j=1;j<attr[i].length;j++) {
+                                    attributes.css[attr[i][j][0]] = attr[i][j][1];
+                                }
+                            } else {
+                                attributes[attr[i][0]]=attr[i][1];
+                            }
+                        }
+                        container.attributes(attributes);
+                        i=2;
+                    }
+                }
+                var content = [];
+                for(;i<html.length;i++) {
+                    if (typeof html[i] == 'string' || html[i] instanceof String) {
+                        content.push(tk.text(html[i]));
+                    } else {
+                        content.push(flow(html[i]));
+                    }
+                }
+                container.content(content);
+                return container;
             }
         }
 
