@@ -12,7 +12,29 @@ return {
 	                view.checked = false; 
 	            }
 	        };
-	    }
+	    }, 
+        value: function(view, value) {
+            return {
+                set: function(v) {
+                    if (view.value!=v) view.value = v;
+                },
+                unset: function() {
+                    if (input.value!="") input.value = "";
+                }
+            };
+        },
+        "class": function(view, value) {
+            var jq = rere.ui.jq;
+            return {
+                set: function(v) {
+                    jq.removeClass(view);
+                    view.classList.add(v);
+                },
+                unset: function() {
+                    jq.removeClass(view);
+                }
+            };
+        }
 	}),
     renderSingle: function(element, view) {
         var jq = rere.ui.jq;

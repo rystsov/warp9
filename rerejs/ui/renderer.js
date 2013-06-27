@@ -8,10 +8,7 @@ return {
             element: element
         }
     },
-    render : function(canvas, element) {
-        var renderer = rere.ui.elements.renderer;
-        var Container = rere.ui.elements.Container;
-
+    parse: function(element) {
         function lift(e) {
             if (e["_is_html_element"]) {
                 return flow(e.element);
@@ -41,6 +38,8 @@ return {
                     return initSingle(new rere.ui.RadioInput(e[1]), e, 2).get();
                 } else if (e[0]=="input-check") {
                     return initSingle(new rere.ui.CheckInput(e[1]), e, 2).get();
+                } else if (e[0]=="input-text") {
+                    return initSingle(new rere.ui.TextInput(e[1]), e, 2).get();
                 } else if (e[0]=="label") {
                     return initContainer(new rere.ui.Label(), e, 1).get();
                 } else {
@@ -98,15 +97,20 @@ return {
                                 attributes[attr[k][0]]=attr[k][1];
                             }
                         }
-                        container.attributes(attributes);
+                        element.attributes(attributes);
                         i++;
                     }
                 }
                 return element;
             }
         }
+        return flow(element);
+    },
+    render : function(canvas, element) {
+        var renderer = rere.ui.elements.renderer;
+        var Container = rere.ui.elements.Container;
 
-        renderer.render(flow(element)).bindto(new Container(canvas));
+        renderer.render(this.parse(element)).bindto(new Container(canvas));
     }
 };
 
