@@ -33,13 +33,22 @@ return {
                 } else if (e[0]=="span") {
                     return initContainer(new rere.ui.Span(), e, 1).get();
                 } else if (e[0]=="combobox") {
-                    return new rere.ui.ComboBox().of(e[1]).default(e[2]).get();
+                    var combobox = new rere.ui.ComboBox(e[2]);
+                    combobox.content(e[1].map(function(item) {
+                        var option = new rere.ui.Option();
+                        option.attributes({
+                            value: item[1]
+                        });
+                        option.content([item[0]]);
+                        return option.get();
+                    }));
+                    return combobox.get();
                 } else if (e[0]=="input-radio") {
-                    return initSingle(new rere.ui.RadioInput(e[1]), e, 2).get();
+                    return initSingle(new rere.ui.InputRadio(e[1]), e, 2).get();
                 } else if (e[0]=="input-check") {
-                    return initSingle(new rere.ui.CheckInput(e[1]), e, 2).get();
+                    return initSingle(new rere.ui.InputCheck(e[1]), e, 2).get();
                 } else if (e[0]=="input-text") {
-                    return initSingle(new rere.ui.TextInput(e[1]), e, 2).get();
+                    return initSingle(new rere.ui.InputText(e[1]), e, 2).get();
                 } else if (e[0]=="label") {
                     return initContainer(new rere.ui.Label(), e, 1).get();
                 } else {

@@ -1,37 +1,25 @@
-define([], function() {
+define([], function(){
 return function(rere) {
-    
-return (function() {
-    var Variable = rere.reactive.Variable;
-    var combobox = rere.ui.view.combobox;
-    
-    this._ui_is = true;
+
+return (function(state) {
+    rere.ui.Element.ctor.apply(this);
+
     this._ui_is_combobox = true;
-    this.value = null;
-    this.values = [];
-    this._default = null;
-    this.default = function(value) {
-        if (value["rere/reactive/Variable"]) {
-            this.value = value;
-        } else if (value["rere/reactive/Channel"]) {
-            throw new Error();
-        } else {
-            this.value = new Variable();
-            this.value.set(value);
-        }
-        return this;
-    };
-    this.of = function(values) {
-        this.values = values;
-        return this;
-    };
+    
     this.get = function() {
-        if (this.value==null) {
-            throw new Error();
-        }
+        var self = this;
+        this.data.attributes.value = state;
+        var change = "change" in this.data.events ? this.data.events.change : function(){};
+        this.data.events.change = function(control, view) {
+            change.apply(self.data.events, [control, view]);
+            state.set(view.value);
+        };
         return this;
     };
-    this.view = combobox;
+    
+    this.view = function(element){
+        return rere.ui.Element.renderContainer(element, document.createElement("select"));
+    };
 });
 
 };
