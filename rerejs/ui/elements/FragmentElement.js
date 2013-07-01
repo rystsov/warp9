@@ -13,7 +13,7 @@ return function(fragment) {
         jq.after(fragment, html);
     };
     this.remove = function() {
-        fragment.remove();
+        jq.remove(fragment);
         this.place = function(html) {
             this.head.place(html);
         };

@@ -27,7 +27,11 @@ return {
         self.parentNode.insertBefore(element, self.nextSibling);
     },
     remove: function(self) {
-        self.parentNode.removeChild(self);
+        try {
+            self.parentNode.removeChild(self);
+        } catch (e) {
+            throw e;
+        }
     }
 };
 

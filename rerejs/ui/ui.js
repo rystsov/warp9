@@ -6,6 +6,7 @@ define(
   "rere/ui/InputCheck",
   "rere/ui/InputText",
   "rere/ui/Label",
+  "rere/ui/Form",
 
   "rere/ui/ComboBox", 
   "rere/ui/Option", 
@@ -17,14 +18,15 @@ define(
 
   "rere/ui/StickyButton", 
 
-  "rere/ui/elements/elements"], 
+  "rere/ui/elements/elements",
+  "rere/ui/hacks"],
 function() {
 var args = arguments;
 return function(rere) {
 
 return rere.collect(args, [
-  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "ComboBox", 
-  "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements"
+  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "Form", "ComboBox",
+  "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
 };

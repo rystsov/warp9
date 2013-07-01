@@ -27,6 +27,9 @@ return {
             }
         }
         function flow(e) {
+            if (e==undefined) {
+                var hook = true;
+            }
             if (e instanceof Array ) {
                 if (e[0]=="div") {
                     return initContainer(new rere.ui.Div(), e, 1).get();
@@ -51,7 +54,9 @@ return {
                     return initSingle(new rere.ui.InputText(e[1]), e, 2).get();
                 } else if (e[0]=="label") {
                     return initContainer(new rere.ui.Label(), e, 1).get();
-                } else {
+                } else if (e[0]=="form") {
+                    return initContainer(new rere.ui.Form(), e, 1).get();
+                } else if (e[0]=="span") {
                     throw new Error();
                 }
             } else if (e["_is_html_element"]) {
@@ -61,41 +66,38 @@ return {
             }
 
             function initContainer(container, html, i) {
-                if (html.length>i) {
-                    if ((html[i] instanceof Array)&&(html[i][0]=="@")) {
-                        var attributes = {}
-                        var attr = html[i]
-                        for(var k=1;k<attr.length;k++) {
-                            if (attr[k][0]=="css") {
-                                attributes.css = {};
-                                for (var j=1;j<attr[k].length;j++) {
-                                    attributes.css[attr[k][j][0]] = attr[k][j][1];
-                                }
-                            } else {
-                                attributes[attr[k][0]]=attr[k][1];
-                            }
-                        }
-                        container.attributes(attributes);
-                        i++;
-                    }
-                }
-                var content = [];
-                for(;i<html.length;i++) {
-                    if (typeof html[i] == 'string' || html[i] instanceof String) {
-                        content.push(new rere.ui.Text(html[i]));
+                var html = parseSpecial(html, i);
+                if (html.attributes) container.attributes(html.attributes);
+                if (html.events) container.events(html.events);
+
+                container.content(html.casual.map(function(item){
+                    if (typeof item == 'string' || item instanceof String) {
+                        return new rere.ui.Text(item);
                     } else {
-                        content.push(flow(html[i]));
+                        return flow(item);
                     }
-                }
-                container.content(content);
+                }));
                 return container;
             }
 
             function initSingle(element, html, i) {
-                if (html.length>i) {
-                    if ((html[i] instanceof Array)&&(html[i][0]=="@")) {
+                var html = parseSpecial(html, i);
+                if (html.attributes) element.attributes(html.attributes);
+                if (html.events) element.events(html.events);
+                return element;
+            }
+
+            function parseSpecial(args, begin) {
+                var result = {
+                    /*attributes: {},
+                    events: {},*/
+                    casual: []
+                };
+                for (var i=begin;i<args.length;i++) {
+                    if ((args[i] instanceof Array)&&(args[i][0]=="@")) {
+                        if (result.attributes) throw new Error("attributes may be set only once");
                         var attributes = {}
-                        var attr = html[i]
+                        var attr = args[i]
                         for(var k=1;k<attr.length;k++) {
                             if (attr[k][0]=="css") {
                                 attributes.css = {};
@@ -105,12 +107,20 @@ return {
                             } else {
                                 attributes[attr[k][0]]=attr[k][1];
                             }
-                        }
-                        element.attributes(attributes);
-                        i++;
+                        };
+                        result.attributes = attributes;
+                        continue;
                     }
+                    if ((args[i] instanceof Array)&&(args[i][0]=="!")) {
+                        if (result.events) throw new Error("events may be set only once");
+                        if (args[i].length==2) {
+                            result.events = args[i][1];
+                        }
+                        continue;
+                    }
+                    result.casual.push(args[i]);
                 }
-                return element;
+                return result;
             }
         }
         return flow(element);

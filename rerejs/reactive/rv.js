@@ -29,6 +29,7 @@ var self = {
         var result = new (Variable())();
         var isBatching = false;
         var lastEvent = null;
+        result.core = rv;
         result.batch = function(){
             isBatching = true;
             lastEvent = null;

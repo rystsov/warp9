@@ -48,9 +48,11 @@ return {
         }
         
         for (var name in element.data.events) {
-            view.addEventListener(name, function() {
-                element.data.events[name](self, view);
-            }, false);
+            (function(name){
+                view.addEventListener(name, function(event) {
+                    element.data.events[name](self, view, event);
+                }, false);
+            })(name);
         }
 
         if ("css" in element.data.attributes) {
