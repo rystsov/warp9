@@ -1,7 +1,5 @@
 <html>
     <head>
-        <style type="text/css">
-        </style>
         <script src="../require.js"></script>
         <script type="text/javascript">
             require.config({
@@ -12,52 +10,109 @@
         </script>
     </head>
     <body>
-        <div id="canvas">
-        </div>
+        <div id="canvas"></div>
     </body>
     <script type="text/javascript">
         require(
             ["rere/rere"], 
             function(rere) {
-                var canvas = document.getElementById("canvas");
-                var renderer = rere.ui.renderer;
                 var Variable = rere.reactive.Variable;
+                var ObservableList = rere.reactive.ObservableList;
                 var hacks = rere.ui.hacks;
                 var rv = rere.reactive.rv;
-                var H = renderer.h;
+                var H = rere.ui.renderer.h;
 
-                renderer.render(canvas, 
+                var obj = {};
+                obj.list = new ObservableList([]);
+                obj.toggleAll = new Variable();
+
+                var toggleEvent = rv.event(obj.toggleAll);
+                var toggleAgg = rv.batch(obj.list.lift(function(item){ return item.mark; }).reduceCA(function(a,b){
+                    return a && b;
+                }).coalesce(false));
+
+                toggleAgg.subscribe(function(state){
+                    obj.toggleAll.set(state);
+                });
+
+                toggleEvent.bind(function(event){
+                    return toggleAgg.bind(function(state){
+                        if (event && state) return new Variable();
+                        if (!event && !state) return new Variable();
+                        if (!event && state) return new Variable(event);
+                        if (event && !state) return new Variable(event);
+                    });
+                }).subscribe(function(change){
+                    toggleAgg.batch();
+                    obj.list.getData().map(function(item){
+                        item.value.mark.set(change);
+                    });
+                    toggleAgg.commit();
+                });
+
+                rere.ui.renderer.render(canvas,
                 ["div", 
                     ["@", 
                         ["css", 
                             ["width", "500px"],["background-color", "azure"]]
                     ],
-                    (function(name){
-                        var control = new Variable();
-                        function label() {
-                            control.set(H(renderer.parse(
-                                ["span", ["!", { dblclick: textbox }], new rere.ui.Text(name)]
-                            )));
-                            name.commit();
-                        }
-                        function textbox() {
-                            name.batch();
-                            control.set(H(renderer.parse(
-                                ["input-text", name.core, ["!", {blur: hacks.unrecursion(label)}]]
-                            )));
-                        }
 
-                        label();
+                    (function(){
+                        var name = new Variable("");
                         return ["div",
                             ["form",
                                 ["!", {submit: function(element, view, event){
                                     event.preventDefault();
-                                    label();
+                                    if (name.value().value()==="") return;
+                                    obj.list.add(function(id){
+                                        return {
+                                            mark: new Variable(false),
+                                            name: rv.batch(new Variable(name.value().value())),
+                                            remove: function() { obj.list.remove(id); }
+                                        };
+                                    });
+                                    name.set("");
                                 }}],
-                                H(control)]
-                        ];
-                    })(rv.batch(new Variable("TodoMVC")))
+                                ["input-text", name, ["@", ["placeholder", "What needs to be done?"]]]],
+                            H(rv.when(obj.list.list, function(list) { return list.length > 0 }, H(
+                                ["div",
+                                    ["input-check", obj.toggleAll]]
+                            ))),
+                            H(obj.list.lift(function(item){
+                                return H(ITEM(item))
+                            }))];
+                    })()
                 ]);
+
+                function ITEM(item) {
+                    var control = new Variable();
+                    var label = hacks.unrecursion(function() {
+                        control.set(H(renderer.parse(
+                                ["div",
+                                    ["input-check", item.mark],
+                                    ["label",
+                                        ["!", { dblclick: textbox }],
+                                        ["@", ["css", [
+                                            "text-decoration", rv.when(item.mark, true, "line-through", "none")]]],
+                                        new rere.ui.Text(item.name)],
+                                    ["button", ["!", {click: item.remove}]]]
+                        )));
+                        item.name.commit();
+                    });
+                    function textbox() {
+                        item.name.batch();
+                        control.set(H(renderer.parse(
+                                ["form",
+                                    ["!", {submit: function(element, view, event){
+                                        event.preventDefault();
+                                        label();
+                                    }}],
+                                    ["input-text", item.name.core, ["!", {blur: label}]]]
+                        )));
+                    }
+                    label();
+                    return H(control);
+                }
             }
         );
     </script>

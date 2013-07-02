@@ -7,6 +7,7 @@ define(
   "rere/ui/InputText",
   "rere/ui/Label",
   "rere/ui/Form",
+  "rere/ui/Button",
 
   "rere/ui/ComboBox", 
   "rere/ui/Option", 
@@ -25,8 +26,8 @@ var args = arguments;
 return function(rere) {
 
 return rere.collect(args, [
-  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "Form", "ComboBox",
-  "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
+  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "Form", "Button",
+  "ComboBox", "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
 };

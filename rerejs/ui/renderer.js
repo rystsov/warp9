@@ -54,6 +54,8 @@ return {
                     return initSingle(new rere.ui.InputText(e[1]), e, 2).get();
                 } else if (e[0]=="label") {
                     return initContainer(new rere.ui.Label(), e, 1).get();
+                } else if (e[0]=="button") {
+                    return initContainer(new rere.ui.Button(), e, 1).get();
                 } else if (e[0]=="form") {
                     return initContainer(new rere.ui.Form(), e, 1).get();
                 } else if (e[0]=="span") {

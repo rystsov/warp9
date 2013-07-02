@@ -5,7 +5,8 @@ var Variable = rere.future("reactive/Variable");
 var ReduceTree = rere.future("reactive/ReduceTree");
 
 var self = {
-    when: function(rv, condition, fn) {
+    when: function(rv, condition, fn, alt) {
+
         if (typeof(fn) != "function") {
             fn = (function(obj) { return function() { return obj; }; })(fn);
         }
@@ -20,8 +21,30 @@ var self = {
             } else {
                 result.unset();
             }
-        })
-        return result;
+        });
+        return arguments.length===4 ? result.coalesce(alt) : result;
+    },
+    sticky: function(rv) {
+        var raise = rv.raise;
+
+        rv.raise = function(value) {
+            if (!rv.value().isempty() && rv.value().value()!=value) {
+                raise.apply(rv, [value]);
+            }
+        };
+
+        return rv;
+    },
+    event: function(rv) {
+        var event = new (Variable())();
+        rv.onEvent(Variable().handler({
+            set: function(v) {
+                event.set(v);
+                event.unset();
+            },
+            unset: function(){}
+        }))
+        return event;
     },
     batch: function(rv) {
         var id = function(x){ return x; }
