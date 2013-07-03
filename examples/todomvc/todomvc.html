@@ -1,5 +1,7 @@
 <html>
     <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="base.css">
         <script src="../require.js"></script>
         <script type="text/javascript">
             require.config({
@@ -50,14 +52,14 @@
                 });
 
                 renderer.render(canvas,
-                ["div", 
-                    ["@",["css", ["width", "500px"],["background-color", "azure"]]],
-                    (function(){
+                ["section", ["@", ["id", "todoapp"]],
+                    (function() {
                         var name = new Variable("");
-                        return ["div",
-                            ["form",
-                                ["!", {submit: function(element, view, event){
-                                    event.preventDefault();
+                        return ["header", ["@", ["id", "header"]],
+                            ["h1", "todos"],
+                            ["input-text", name,
+                                ["@", ["id", "new-todo"], ["placeholder", "What needs to be done?"]],
+                                ["!", {"key:enter": function(){
                                     if (name.value().value()==="") return;
                                     obj.list.add(function(id){
                                         return {
@@ -67,21 +69,34 @@
                                         };
                                     });
                                     name.set("");
-                                }}],
-                                ["input-text", name, ["@", ["placeholder", "What needs to be done?"]]]],
+                                }}]]]
+                    })(),
+
+                    (function(){
+                        return ["section", ["@", ["id", "main"]],
+                            ["ul", ["@", ["id", "todo-list"]],
+                                H(obj.list.lift(function(item){
+                                    return H(H(obj.activeTab.bind(function(tab){
+                                        return item.mark.bind(function(mark){
+                                            if (tab==="All") return new Variable(item);
+                                            if (tab==="Active" && !mark) return new Variable(item);
+                                            if (tab==="Completed" && mark) return new Variable(item);
+                                            return new Variable();
+                                        });
+                                    }).lift(function(item){ return H(ITEM(item)); })));
+                                }))
+                            ]
+                        ];
+                    })(),
+
+
+
+
+                    (function(){
+                        return ["div",
                             H(rv.when(obj.list.list, function(list) { return list.length > 0 }, H(
                                 ["div", ["input-check", obj.toggleAll]]
                             ))),
-                            H(obj.list.lift(function(item){
-                                return H(H(obj.activeTab.bind(function(tab){
-                                    return item.mark.bind(function(mark){
-                                        if (tab==="All") return new Variable(item);
-                                        if (tab==="Active" && !mark) return new Variable(item);
-                                        if (tab==="Completed" && mark) return new Variable(item);
-                                        return new Variable();
-                                    });
-                                }).lift(function(item){ return H(ITEM(item)); })));
-                            })),
                             H(obj.leftCompleted.lift(function(v){
                                 var html = ["div",
                                     ["span", "" + v[0] + " " + (v[0]===1? "item left" : "items left")],
@@ -114,26 +129,24 @@
                     var control = new Variable();
                     var label = hacks.unrecursion(function() {
                         control.set(H(renderer.parse(
-                                ["div",
-                                    ["input-check", item.mark],
-                                    ["label",
-                                        ["!", { dblclick: textbox }],
-                                        ["@", ["css", [
-                                            "text-decoration", rv.when(item.mark, true, "line-through", "none")]]],
-                                        new rere.ui.Text(item.name)],
-                                    ["button", ["!", {click: item.remove}]]]
+                            H(["li",
+                                ["input-check", item.mark, ["@", ["class", "toggle"]]],
+                                ["label",
+                                    ["!", { dblclick: textbox }],
+                                    ["@", ["css", [
+                                        "text-decoration", rv.when(item.mark, true, "line-through", "none")]]],
+                                    new rere.ui.Text(item.name)],
+                                ["button", ["!", {click: item.remove}], ["@", ["class", "destroy"]]]])
                         )));
                         item.name.commit();
                     });
                     function textbox() {
                         item.name.batch();
                         control.set(H(renderer.parse(
-                                ["form",
-                                    ["!", {submit: function(element, view, event){
-                                        event.preventDefault();
-                                        label();
-                                    }}],
-                                    ["input-text", item.name.core, ["!", {blur: label}]]]
+                            ["li", ["@", ["class", "editing"]],
+                                ["input-text", item.name.core,
+                                    ["@", ["class", "edit"]],
+                                    ["!", {blur: label, "key:enter": label}]]]
                         )));
                     }
                     label();

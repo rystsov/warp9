@@ -64,6 +64,14 @@ return {
                     return initContainer(new rere.ui.Li(), e, 1).get();
                 } else if (e[0]=="a") {
                     return initContainer(new rere.ui.A(), e, 1).get();
+                } else if (e[0]=="section") {
+                    return initContainer(new rere.ui.Section(), e, 1).get();
+                } else if (e[0]=="header") {
+                    return initContainer(new rere.ui.Header(), e, 1).get();
+                } else if (e[0]=="footer") {
+                    return initContainer(new rere.ui.Footer(), e, 1).get();
+                } else if (e[0]=="h1") {
+                    return initContainer(new rere.ui.H1(), e, 1).get();
                 } else if (e[0]=="span") {
                     throw new Error();
                 }

@@ -30,26 +30,24 @@ var obj = rere.collect(args, [
   "ComboBox", "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
-obj.Ul = function() {
-    rere.ui.Element.ctor.apply(this);
-    this.view = function(element){
-        return rere.ui.Element.renderContainer(element, document.createElement("ul"));
-    };
-};
-obj.Li = function() {
-    rere.ui.Element.ctor.apply(this);
-    this.view = function(element){
-        return rere.ui.Element.renderContainer(element, document.createElement("li"));
-    };
-}
-obj.A = function() {
-    rere.ui.Element.ctor.apply(this);
-    this.view = function(element){
-        return rere.ui.Element.renderContainer(element, document.createElement("a"));
-    };
-}
+obj.Ul = container("ul");
+obj.Li = container("li");
+obj.A = container("a");
+obj.Section = container("section");
+obj.Header = container("header");
+obj.Footer = container("footer");
+obj.H1 = container("h1");
 
 return obj;
+
+function container(tag) {
+    return function() {
+        rere.ui.Element.ctor.apply(this);
+        this.view = function(element){
+            return rere.ui.Element.renderContainer(element, document.createElement(tag));
+        };
+    };
+}
 
 };
 });

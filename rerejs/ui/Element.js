@@ -49,9 +49,17 @@ return {
         
         for (var name in element.data.events) {
             (function(name){
-                view.addEventListener(name, function(event) {
-                    element.data.events[name](self, view, event);
-                }, false);
+                if (name == "key:enter") {
+                    view.addEventListener("keypress", function(event) {
+                        if (event.keyCode == 13) {
+                            element.data.events[name](self, view, event);
+                        }
+                    }, false);
+                } else {
+                    view.addEventListener(name, function(event) {
+                        element.data.events[name](self, view, event);
+                    }, false);
+                }
             })(name);
         }
 
