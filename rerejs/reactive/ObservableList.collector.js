@@ -3,7 +3,7 @@ return function(rere) {
 
 var ObservableList = rere.future("reactive/ObservableList");
 
-var collector = {
+return {
     add: function(f) {
         var list = new (ObservableList())([]);
         
@@ -14,22 +14,10 @@ var collector = {
             })
         };
         add.rv = function(rv) {
-            var lastKey = null;
-            rv.onEvent(function(e){
-                if (lastKey!=null) {
-                    list.remove(lastKey);
-                    lastKey = null;
-                }
-                if (e[0]==="set") {
-                    list.add(function(key){
-                        lastKey = key;
-                        return e[1];
-                    });
-                }
-            });
+            list.addRv(rv);
         };
         add.list = function(item) {
-            collector.addList.call(list, item);
+            list.addList(item);
         };
         add.rv.maybe = function(rv) {
             var lastKey = null;
@@ -49,12 +37,31 @@ var collector = {
                 }
             });
         };
-        add.rv.maybe.list = function(rv) {
-
-        };
 
         f(add);
         return list;
+    },
+    addRv: function(item) {
+        var list = this;
+        var lastKey = null;
+        var dispose = item.onEvent(function(e){
+            if (lastKey!=null) {
+                list.remove(lastKey);
+                lastKey = null;
+            }
+            if (e[0]==="set") {
+                list.add(function(key){
+                    lastKey = key;
+                    return e[1];
+                });
+            }
+        });
+        return function() {
+            dispose();
+            if (lastKey!=null) {
+                list.remove(lastKey);
+            }
+        };
     },
     addList: function(item) {
         var list = this;
@@ -81,8 +88,6 @@ var collector = {
         });
     }
 };
-
-return collector;
 
 };
 });

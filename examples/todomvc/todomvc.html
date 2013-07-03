@@ -16,31 +16,30 @@
         require(
             ["rere/rere"], 
             function(rere) {
+                var renderer = rere.ui.renderer;
                 var Variable = rere.reactive.Variable;
-                var ObservableList = rere.reactive.ObservableList;
                 var hacks = rere.ui.hacks;
                 var rv = rere.reactive.rv;
                 var H = rere.ui.renderer.h;
 
                 var obj = {};
-                obj.list = new ObservableList([]);
+                obj.list = new rere.reactive.ObservableList([]);
                 obj.toggleAll = new Variable();
+                obj.leftCompleted = obj.list.lift(function(item){ return item.mark.lift(function(state){
+                    return state ? [0,1] : [1,0];
+                }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
+                obj.activeTab = new Variable("All"); // All, Active, Completed
 
                 var toggleEvent = rv.event(obj.toggleAll);
                 var toggleAgg = rv.batch(obj.list.lift(function(item){ return item.mark; }).reduceCA(function(a,b){
                     return a && b;
                 }).coalesce(false));
 
-                toggleAgg.subscribe(function(state){
-                    obj.toggleAll.set(state);
-                });
+                obj.toggleAll.follows(toggleAgg);
 
                 toggleEvent.bind(function(event){
                     return toggleAgg.bind(function(state){
-                        if (event && state) return new Variable();
-                        if (!event && !state) return new Variable();
-                        if (!event && state) return new Variable(event);
-                        if (event && !state) return new Variable(event);
+                        return event==state ? new Variable() : new Variable(event);
                     });
                 }).subscribe(function(change){
                     toggleAgg.batch();
@@ -50,13 +49,9 @@
                     toggleAgg.commit();
                 });
 
-                rere.ui.renderer.render(canvas,
+                renderer.render(canvas,
                 ["div", 
-                    ["@", 
-                        ["css", 
-                            ["width", "500px"],["background-color", "azure"]]
-                    ],
-
+                    ["@",["css", ["width", "500px"],["background-color", "azure"]]],
                     (function(){
                         var name = new Variable("");
                         return ["div",
@@ -75,12 +70,36 @@
                                 }}],
                                 ["input-text", name, ["@", ["placeholder", "What needs to be done?"]]]],
                             H(rv.when(obj.list.list, function(list) { return list.length > 0 }, H(
-                                ["div",
-                                    ["input-check", obj.toggleAll]]
+                                ["div", ["input-check", obj.toggleAll]]
                             ))),
                             H(obj.list.lift(function(item){
                                 return H(ITEM(item))
-                            }))];
+                            })),
+                            H(obj.leftCompleted.lift(function(v){
+                                var html = ["div",
+                                    ["span", "" + v[0] + " " + (v[0]===1? "item left" : "items left")],
+                                    ["ul",
+                                        ["li", tabSwitch("All")],
+                                        ["li", tabSwitch("Active")],
+                                        ["li", tabSwitch("Completed")]]
+                                ];
+                                if (v[1]>0) html.push(["button",
+                                    ["!", {click: function(){}}],
+                                    "Clear completed (" + v[1] + ")"
+                                ]);
+                                return H(html);
+
+                                function tabSwitch(tabName) {
+                                    return ["a",
+                                        ["@",
+                                            ["href", "#"],
+                                            ["class", rv.when(obj.activeTab, tabName, "selected")]],
+                                        ["!", {click: function() { obj.activeTab.set(tabName); }}],
+                                        tabName
+                                    ];
+                                }
+                            }))
+                        ];
                     })()
                 ]);
 

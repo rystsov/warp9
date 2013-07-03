@@ -8,6 +8,7 @@ var packrat = collector(rere);
 
 ObservableList.collector = packrat.add;
 ObservableList.prototype.addList = packrat.addList;
+ObservableList.prototype.addRv = packrat.addRv;
 ObservableList.prototype.flatten = flatten(rere);
 ObservableList.tolist = tolist(rere);
 

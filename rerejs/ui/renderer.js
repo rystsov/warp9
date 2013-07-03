@@ -58,6 +58,12 @@ return {
                     return initContainer(new rere.ui.Button(), e, 1).get();
                 } else if (e[0]=="form") {
                     return initContainer(new rere.ui.Form(), e, 1).get();
+                } else if (e[0]=="ul") {
+                    return initContainer(new rere.ui.Ul(), e, 1).get();
+                } else if (e[0]=="li") {
+                    return initContainer(new rere.ui.Li(), e, 1).get();
+                } else if (e[0]=="a") {
+                    return initContainer(new rere.ui.A(), e, 1).get();
                 } else if (e[0]=="span") {
                     throw new Error();
                 }

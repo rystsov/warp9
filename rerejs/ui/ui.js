@@ -25,10 +25,31 @@ function() {
 var args = arguments;
 return function(rere) {
 
-return rere.collect(args, [
+var obj = rere.collect(args, [
   "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "Form", "Button",
   "ComboBox", "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
+
+obj.Ul = function() {
+    rere.ui.Element.ctor.apply(this);
+    this.view = function(element){
+        return rere.ui.Element.renderContainer(element, document.createElement("ul"));
+    };
+};
+obj.Li = function() {
+    rere.ui.Element.ctor.apply(this);
+    this.view = function(element){
+        return rere.ui.Element.renderContainer(element, document.createElement("li"));
+    };
+}
+obj.A = function() {
+    rere.ui.Element.ctor.apply(this);
+    this.view = function(element){
+        return rere.ui.Element.renderContainer(element, document.createElement("a"));
+    };
+}
+
+return obj;
 
 };
 });
