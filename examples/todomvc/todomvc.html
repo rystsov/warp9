@@ -73,7 +73,14 @@
                                 ["div", ["input-check", obj.toggleAll]]
                             ))),
                             H(obj.list.lift(function(item){
-                                return H(ITEM(item))
+                                return H(H(obj.activeTab.bind(function(tab){
+                                    return item.mark.bind(function(mark){
+                                        if (tab==="All") return new Variable(item);
+                                        if (tab==="Active" && !mark) return new Variable(item);
+                                        if (tab==="Completed" && mark) return new Variable(item);
+                                        return new Variable();
+                                    });
+                                }).lift(function(item){ return H(ITEM(item)); })));
                             })),
                             H(obj.leftCompleted.lift(function(v){
                                 var html = ["div",
