@@ -57,6 +57,10 @@ var self = {
             isBatching = true;
             lastEvent = null;
         };
+        result.rollback = function() {
+            lastEvent = null;
+            isBatching = false;
+        };
         result.commit = function(){
             if (lastEvent!=null) {
                 (Variable()).replay(result, lastEvent, id);

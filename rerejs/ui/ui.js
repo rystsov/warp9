@@ -37,6 +37,7 @@ obj.Section = container("section");
 obj.Header = container("header");
 obj.Footer = container("footer");
 obj.H1 = container("h1");
+obj.Strong = container("strong");
 
 return obj;
 

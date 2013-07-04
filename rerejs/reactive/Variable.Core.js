@@ -79,6 +79,10 @@ variable.prototype.clone = function(f) {
     return result;
 };
 
+variable.prototype.unwrap = function(alt) {
+    return this.value().isempty() ? alt : this.value().value();
+};
+
 variable.prototype.lift = function(f) {
     var channel = new this.T();
     channel.onDispose(this.onEvent(function(e){

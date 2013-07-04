@@ -2,12 +2,27 @@ define([], function(){
 return function(rere) {
 
 return {
-    h : function(element) {
-        return {
-            _is_html_element: true,
-            element: element
-        }
-    },
+    h : (function(){
+        var h = function(element) {
+            return {
+                _is_html_element: true,
+                element: element
+            }
+        };
+        h.at = function(attributes) {
+            return {
+                _is_html_at: true,
+                attributes: attributes
+            }
+        };
+        h.e = function(events) {
+            return {
+                _is_html_events: true,
+                events: events
+            }
+        };
+        return h;
+    })(),
     parse: function(element) {
         function lift(e) {
             if (e["_is_html_element"]) {
@@ -72,6 +87,8 @@ return {
                     return initContainer(new rere.ui.Footer(), e, 1).get();
                 } else if (e[0]=="h1") {
                     return initContainer(new rere.ui.H1(), e, 1).get();
+                } else if (e[0]=="strong") {
+                    return initContainer(new rere.ui.Strong(), e, 1).get();
                 } else if (e[0]=="span") {
                     throw new Error();
                 }
@@ -123,7 +140,7 @@ return {
                             } else {
                                 attributes[attr[k][0]]=attr[k][1];
                             }
-                        };
+                        }
                         result.attributes = attributes;
                         continue;
                     }
@@ -132,6 +149,16 @@ return {
                         if (args[i].length==2) {
                             result.events = args[i][1];
                         }
+                        continue;
+                    }
+                    if ((typeof args[i] === "object")&&(args[i]._is_html_at)) {
+                        if (result.attributes) throw new Error("attributes may be set only once");
+                        result.attributes = args[i].attributes;
+                        continue;
+                    }
+                    if ((typeof args[i] === "object")&&(args[i]._is_html_events)) {
+                        if (result.events) throw new Error("events may be set only once");
+                        result.events = args[i].events;
                         continue;
                     }
                     result.casual.push(args[i]);
