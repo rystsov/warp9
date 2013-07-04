@@ -22,130 +22,154 @@
             var rv = rere.reactive.rv;
             var H = rere.ui.renderer.h;
 
-            var obj = {};
-            obj.list = new rere.reactive.ObservableList([]);
-            obj.toggleAll = new Variable();
-            obj.leftCompleted = obj.list.lift(function(item){ return item.mark.lift(function(state){
-                return state ? [0,1] : [1,0];
-            }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
-            obj.activeTab = new Variable("All"); // All, Active, Completed
-            obj.hasItem = obj.list.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
+            renderer.render(canvas, todoApp([{mark: false, name: "Add local storage"}], function(todos){
+                console.info(todos);
+            }));
 
-            renderer.render(canvas,
-            ["section", H.at({id:"todoapp"}),
-                (function(name) {
-                    return ["header", H.at({id:"header"}),
-                        ["h1", "todos"],
-                        ["input-text", name,
-                            H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
-                            H.e({"key:enter": function(){
-                                if (name.value().value()==="") return;
-                                obj.list.add(function(id){
-                                    return {
-                                        mark: new Variable(false),
-                                        name: rv.batch(new Variable(name.value().value())),
-                                        remove: function() { obj.list.remove(id); }
-                                    };
-                                });
-                                name.set("");
-                            }})]]
-                })(new Variable("")),
+            function todoApp(seed, save) {
+                var todos = new rere.reactive.ObservableList([]);
 
-                (function(){
-                    return ["section", H.at({id:"main"}),
-                        ["ul", H.at({id:"todo-list"}),
-                            H(obj.list.lift(function(item){
-                                return H(H(obj.activeTab.bind(function(tab){
-                                    return item.mark.bind(function(mark){
-                                        if (tab==="All") return new Variable(item);
-                                        if (tab==="Active" && !mark) return new Variable(item);
-                                        if (tab==="Completed" && mark) return new Variable(item);
-                                        return new Variable();
-                                    });
-                                }).lift(function(item){ return H(ITEM(item)); })));
+                seed.map(function(todo){
+                    newTodo(todo.mark, todo.name)
+                });
+
+                var toggleAll = new Variable();
+                var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
+                    return state ? [0,1] : [1,0];
+                }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
+                var activeTab = new Variable("All"); // All, Active, Completed
+                var hasItem = todos.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
+
+                todos.lift(function(item){
+                    return item.mark.bind(function(mark){
+                        return item.name.bind(function(name){
+                            return new Variable([{mark:mark, name:name}]);
+                        })
+                    })
+                }).reduceCA(function(a,b){ return a.concat(b); }).subscribe(save);
+
+                addToggleLogic(todos, toggleAll);
+
+                return ["section", H.at({id:"todoapp"}),
+                    (function(name) {
+                        return ["header", H.at({id:"header"}),
+                            ["h1", "todos"],
+                            ["input-text", name,
+                                H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
+                                H.e({"key:enter": function(){
+                                    if (name.value().value()==="") return;
+                                    newTodo(false, name.value().value());
+                                    name.set("");
+                                }})]]
+                    })(new Variable("")),
+
+                    (function(){
+                        return ["section", H.at({id:"main"}),
+                            ["ul", H.at({id:"todo-list"}),
+                                H(todos.lift(function(item){
+                                    return H(H(activeTab.bind(function(tab){
+                                        return item.mark.bind(function(mark){
+                                            if (tab==="All") return new Variable(item);
+                                            if (tab==="Active" && !mark) return new Variable(item);
+                                            if (tab==="Completed" && mark) return new Variable(item);
+                                            return new Variable();
+                                        });
+                                    }).lift(function(item){ return H(ITEM(item)); })));
+                                }))
+                            ],
+                            H(rv.when(hasItem, true,
+                                    H(["div", ["input-check", toggleAll, H.at({id:"toggle-all"})]])))
+                        ];
+                    })(),
+
+                    (function(){
+                        return H(rv.when(hasItem, true, H(["footer", H.at({id:"footer"}),
+                            H(leftCompleted.lift(function(v){
+                                var html = ["div",
+                                    ["span", H.at({id:"todo-count"}),
+                                        ["strong", "" + v[0]], " " + (v[0]===1? "item left" : "items left")],
+                                    ["ul", H.at({id:"filters"}),
+                                        ["li", tabSwitch("All")],
+                                        ["li", tabSwitch("Active")],
+                                        ["li", tabSwitch("Completed")]]];
+                                if (v[1]>0) html.push(["button", H.at({id:"clear-completed"}),
+                                    H.e({click: function(){
+                                        todos.getData().map(function(item){
+                                            if (item.value.mark.value().value()) item.value.remove();
+                                        });
+                                    }}),
+                                    "Clear completed (" + v[1] + ")"
+                                ]);
+                                return H(html);
                             }))
-                        ],
-                        H(rv.when(obj.hasItem, true,
-                            H(["div", ["input-check", obj.toggleAll, H.at({id:"toggle-all"})]])))
-                    ];
-                })(),
+                        ])));
+                        function tabSwitch(tabName) {
+                            return ["a",
+                                H.at({
+                                    href:"#",
+                                    "class":rv.when(activeTab, tabName, "selected")}),
+                                H.e({click: function() { activeTab.set(tabName); }}),
+                                tabName];
+                        }
+                    })()
+                ];
 
-                (function(){
-                    return H(rv.when(obj.hasItem, true, H(["footer", H.at({id:"footer"}),
-                        H(obj.leftCompleted.lift(function(v){
-                            var html = ["div",
-                                ["span", H.at({id:"todo-count"}),
-                                    ["strong", "" + v[0]], " " + (v[0]===1? "item left" : "items left")],
-                                ["ul", H.at({id:"filters"}),
-                                    ["li", tabSwitch("All")],
-                                    ["li", tabSwitch("Active")],
-                                    ["li", tabSwitch("Completed")]]];
-                            if (v[1]>0) html.push(["button", H.at({id:"clear-completed"}),
-                                H.e({click: function(){
-                                    obj.list.getData().map(function(item){
-                                        if (item.value.mark.value().value()) item.value.remove();
-                                    });
-                                }}),
-                                "Clear completed (" + v[1] + ")"
-                            ]);
-                            return H(html);
-                        }))
-                    ])));
-                    function tabSwitch(tabName) {
-                        return ["a",
-                            H.at({
-                                href:"#",
-                                "class":rv.when(obj.activeTab, tabName, "selected")}),
-                            H.e({click: function() { obj.activeTab.set(tabName); }}),
-                            tabName];
-                    }
-                })()
-            ]);
-
-            // toggle logic
-            var toggleEvent = rv.event(obj.toggleAll);
-            var toggleAgg = rv.batch(obj.list.lift(function(item){ return item.mark; }).reduceCA(
-                function(a,b){ return a && b;}
-            ).coalesce(false));
-            obj.toggleAll.follows(toggleAgg);
-            toggleEvent.bind(function(event){
-                return toggleAgg.bind(function(state){
-                    return event==state ? new Variable() : new Variable(event);
-                });
-            }).subscribe(function(change){
-                toggleAgg.batch();
-                obj.list.getData().map(function(item){
-                    item.value.mark.set(change);
-                });
-                toggleAgg.commit();
-            });
-
-            function ITEM(item) {
-                var control = new Variable();
-                var label = hacks.unrecursion(function() {
-                    control.set(H(renderer.parse(
-                        H(["li",
-                            ["input-check", item.mark, H.at({"class":"toggle"})],
-                            ["label",
-                                H.e({ dblclick: textbox }),
-                                H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
-                                new rere.ui.Text(item.name)],
-                            ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]])
-                    )));
-                    item.name.commit();
-                    if (item.name.unwrap("").trim()=="") item.remove();
-                });
-                function textbox() {
-                    item.name.batch();
-                    control.set(H(renderer.parse(
-                        ["li", H.at({"class":"editing"}),
-                            ["input-text", item.name.core,
-                                H.at({"class":"edit"}),
-                                H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
-                    )));
+                function newTodo(mark, name) {
+                    todos.add(function(id){
+                        return {
+                            mark: new Variable(mark),
+                            name: rv.batch(new Variable(name)),
+                            remove: function() { todos.remove(id); }
+                        };
+                    });
                 }
-                label();
-                return H(control);
+
+                function addToggleLogic(todos, toggleAll) {
+                    var toggleEvent = rv.event(toggleAll);
+                    var toggleAgg = rv.batch(todos.lift(function(item){ return item.mark; }).reduceCA(
+                            function(a,b){ return a && b;}
+                    ).coalesce(false));
+                    toggleAll.follows(toggleAgg);
+                    toggleEvent.bind(function(event){
+                        return toggleAgg.bind(function(state){
+                            return event==state ? new Variable() : new Variable(event);
+                        });
+                    }).subscribe(function(change){
+                        toggleAgg.batch();
+                        todos.getData().map(function(item){
+                            item.value.mark.set(change);
+                        });
+                        toggleAgg.commit();
+                    });
+                }
+
+                function ITEM(item) {
+                    var control = new Variable();
+                    var label = hacks.unrecursion(function() {
+                        control.set(H(renderer.parse(
+                                H(["li",
+                                    ["input-check", item.mark, H.at({"class":"toggle"})],
+                                    ["label",
+                                        H.e({ dblclick: textbox }),
+                                        H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
+                                        new rere.ui.Text(item.name)],
+                                    ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]])
+                        )));
+                        item.name.commit();
+                        if (item.name.unwrap("").trim()=="") item.remove();
+                    });
+                    function textbox() {
+                        item.name.batch();
+                        control.set(H(renderer.parse(
+                                ["li", H.at({"class":"editing"}),
+                                    ["input-text", item.name.core,
+                                        H.at({"class":"edit"}),
+                                        H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
+                        )));
+                    }
+                    label();
+                    return H(control);
+                }
             }
         });
     </script>

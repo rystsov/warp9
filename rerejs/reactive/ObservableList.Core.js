@@ -77,7 +77,7 @@ var ObservableList = function(data) {
     this.lift = function(f) {
         var nova = new ObservableList([]);
         this.subscribe(ObservableList.handler({
-            data: function(e) { nova.setData(e.map(f)); },
+            data: function(e) { nova.setData(e.map(function(i){ return f(i.value); })); },
             add: function(e) { nova.addKeyValue(e.key, f(e.value)); },
             remove: function(e) { nova.remove(e); }
         }));
