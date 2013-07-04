@@ -141,7 +141,7 @@
                         ["li", H.at({"class":"editing"}),
                             ["input-text", item.name.core,
                                 H.at({"class":"edit"}),
-                                H.e({blur: label, "key:enter": label})]]
+                                H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
                     )));
                 }
                 label();

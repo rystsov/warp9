@@ -49,15 +49,16 @@ return {
         
         for (var name in element.data.events) {
             (function(name){
+                if (name == "control:draw") return;
                 if (name == "key:enter") {
                     view.addEventListener("keypress", function(event) {
                         if (event.keyCode == 13) {
-                            element.data.events[name](self, view, event);
+                            element.data.events[name](element, view, event);
                         }
                     }, false);
                 } else {
                     view.addEventListener(name, function(event) {
-                        element.data.events[name](self, view, event);
+                        element.data.events[name](element, view, event);
                     }, false);
                 }
             })(name);
@@ -78,7 +79,13 @@ return {
             };
         };
 
-        return new FragmentElement(view);
+        var events = {};
+        if ("control:draw" in element.data.events) {
+            events.draw = function() {
+                element.data.events["control:draw"](element, view)
+            };
+        }
+        return new FragmentElement(view, events);
     },
     renderContainer: function(element, view) {
         var renderer = rere.ui.elements.renderer;
