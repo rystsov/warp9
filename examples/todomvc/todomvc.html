@@ -37,7 +37,7 @@
                     return ["header", H.at({id:"header"}),
                         ["h1", "todos"],
                         ["input-text", name,
-                            H.at({id:"new-todo", placeholder:"What needs to be done?"}),
+                            H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
                             H.e({"key:enter": function(){
                                 if (name.value().value()==="") return;
                                 obj.list.add(function(id){
