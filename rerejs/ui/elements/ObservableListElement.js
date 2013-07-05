@@ -23,7 +23,7 @@ return function(list) {
                 for (var i=0;i<event[1].length;i++) {
                     self.hash[event[1][i].key] = event[1][i];
                     event[1][i].value.bindto(previous);
-                    previous = event[1][i];
+                    previous = event[1][i].value;
                 }
                 self.elements = event[1]
             } else if (event[0]=="add") {
