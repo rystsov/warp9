@@ -44,7 +44,7 @@
                             return new Variable([{mark:mark, name:name}]);
                         })
                     })
-                }).reduceCA(function(a,b){ return a.concat(b); }).subscribe(save);
+                }).reduceCA(function(a,b){ return a.concat(b); }).coalesce([]).subscribe(save);
 
                 var toggleAll = new Variable();
                 var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
