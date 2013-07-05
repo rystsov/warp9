@@ -5,14 +5,9 @@ define(
   "rere/ui/InputRadio",
   "rere/ui/InputCheck",
   "rere/ui/InputText",
-  "rere/ui/Label",
-  "rere/ui/Form",
-  "rere/ui/Button",
 
   "rere/ui/ComboBox", 
-  "rere/ui/Option", 
-  "rere/ui/Div", 
-  "rere/ui/Span",
+  "rere/ui/Option",
   "rere/ui/Text",
   "rere/ui/jq",
   "rere/ui/renderer",
@@ -26,8 +21,8 @@ var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText", "Label", "Form", "Button",
-  "ComboBox", "Option", "Div", "Span", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
+  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText",
+  "ComboBox", "Option", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
 obj.Ul = container("ul");
@@ -38,6 +33,11 @@ obj.Header = container("header");
 obj.Footer = container("footer");
 obj.H1 = container("h1");
 obj.Strong = container("strong");
+obj.Button = container("button");
+obj.Div = container("div");
+obj.Form = container("form");
+obj.Label = container("label");
+obj.Span = container("span");
 
 return obj;
 
