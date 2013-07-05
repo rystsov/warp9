@@ -175,3 +175,13 @@ return {
 
 };
 });
+
+
+/*
+renderer.addTag("tag", ctor, function(renderer, html){
+    // html[0]=="tag"
+    // renderer.tag("tag")==ctor
+    // renderer.parse
+    return new renderer.tag("tag");
+});
+*/
