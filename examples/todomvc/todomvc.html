@@ -1,6 +1,5 @@
 <html>
     <head>
-        <meta charset="utf-8">
         <link rel="stylesheet" href="base.css">
         <script src="../require.js"></script>
         <script type="text/javascript">
@@ -18,28 +17,27 @@
         require(["rere/rere"], function(rere) {
             var renderer = rere.ui.renderer;
             var Variable = rere.reactive.Variable;
-            var hacks = rere.ui.hacks;
             var rv = rere.reactive.rv;
             var H = rere.ui.renderer.h;
 
-            renderer.render(canvas, todoApp([{mark: false, name: "Add local storage"}], function(todos){
-                console.info(todos);
-            }));
+            var storage = {
+                STORAGE_ID: 'todos-rerejs',
+                get: function() {
+                    return JSON.parse(localStorage.getItem(this.STORAGE_ID) || '[]');
+                },
+                put: function(todos) {
+                    localStorage.setItem(this.STORAGE_ID, JSON.stringify(todos));
+                }
+            }
+
+            renderer.render(canvas, todoApp(storage.get(), storage.put.bind(storage)));
 
             function todoApp(seed, save) {
                 var todos = new rere.reactive.ObservableList([]);
 
                 seed.map(function(todo){
-                    newTodo(todo.mark, todo.name)
+                    addTodo(todos, todo);
                 });
-
-                var toggleAll = new Variable();
-                var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
-                    return state ? [0,1] : [1,0];
-                }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
-                var activeTab = new Variable("All"); // All, Active, Completed
-                var hasItem = todos.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
-
                 todos.lift(function(item){
                     return item.mark.bind(function(mark){
                         return item.name.bind(function(name){
@@ -47,6 +45,13 @@
                         })
                     })
                 }).reduceCA(function(a,b){ return a.concat(b); }).subscribe(save);
+
+                var toggleAll = new Variable();
+                var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
+                    return state ? [0,1] : [1,0];
+                }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
+                var activeTab = new Variable("All"); // All, Active, Completed
+                var hasItem = todos.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
 
                 addToggleLogic(todos, toggleAll);
 
@@ -58,7 +63,7 @@
                                 H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
                                 H.e({"key:enter": function(){
                                     if (name.value().value()==="") return;
-                                    newTodo(false, name.value().value());
+                                    addTodo(todos, {mark: false, name: name.value().value()});
                                     name.set("");
                                 }})]]
                     })(new Variable("")),
@@ -75,10 +80,9 @@
                                             return new Variable();
                                         });
                                     }).lift(function(item){ return H(ITEM(item)); })));
-                                }))
-                            ],
+                                }))],
                             H(rv.when(hasItem, true,
-                                    H(["div", ["input-check", toggleAll, H.at({id:"toggle-all"})]])))
+                                H(["div", ["input-check", toggleAll, H.at({id:"toggle-all"})]])))
                         ];
                     })(),
 
@@ -105,20 +109,18 @@
                         ])));
                         function tabSwitch(tabName) {
                             return ["a",
-                                H.at({
-                                    href:"#",
-                                    "class":rv.when(activeTab, tabName, "selected")}),
+                                H.at({href:"#", "class":rv.when(activeTab, tabName, "selected")}),
                                 H.e({click: function() { activeTab.set(tabName); }}),
                                 tabName];
                         }
                     })()
                 ];
 
-                function newTodo(mark, name) {
+                function addTodo(todos, todo) {
                     todos.add(function(id){
                         return {
-                            mark: new Variable(mark),
-                            name: rv.batch(new Variable(name)),
+                            mark: new Variable(todo.mark),
+                            name: rv.batch(new Variable(todo.name)),
                             remove: function() { todos.remove(id); }
                         };
                     });
@@ -145,15 +147,15 @@
 
                 function ITEM(item) {
                     var control = new Variable();
-                    var label = hacks.unrecursion(function() {
+                    var label = rere.ui.hacks.unrecursion(function() {
                         control.set(H(renderer.parse(
-                                H(["li",
-                                    ["input-check", item.mark, H.at({"class":"toggle"})],
-                                    ["label",
-                                        H.e({ dblclick: textbox }),
-                                        H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
-                                        new rere.ui.Text(item.name)],
-                                    ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]])
+                            ["li",
+                                ["input-check", item.mark, H.at({"class":"toggle"})],
+                                ["label",
+                                    H.e({ dblclick: textbox }),
+                                    H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
+                                    new rere.ui.Text(item.name)],
+                                ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]]
                         )));
                         item.name.commit();
                         if (item.name.unwrap("").trim()=="") item.remove();
@@ -161,10 +163,10 @@
                     function textbox() {
                         item.name.batch();
                         control.set(H(renderer.parse(
-                                ["li", H.at({"class":"editing"}),
-                                    ["input-text", item.name.core,
-                                        H.at({"class":"edit"}),
-                                        H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
+                            ["li", H.at({"class":"editing"}),
+                                ["input-text", item.name.core,
+                                    H.at({"class":"edit"}),
+                                    H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
                         )));
                     }
                     label();
