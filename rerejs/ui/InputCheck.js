@@ -5,7 +5,7 @@ var id = 0;
 
 
 return (function(state) {
-    rere.ui.InputHtml.apply(this, []);
+    rere.ui.Input.apply(this, []);
 
     this.get = function() {
         var self = this;

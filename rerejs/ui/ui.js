@@ -1,7 +1,6 @@
 define(
 [
-  "rere/ui/Element", 
-  "rere/ui/InputHtml", 
+  "rere/ui/Element",
   "rere/ui/InputRadio",
   "rere/ui/InputCheck",
   "rere/ui/InputText",
@@ -21,7 +20,7 @@ var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "InputHtml", "InputRadio", "InputCheck", "InputText",
+  "Element", "InputRadio", "InputCheck", "InputText",
   "ComboBox", "Option", "Text", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
@@ -38,6 +37,7 @@ obj.Div = container("div");
 obj.Form = container("form");
 obj.Label = container("label");
 obj.Span = container("span");
+obj.Input = single("input");
 
 return obj;
 
@@ -46,6 +46,15 @@ function container(tag) {
         rere.ui.Element.ctor.apply(this);
         this.view = function(element){
             return rere.ui.Element.renderContainer(element, document.createElement(tag));
+        };
+    };
+}
+
+function single(tag) {
+    return function() {
+        rere.ui.Element.ctor.apply(this);
+        this.view = function(element){
+            return rere.ui.Element.renderSingle(element, document.createElement(tag));
         };
     };
 }

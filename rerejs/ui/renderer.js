@@ -42,9 +42,6 @@ return {
             }
         }
         function flow(e) {
-            if (e==undefined) {
-                var hook = true;
-            }
             if (e instanceof Array ) {
                 if (e[0]=="div") {
                     return initContainer(new rere.ui.Div(), e, 1).get();
