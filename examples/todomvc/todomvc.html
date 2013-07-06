@@ -154,7 +154,7 @@
                                 ["label",
                                     H.e({ dblclick: textbox }),
                                     H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
-                                    new rere.ui.Text(item.name)],
+                                    ["text", item.name]],
                                 ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]]
                         )));
                         item.name.commit();
