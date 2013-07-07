@@ -2,98 +2,91 @@ define([], function() {
 return function(rere) {
 
 return function(renderer) {
-    addPithyTag(renderer, "div", container("div"));
-    addPithyTag(renderer, "span", container("span"));
-    addPithyTag(renderer, "label", container("label"));
-    addPithyTag(renderer, "button", container("button"));
-    addPithyTag(renderer, "form", container("form"));
-    addPithyTag(renderer, "ul", container("ul"));
-    addPithyTag(renderer, "li", container("li"));
-    addPithyTag(renderer, "a", container("a"));
-    addPithyTag(renderer, "section", container("section"));
-    addPithyTag(renderer, "header", container("header"));
-    addPithyTag(renderer, "footer", container("footer"));
-    addPithyTag(renderer, "h1", container("h1"));
-    addPithyTag(renderer, "strong", container("strong"));
-    addPithyTag(renderer, "option", container("option"));
-    addStatefulVoidTag(renderer, "input-radio", function(state) { return new rere.ui.InputRadio(state); })
-    addStatefulVoidTag(renderer, "input-check", function(state) { return new rere.ui.InputCheck(state); })
-    addStatefulVoidTag(renderer, "input-text", function(state) { return new rere.ui.InputText(state); })
-    addStatefulPithyTag(renderer, "combobox", function(state) { return new rere.ui.ComboBox(state); })
+    renderer.addPithyTag("div");
+    renderer.addPithyTag("span");
+    renderer.addPithyTag("label");
+    renderer.addPithyTag("button");
+    renderer.addPithyTag("form");
+    renderer.addPithyTag("ul");
+    renderer.addPithyTag("li");
+    renderer.addPithyTag("a");
+    renderer.addPithyTag("section");
+    renderer.addPithyTag("header");
+    renderer.addPithyTag("footer");
+    renderer.addPithyTag("h1");
+    renderer.addPithyTag("strong");
+    renderer.addPithyTag("option");
+
+    renderer.addVoidTag("input-radio", function(state) { return new InputCheck(state, "radio"); })
+    renderer.addVoidTag("input-check", function(state) { return new InputCheck(state, "checkbox"); })
+    renderer.addVoidTag("input-text", function(state) { return new InputText(state); })
+    renderer.addPithyTag("combobox", function(state) { return new ComboBox(state); })
 
     renderer.addTag("text", null, function(info) {
         if (typeof info.casual[0] == 'string' || info.casual[0] instanceof String) {
-            return new Text(info.casual[0]);
+            return new rere.ui.Text(info.casual[0]);
         } else {
             return renderer.parse(renderer.h(info.casual[0].lift(function(text){
-                return renderer.h(new Text(text));
+                return renderer.h(new rere.ui.Text(text));
             })));
         }
     });
 
     return renderer;
 
-    function addPithyTag(renderer, tag, factory) {
-        renderer.addTag(tag, factory, function(info){
-            var element = factory();
-            if (info.attributes) element.attributes(info.attributes);
-            if (info.events) element.events(info.events);
+    function InputCheck(state, type) {
+        if (!type) throw new Error("type must be provider")
+        if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
+        rere.ui.Input.apply(this, []);
 
-            element.content(info.casual.map(function(item){
-                if (typeof item == 'string' || item instanceof String) {
-                    return new Text(item)
-                } else {
-                    return renderer.parse(item);
-                }
-            }));
-            return element.get();
-        });
-    }
-
-    function addStatefulVoidTag(renderer, tag, factory) {
-        renderer.addTag(tag, factory, function(info){
-            var element = factory(info.casual[0]);
-            if (info.attributes) element.attributes(info.attributes);
-            if (info.events) element.events(info.events);
-            return element.get();
-        });
-    }
-
-    function addStatefulPithyTag(renderer, tag, factory) {
-        renderer.addTag(tag, factory, function(info){
-            var element = factory(info.casual[0]);
-            info.casual.slice(0, 1);
-            if (info.attributes) element.attributes(info.attributes);
-            if (info.events) element.events(info.events);
-
-            element.content(info.casual.map(function(item){
-                if (typeof item == 'string' || item instanceof String) {
-                    return new Text(item);
-                } else {
-                    return renderer.parse(item);
-                }
-            }));
-            return element.get();
-        });
-    }
-
-    function container(tag) {
-        return function() {
-            return new function() {
-                rere.ui.Element.ctor.apply(this);
-                this.view = function(element){
-                    return rere.ui.Element.renderContainer(element, document.createElement(tag));
-                };
+        this.get = function() {
+            var self = this;
+            this.data.attributes.type=type;
+            this.data.attributes.checked = state.coalesce(false);
+            var change = "change" in this.data.events ? this.data.events.change : function(){};
+            this.data.events.change = function(control, view) {
+                change.apply(self.data.events, [control, view]);
+                state.set(view.checked);
             };
+
+            return this;
         }
     }
 
-    function Text(text) {
-        this._ui_is = true;
-        this.view = function() {
-            var FragmentElement = rere.ui.elements.FragmentElement;
-            return new FragmentElement(document.createTextNode(text));
+    function InputText(state) {
+        rere.ui.Input.apply(this, []);
+
+        this.get = function() {
+            var self = this;
+            this.data.attributes.type="text";
+            this.data.attributes.value = state;
+            var input = "input" in this.data.events ? this.data.events.input : function(){};
+            this.data.events.input = function(control, view) {
+                input.apply(self.data.events, [control, view]);
+                state.set(view.value);
+            };
+
+            return this;
         }
+    }
+
+    function ComboBox(state) {
+        rere.ui.Element.ctor.apply(this);
+
+        this.get = function() {
+            var self = this;
+            this.data.attributes.value = state;
+            var change = "change" in this.data.events ? this.data.events.change : function(){};
+            this.data.events.change = function(control, view) {
+                change.apply(self.data.events, [control, view]);
+                state.set(view.value);
+            };
+            return this;
+        };
+
+        this.view = function(element){
+            return rere.ui.Element.renderContainer(element, document.createElement("select"));
+        };
     }
 }
 

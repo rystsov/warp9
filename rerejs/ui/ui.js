@@ -1,11 +1,7 @@
 define(
 [
   "rere/ui/Element",
-  "rere/ui/InputRadio",
-  "rere/ui/InputCheck",
-  "rere/ui/InputText",
 
-  "rere/ui/ComboBox",
   "rere/ui/jq",
   "rere/ui/renderer",
 
@@ -18,11 +14,17 @@ var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "InputRadio", "InputCheck", "InputText",
-  "ComboBox", "jq", "renderer", "StickyButton", "elements", "hacks"
+  "Element", "jq", "renderer", "StickyButton", "elements", "hacks"
 ]);
 
 obj.Input = single("input");
+obj.Text = function(text) {
+    this._ui_is = true;
+    this.view = function() {
+        var FragmentElement = rere.ui.elements.FragmentElement;
+        return new FragmentElement(document.createTextNode(text));
+    }
+};
 
 return obj;
 

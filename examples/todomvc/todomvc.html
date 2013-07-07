@@ -59,7 +59,7 @@
                     (function(name) {
                         return ["header", H.at({id:"header"}),
                             ["h1", "todos"],
-                            ["input-text", name,
+                            ["input-text", H.s(name),
                                 H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
                                 H.e({"key:enter": function(){
                                     if (name.value().value()==="") return;
@@ -82,7 +82,7 @@
                                     }).lift(function(item){ return H(ITEM(item)); })));
                                 }))],
                             H(rv.when(hasItem, true,
-                                H(["div", ["input-check", toggleAll, H.at({id:"toggle-all"})]])))
+                                H(["div", ["input-check", H.at({id:"toggle-all"}), H.s(toggleAll)]])))
                         ];
                     })(),
 
@@ -150,7 +150,7 @@
                     var label = rere.ui.hacks.unrecursion(function() {
                         control.set(H(renderer.parse(
                             ["li",
-                                ["input-check", item.mark, H.at({"class":"toggle"})],
+                                ["input-check", H.at({"class":"toggle"}), H.s(item.mark)],
                                 ["label",
                                     H.e({ dblclick: textbox }),
                                     H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
@@ -164,7 +164,7 @@
                         item.name.batch();
                         control.set(H(renderer.parse(
                             ["li", H.at({"class":"editing"}),
-                                ["input-text", item.name.core,
+                                ["input-text", H.s(item.name.core),
                                     H.at({"class":"edit"}),
                                     H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
                         )));
