@@ -105,7 +105,9 @@ function build() {
             function flow(e) {
                 if (e instanceof Array ) {
                     if (e.length==0) throw new Error("Where is the tag name?");
-                    if (!(e[0] in self.tags)) throw new Error("Unknown tag: " + e[0]);
+                    if (!(e[0] in self.tags)) {
+                        throw new Error("Unknown tag: " + e[0]);
+                    }
                     return self.tags[e[0]].builder(parseSpecial(e))
                 } else if (e["_is_html_element"]) {
                     return lift(e.element);

@@ -35,7 +35,12 @@ return function(renderer) {
     return renderer;
 
     function InputCheck(state, type) {
-        if (!type) throw new Error("type must be provider")
+        if (!state) {
+            throw new Error("state must be provider");
+        }
+        if (!type) {
+            throw new Error("type must be provider");
+        }
         if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
         rere.ui.Input.apply(this, []);
 
