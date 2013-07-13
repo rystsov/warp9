@@ -1251,6 +1251,8 @@ return function(renderer) {
     renderer.addPithyTag("h1");
     renderer.addPithyTag("strong");
     renderer.addPithyTag("option");
+    renderer.addPithyTag("sup");
+    renderer.addPithyTag("sub");
 
     renderer.addVoidTag("input-radio", function(state) { return new InputCheck(state, "radio"); })
     renderer.addVoidTag("input-check", function(state) { return new InputCheck(state, "checkbox"); })
