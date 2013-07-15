@@ -5,6 +5,18 @@ var Variable = rere.future("reactive/Variable");
 var ReduceTree = rere.future("reactive/ReduceTree");
 
 var self = {
+    track: function() {
+        var id = 0;
+        var counter = new (Variable())(id);
+        for (var i in arguments) {
+            (function(item){
+                item.onEvent(function(){
+                    counter.set(id++);
+                });
+            })(arguments[i]);
+        }
+        return counter;
+    },
     when: function(rv, condition, fn, alt) {
 
         if (typeof(fn) != "function") {

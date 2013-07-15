@@ -2,7 +2,19 @@ define(
 ["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui"], 
 function(adt, reactive, ui) {
 
-var rere = {}
+var rere = {
+    utils: {
+        vectorAdd: function(a,b) {
+            if (a.length!= b.length) throw new Error();
+            var c = [];
+            for (var i in a) {
+                c.push(a[i]+b[i]);
+            }
+            return c;
+        }
+    }
+}
+
 rere.future = function(path) {
 	var parts = path.split("/")
 	return function() {

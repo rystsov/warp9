@@ -870,6 +870,18 @@ var Variable = rere.future("reactive/Variable");
 var ReduceTree = rere.future("reactive/ReduceTree");
 
 var self = {
+    track: function() {
+        var id = 0;
+        var counter = new (Variable())(id);
+        for (var i in arguments) {
+            (function(item){
+                item.onEvent(function(){
+                    counter.set(id++);
+                });
+            })(arguments[i]);
+        }
+        return counter;
+    },
     when: function(rv, condition, fn, alt) {
 
         if (typeof(fn) != "function") {
@@ -1272,6 +1284,9 @@ return function(renderer) {
     renderer.addPithyTag("form");
     renderer.addPithyTag("ul");
     renderer.addPithyTag("li");
+    renderer.addPithyTag("table");
+    renderer.addPithyTag("tr");
+    renderer.addPithyTag("td");
     renderer.addPithyTag("a");
     renderer.addPithyTag("section");
     renderer.addPithyTag("header");
@@ -1300,22 +1315,29 @@ return function(renderer) {
     return renderer;
 
     function InputCheck(state, type) {
-        if (!state) {
-            throw new Error("state must be provider");
-        }
         if (!type) {
             throw new Error("type must be provider");
         }
         if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
         rere.ui.Input.apply(this, []);
+        state = state || new Variable();
 
         this.get = function() {
             var self = this;
             this.data.attributes.type=type;
             this.data.attributes.checked = state.coalesce(false);
-            var change = "change" in this.data.events ? this.data.events.change : function(){};
+            var change = this.data.events.change || function(){};
+            var checked = this.data.events["rere:checked"] || function(){};
+            var unchecked = this.data.events["rere:unchecked"] || function(){};
+            delete this.data.events["rere:checked"];
+            delete this.data.events["rere:unchecked"];
             this.data.events.change = function(control, view) {
                 change.apply(self.data.events, [control, view]);
+                if (view.checked) {
+                    checked();
+                } else {
+                    unchecked();
+                }
                 state.set(view.checked);
             };
 
@@ -1689,8 +1711,12 @@ return function(list) {
                 self.elements.push(event[1]);
                 self.hash[event[1].key] = event[1]
             } else if (event[0]=="remove") {
-                self.hash[event[1]].value.remove();
-                delete self.hash[event[1]];
+                if (event[1] in self.hash) {
+                    self.hash[event[1]].value.remove();
+                    delete self.hash[event[1]];
+                } else {
+                    console.log("Dirty behaviour");
+                }
             } else {
                 throw new Error();
             }
@@ -1895,7 +1921,19 @@ define('rere/rere',
 ["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui"], 
 function(adt, reactive, ui) {
 
-var rere = {}
+var rere = {
+    utils: {
+        vectorAdd: function(a,b) {
+            if (a.length!= b.length) throw new Error();
+            var c = [];
+            for (var i in a) {
+                c.push(a[i]+b[i]);
+            }
+            return c;
+        }
+    }
+}
+
 rere.future = function(path) {
 	var parts = path.split("/")
 	return function() {

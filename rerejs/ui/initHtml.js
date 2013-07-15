@@ -9,6 +9,9 @@ return function(renderer) {
     renderer.addPithyTag("form");
     renderer.addPithyTag("ul");
     renderer.addPithyTag("li");
+    renderer.addPithyTag("table");
+    renderer.addPithyTag("tr");
+    renderer.addPithyTag("td");
     renderer.addPithyTag("a");
     renderer.addPithyTag("section");
     renderer.addPithyTag("header");
@@ -37,22 +40,29 @@ return function(renderer) {
     return renderer;
 
     function InputCheck(state, type) {
-        if (!state) {
-            throw new Error("state must be provider");
-        }
         if (!type) {
             throw new Error("type must be provider");
         }
         if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
         rere.ui.Input.apply(this, []);
+        state = state || new Variable();
 
         this.get = function() {
             var self = this;
             this.data.attributes.type=type;
             this.data.attributes.checked = state.coalesce(false);
-            var change = "change" in this.data.events ? this.data.events.change : function(){};
+            var change = this.data.events.change || function(){};
+            var checked = this.data.events["rere:checked"] || function(){};
+            var unchecked = this.data.events["rere:unchecked"] || function(){};
+            delete this.data.events["rere:checked"];
+            delete this.data.events["rere:unchecked"];
             this.data.events.change = function(control, view) {
                 change.apply(self.data.events, [control, view]);
+                if (view.checked) {
+                    checked();
+                } else {
+                    unchecked();
+                }
                 state.set(view.checked);
             };
 

@@ -35,8 +35,12 @@ return function(list) {
                 self.elements.push(event[1]);
                 self.hash[event[1].key] = event[1]
             } else if (event[0]=="remove") {
-                self.hash[event[1]].value.remove();
-                delete self.hash[event[1]];
+                if (event[1] in self.hash) {
+                    self.hash[event[1]].value.remove();
+                    delete self.hash[event[1]];
+                } else {
+                    console.log("Dirty behaviour, find dirty behaviour like this isolated at ~/issues/ObservableListElement/doubleDelete.html");
+                }
             } else {
                 throw new Error();
             }
