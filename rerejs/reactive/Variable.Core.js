@@ -80,6 +80,7 @@ variable.prototype.clone = function(f) {
 };
 
 variable.prototype.unwrap = function(alt) {
+    if (arguments.length==0 && this.value().isempty()) throw new Error();
     return this.value().isempty() ? alt : this.value().value();
 };
 

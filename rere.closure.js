@@ -216,6 +216,7 @@ variable.prototype.clone = function(f) {
 };
 
 variable.prototype.unwrap = function(alt) {
+    if (arguments.length==0 && this.value().isempty()) throw new Error();
     return this.value().isempty() ? alt : this.value().value();
 };
 
@@ -1715,7 +1716,7 @@ return function(list) {
                     self.hash[event[1]].value.remove();
                     delete self.hash[event[1]];
                 } else {
-                    console.log("Dirty behaviour");
+                    console.log("Dirty behaviour, find dirty behaviour like this isolated at ~/issues/ObservableListElement/doubleDelete.html");
                 }
             } else {
                 throw new Error();
