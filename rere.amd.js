@@ -1001,6 +1001,75 @@ var self = {
         return logical(arguments, function(a,b){return a&&b}, true);
     }
 };
+self.unwrapObject = function(obj) {
+    var ObservableList = rere.reactive.ObservableList;
+    var Variable = rere.reactive.Variable;
+
+    if (typeof obj != "object") {
+        return new Variable(obj)
+    }
+    if (obj["rere/reactive/rv.unwrapObject.wait"]) {
+        return self.unwrapObject.wait(self.unwrapObject(obj.value));
+    }
+    if (obj["rere/reactive/rv.unwrapObject.ignore"]) {
+        return new Variable(obj);
+    }
+    if (obj["rere/reactive/Channel"]) {
+        return obj.bind(function(value){
+            return self.unwrapObject(value);
+        })
+    }
+    if (obj["rere/reactive/ObservableList"]) {
+        return obj.list.bind(function(list){
+            if (list.length==0) return new Variable([]);
+            return obj.lift(function(value){
+                value = self.unwrapObject(value);
+                if (value["rere/reactive/rv.unwrapObject.wait"]) {
+                    return value.value.lift(function(value) { return [value]; });
+                } else {
+                    return value.lift(function(value) {
+                        return [value];
+                    }).coalesce([]);
+                }
+            }).reduceCA(function(a,b){ return a.concat(b); });
+        });
+    }
+    var disassembled = [];
+    for (var key in obj) {
+        (function(key){
+            disassembled.push(self.unwrapObject(obj[key]).lift(function(value){
+                return self.unwrapObject.ignore({key: key, value: value});
+            }));
+        })(key);
+    }
+    if (disassembled.length==0) {
+        return new Variable({});
+    }
+    return self.unwrapObject(new ObservableList(disassembled)).lift(function(items){
+        var obj = {};
+        for (var i in items) {
+            var kv = items[i];
+            if (kv["rere/reactive/rv.unwrapObject.ignore"]) kv = kv.value;
+            obj[kv.key] = kv.value;
+        }
+        return obj;
+    });
+}
+self.unwrapObject.wait = function(value) {
+    return {
+        "rere/reactive/rv.unwrapObject.wait": true,
+        value: value,
+        lift: function(f) {
+            return self.unwrapObject.wait(this.value.lift(f));
+        }
+    };
+};
+self.unwrapObject.ignore = function(value) {
+    return {
+        "rere/reactive/rv.unwrapObject.ignore": true,
+        value: value
+    };
+};
 return self;
 
 function logical(args, op, seed) {
