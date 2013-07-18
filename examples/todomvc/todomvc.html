@@ -27,16 +27,8 @@
         function todoApp(seed, save) {
             var todos = new rere.reactive.ObservableList([]);
 
-            seed.map(function(todo){
-                addTodo(todos, todo);
-            });
-            todos.lift(function(item){
-                return item.mark.bind(function(mark){
-                    return item.name.bind(function(name){
-                        return new Variable([{mark:mark, name:name}]);
-                    })
-                })
-            }).reduceCA(function(a,b){ return a.concat(b); }).coalesce([]).subscribe(save);
+            seed.map(function(todo){ addTodo(todos, todo); });
+            rv.unwrapObject(todos.lift(function(item){ return {mark:item.mark, name:item.name} })).subscribe(save);
 
             var toggleAll = new Variable();
             var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
