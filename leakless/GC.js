@@ -5,9 +5,7 @@ GC.count = function() {
     function counter(rv) {
         memory[rv.id] = rv;
         rv._dependants.map(function(dep) {
-            if (dep.dependant != null) {
-                dep.dependant.map(counter)
-            }
+            dep.dependants.map(counter)
         });
     }
     for (var i=0;i<arguments.length;i++) {
@@ -27,9 +25,8 @@ GC.printFullDependencies = function(rv) {
         };
         var dependants = {}
         for (var i in rv._dependants) {
-            if (rv._dependants[i].dependant==null) continue;
-            for (var j in rv._dependants[i].dependant) {
-                dependants[rv._dependants[i].dependant[j].id] = rv._dependants[i].dependant[j];
+            for (var j in rv._dependants[i].dependants) {
+                dependants[rv._dependants[i].dependants[j].id] = rv._dependants[i].dependants[j];
             }
         }
         for (var i in dependants) {

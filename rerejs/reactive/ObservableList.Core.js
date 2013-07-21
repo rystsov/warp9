@@ -18,6 +18,11 @@ var ObservableList = function(data) {
     this.values = function() {
         return this.data.map(function(e){return e.value;});
     };
+    this.patch = function(f) {
+        for (var i in this.data) {
+            f(i, this.data[i].value);
+        }
+    }
     this.setData = function(data) {
         this.data = data.map(function(item){
             return {

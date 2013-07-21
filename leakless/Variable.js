@@ -32,10 +32,10 @@ Variable.ctor = function() {
             }
         });
     };
-    this.onEvent = function(dependant, f) {
+    this.onEvent = function(dependants, f) {
         var self = this;
         var id = this._dependants_id++;
-        this._dependants.push({key: id, dependant: dependant, f:f});
+        this._dependants.push({key: id, dependants: dependants, f:f});
         if (this._value.isempty()) {
             f(["unset"]);
         } else {
@@ -56,10 +56,28 @@ Variable.ctor = function() {
         Variable.ctor.raise(this, ["unset"])
     };
 
+    this._dependencies = [];
 
-    this.light = function() {
+    this._subscribed = false;
+    this._subscribe = function() {};
 
+    // переподписывает / отписывается
+    // вызывает light для родителей / tryDim
+    this.light = function(value) {
+        if (value) {
+            if (this._subscribed) return;
+            this._subscribe();
+            for (var i in this._dependencies) {
+                this._dependencies
+            }
+        }
+        throw new Error();
     };
+    this._tryDim = function() {
+        if (this._dependants.length==0) {
+            this.light(false);
+        }
+    }
 
     if (arguments.length>0) {
         this.set(arguments[0])
@@ -125,3 +143,7 @@ Variable.ctor.handler = function(handler) {
         }
     };
 };
+
+/*
+
+*/

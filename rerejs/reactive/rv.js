@@ -38,12 +38,17 @@ var self = {
     },
     sticky: function(rv) {
         var raise = rv.raise;
-
         rv.raise = function(value) {
-            if (!rv.value().isempty() && rv.value().value()!=value) {
-                raise.apply(rv, [value]);
-            }
+            if (!rv.value().isempty() && rv.value().value()==value) return;
+            raise.apply(rv, [value]);
         };
+
+        var unset = rv.unset;
+        rv.unset = function() {
+            if (!rv.value().isempty()) {
+                unset.apply(rv, []);
+            }
+        }
 
         return rv;
     },

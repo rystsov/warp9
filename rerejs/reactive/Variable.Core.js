@@ -92,6 +92,12 @@ variable.prototype.lift = function(f) {
     return channel;
 };
 
+variable.prototype.patch = function(f) {
+    if (this.value().isempty()) return;
+    // TODO: via set
+    f(this.value().value());
+};
+
 variable.prototype.bind = function(f) {
     var result = new variable();
     var dispose = function() {};

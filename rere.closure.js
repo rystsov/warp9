@@ -228,6 +228,12 @@ variable.prototype.lift = function(f) {
     return channel;
 };
 
+variable.prototype.patch = function(f) {
+    if (this.value().isempty()) return;
+    // TODO: via set
+    f(this.value().value());
+};
+
 variable.prototype.bind = function(f) {
     var result = new variable();
     var dispose = function() {};
@@ -344,6 +350,11 @@ var ObservableList = function(data) {
     this.values = function() {
         return this.data.map(function(e){return e.value;});
     };
+    this.patch = function(f) {
+        for (var i in this.data) {
+            f(i, this.data[i].value);
+        }
+    }
     this.setData = function(data) {
         this.data = data.map(function(item){
             return {
@@ -904,12 +915,17 @@ var self = {
     },
     sticky: function(rv) {
         var raise = rv.raise;
-
         rv.raise = function(value) {
-            if (!rv.value().isempty() && rv.value().value()!=value) {
-                raise.apply(rv, [value]);
-            }
+            if (!rv.value().isempty() && rv.value().value()==value) return;
+            raise.apply(rv, [value]);
         };
+
+        var unset = rv.unset;
+        rv.unset = function() {
+            if (!rv.value().isempty()) {
+                unset.apply(rv, []);
+            }
+        }
 
         return rv;
     },
