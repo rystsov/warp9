@@ -23,6 +23,20 @@ return {
                 }
             };
         },
+        disabled: function(view, value) {
+            return {
+                set: function(v) {
+                    if (v) {
+                        view.setAttribute("disabled", "")
+                    } else {
+                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
+                    }
+                },
+                unset: function() {
+                    view.removeAttribute("disabled");
+                }
+            };
+        },
         "class": function(view, value) {
             var jq = rere.ui.jq;
             return {

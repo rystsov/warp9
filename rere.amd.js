@@ -1147,6 +1147,20 @@ return {
                 }
             };
         },
+        disabled: function(view, value) {
+            return {
+                set: function(v) {
+                    if (v) {
+                        view.setAttribute("disabled", "")
+                    } else {
+                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
+                    }
+                },
+                unset: function() {
+                    view.removeAttribute("disabled");
+                }
+            };
+        },
         "class": function(view, value) {
             var jq = rere.ui.jq;
             return {
@@ -1602,29 +1616,6 @@ function build() {
 };
 });
 
-define('rere/ui/StickyButton',[], function(){
-return function(rere){
-
-return {
-    oneof: function(buttons) {
-        for(var idx in buttons) {
-            (function(i){
-                buttons[i].onEvent(function(e){
-                    if (e[0]==="set" && e[1]===true) {
-                        for (var j in buttons) {
-                            if (j==i) continue;
-                            buttons[j].set(false);
-                        }
-                    }
-                });
-            })(idx);
-        }
-    }
-};
-
-};
-});
-
 define('rere/ui/elements/Container',[],function() {
 return function(rere) {
 
@@ -1940,8 +1931,6 @@ define('rere/ui/ui',
   "rere/ui/jq",
   "rere/ui/renderer",
 
-  "rere/ui/StickyButton", 
-
   "rere/ui/elements/elements",
   "rere/ui/hacks"],
 function() {
@@ -1949,7 +1938,7 @@ var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "jq", "renderer", "StickyButton", "elements", "hacks"
+  "Element", "jq", "renderer", "elements", "hacks"
 ]);
 
 obj.Input = single("input");
