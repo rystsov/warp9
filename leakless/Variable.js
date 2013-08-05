@@ -1,3 +1,7 @@
+// isActive
+// activate
+//   implicit called by onEvent
+
 var Variable = exports;
 
 var maybe = require("./maybe");
@@ -11,6 +15,8 @@ Variable.ctor = function() {
 
     this._dependants = [];
     this._dependants_id = 0;
+    this.isActive = true;
+    this.activate = function() { throw new Error(); }
 
     this.name = function() {
         if (arguments.length==0) {
@@ -32,10 +38,15 @@ Variable.ctor = function() {
             }
         });
     };
-    this.onEvent = function(dependants, f) {
+    this.onEvent = function(dependants, f, unsubscribe) {
+        if (!this.isActive) this.activate();
+
         var self = this;
+        unsubscribe = unsubscribe || function(f) {
+            f();
+        };
         var id = this._dependants_id++;
-        this._dependants.push({key: id, dependants: dependants, f:f});
+        this._dependants.push({key: id, dependants: dependants, f:f, unsubscribe: unsubscribe});
         if (this._value.isempty()) {
             f(["unset"]);
         } else {
@@ -48,10 +59,12 @@ Variable.ctor = function() {
         };
     };
     this.set = function(value) {
+        if (!this.isActive) throw new Error();
         this._value = new maybe.Some(value)
         Variable.ctor.raise(this, ["set", value])
     };
     this.unset = function() {
+        if (!this.isActive) throw new Error();
         this._value = new maybe.None();
         Variable.ctor.raise(this, ["unset"])
     };
@@ -60,24 +73,6 @@ Variable.ctor = function() {
 
     this._subscribed = false;
     this._subscribe = function() {};
-
-    // переподписывает / отписывается
-    // вызывает light для родителей / tryDim
-    this.light = function(value) {
-        if (value) {
-            if (this._subscribed) return;
-            this._subscribe();
-            for (var i in this._dependencies) {
-                this._dependencies
-            }
-        }
-        throw new Error();
-    };
-    this._tryDim = function() {
-        if (this._dependants.length==0) {
-            this.light(false);
-        }
-    }
 
     if (arguments.length>0) {
         this.set(arguments[0])
@@ -97,10 +92,22 @@ Variable.ctor.prototype.unwrap = function(alt) {
 };
 
 Variable.ctor.prototype.lift = function(f) {
+    var self = this;
+    
     var channel = new Variable.ctor()
-    this.onEvent([channel], function(e){
-        Variable.ctor.replay(channel, e, f);
-    });
+    var forget = function(unsubscribe) {
+        channel.isActive = false;
+        unsubscribe();
+    };
+    channel.isActive = false;
+    channel.activate = function() {
+        if (this.isActive) throw new Error();
+        channel.isActive = true;
+        channel.onEvent([channel], function(e){
+            Variable.ctor.replay(channel, e, f);
+        }, forget);
+    };
+    
     return channel;
 };
 
