@@ -15,7 +15,11 @@ Variable.ctor = function() {
 
     this._dependants = [];
     this._dependants_id = 0;
+    this._dependanties = [];
     this.isActive = true;
+    this.isUsed = false;
+    this.isGarbage = false;
+
     this.activate = function() { throw new Error(); }
 
     this.name = function() {
@@ -69,11 +73,6 @@ Variable.ctor = function() {
         Variable.ctor.raise(this, ["unset"])
     };
 
-    this._dependencies = [];
-
-    this._subscribed = false;
-    this._subscribe = function() {};
-
     if (arguments.length>0) {
         this.set(arguments[0])
     }
@@ -97,35 +96,55 @@ Variable.ctor.prototype.lift = function(f) {
     var channel = new Variable.ctor()
     var forget = function(unsubscribe) {
         channel.isActive = false;
+        channel._dependanties = [];
         unsubscribe();
     };
     channel.isActive = false;
     channel.activate = function() {
         if (this.isActive) throw new Error();
         channel.isActive = true;
-        channel.onEvent([channel], function(e){
+        channel._dependanties = [self];
+        self.onEvent([channel], function(e){
             Variable.ctor.replay(channel, e, f);
         }, forget);
     };
+    channel.activate();
     
     return channel;
 };
 
 Variable.ctor.prototype.bind = function(f) {
-    var result = new Variable.ctor();
+    var self = this;
 
+    var result = new Variable.ctor();
     var dispose = function() {};
-    this.onEvent([result], Variable.ctor.handler({
-        set: function(e) {
-            dispose();
-            dispose = f(e).onEvent([result], Variable.ctor.handler(result));
-        },
-        unset: function(){
-            dispose();
-            dispose = function() {};
-            result.unset();
-        }
-    }));
+    var forget = function(unsubscribe) {
+        dispose();
+        result.isActive = false;
+        result._dependanties = [];
+        unsubscribe();
+    };
+    result.isActive = false;
+    result.activate = function() {
+        if (this.isActive) throw new Error();
+        result.isActive = true;
+        result._dependanties = [self];
+        self.onEvent([result], Variable.ctor.handler({
+            set: function(e) {
+                dispose();
+                var leader = f(e);
+                result._dependanties = [self, leader];
+                dispose = leader.onEvent([result], Variable.ctor.handler(result));
+            },
+            unset: function(){
+                dispose();
+                result._dependanties = [self];
+                dispose = function() {};
+                result.unset();
+            }
+        }), forget);
+    };
+    result.activate();
     return result;
 };
 
