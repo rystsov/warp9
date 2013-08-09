@@ -1,23 +1,21 @@
 var maybe = exports;
 
-maybe.Some = (function some(value) {
-    this._m_is_maybe = true;
+maybe.Some = (function Some(value) {
     this.value = function() {
         return value;
     };
-    this.isempty = function() {
+    this.isEmpty = function() {
         return false;
     };
     this.lift = function(f) {
-        return new some(f(value));
+        return new Some(f(value));
     };
 });
 maybe.None = function() {
-    this._m_is_maybe = true;
     this.value = function() {
         throw new Error();
     };
-    this.isempty = function() {
+    this.isEmpty = function() {
         return true;
     };
     this.lift = function() {

@@ -1,15 +1,17 @@
 var GC = exports;
 
+var Variable = require('./Variable').ctor;
+
 GC.count = function() {
     var memory = {}
     function counter(rv) {
         memory[rv.id] = rv;
-        rv._dependants.map(function(dep) {
+        rv.dependants.map(function(dep) {
             dep.dependants.map(counter)
         });
     }
     for (var i=0;i<arguments.length;i++) {
-        if (!arguments[i]._is_rvariable) throw new Error();
+        if (arguments[i].type != Variable) throw new Error();
         counter(arguments[i]);
     }
     var total = 0;
@@ -25,9 +27,9 @@ GC.collect = function() {
         if (rv.isUsed) {
             used.push(rv);
         }
-        for (var i in rv._dependants) {
-            for (var j in rv._dependants[i].dependants) {
-                markGarbageCollectUsed(rv._dependants[i].dependants[j], used);
+        for (var i in rv.dependants) {
+            for (var j in rv.dependants[i].dependants) {
+                markGarbageCollectUsed(rv.dependants[i].dependants[j], used);
             }
         }
     }
@@ -36,12 +38,12 @@ GC.collect = function() {
 
         rv.isGarbage = false;
         rv.era = GC.era;
-        for (var i in rv._dependanties) {
-            unGarbageAncestors(rv._dependanties[i]);
+        for (var i in rv.dependanties) {
+            unGarbageAncestors(rv.dependanties[i]);
         }
     }
     function cutGarbage(rv) {
-        var items = rv._dependants;
+        var items = rv.dependants;
         for (var i in items) {
             var item = items[i];
 
@@ -55,7 +57,7 @@ GC.collect = function() {
             if (isGarbage) {
                 var id = item.key;
                 item.unsubscribe(function(){
-                    rv._dependants = rv._dependants.filter(function(dependant) {
+                    rv.dependants = rv.dependants.filter(function(dependant) {
                         return dependant.key!=id;
                     });
                 });
@@ -87,9 +89,9 @@ GC.printFullDependencies = function(rv) {
             dependants: []
         };
         var dependants = {}
-        for (var i in rv._dependants) {
-            for (var j in rv._dependants[i].dependants) {
-                dependants[rv._dependants[i].dependants[j].id] = rv._dependants[i].dependants[j];
+        for (var i in rv.dependants) {
+            for (var j in rv.dependants[i].dependants) {
+                dependants[rv.dependants[i].dependants[j].id] = rv.dependants[i].dependants[j];
             }
         }
         for (var i in dependants) {
@@ -103,4 +105,4 @@ GC.printFullDependencies = function(rv) {
     }
 
     print(collect(rv), "");
-}
+};

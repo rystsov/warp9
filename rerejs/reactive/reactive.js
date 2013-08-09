@@ -1,13 +1,11 @@
 define(
-["rere/reactive/Variable", "rere/reactive/ObservableList", "rere/reactive/ReduceTree", "rere/reactive/rv"], 
-function(Variable, ObservableList, ReduceTree, rv) {
+["rere/reactive/Cell", "rere/reactive/GC"],
+function(Cell, GC) {
 return function(rere) {
 
 return {
-    "Variable" : Variable(rere),
-    "ObservableList" : ObservableList(rere),
-    "ReduceTree" : ReduceTree(rere),
-    "rv" : rv(rere)
+    Cell : Cell(rere),
+    GC : GC(rere)
 };
 
 };

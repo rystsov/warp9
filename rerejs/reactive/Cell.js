@@ -1,10 +1,7 @@
-// isActive
-// activate
-//   implicit called by onEvent
+define([],function() {
+return function(rere) {
 
-var Variable = exports;
-
-var maybe = require("./maybe");
+var maybe = rere.adt.maybe;
 
 var id = 0;
 
@@ -35,13 +32,10 @@ function Cell() {
         return this;
     };
 
-    // TODO: simple rvar must be able to be activated
-    this.activate = function() { throw new Error(); }
-
-    // TODO: deprecated
-    this.value = function() {
-        return this.content;
-    };
+    this.activate = function() {
+        if (this.isActive) return;
+        throw new Error();
+    }
 
     this.subscribe = function(f) {
         return this.onEvent([], function(e){
@@ -51,10 +45,10 @@ function Cell() {
         });
     };
 
+    // unsubscribe is called by GC, when it wants to uncut refs to dependants (if they all are garbage)
+    // unsubscribe expects function that will remove dependant record from this.dependants
+    // unsubscribe is never called if dependants is empty
     this.onEvent = function(dependants, f, unsubscribe) {
-        // TODO: activate must be explicit
-        if (!this.isActive) this.activate();
-
         var self = this;
         unsubscribe = unsubscribe || function(f) {
             f();
@@ -74,14 +68,10 @@ function Cell() {
     };
 
     this.set = function(value) {
-        // TODO: WHY?!
-        if (!this.isActive) throw new Error();
         this.content = new maybe.Some(value)
         Cell.raise(this, ["set", value])
     };
     this.unset = function() {
-        // TODO: WHY?!
-        if (!this.isActive) throw new Error();
         this.content = new maybe.None();
         Cell.raise(this, ["unset"])
     };
@@ -98,7 +88,7 @@ Cell.prototype.unwrap = function(alt) {
 
 Cell.prototype.lift = function(f) {
     var self = this;
-    
+
     var channel = new Cell()
     var forget = function(unsubscribe) {
         channel.isActive = false;
@@ -107,8 +97,8 @@ Cell.prototype.lift = function(f) {
     };
     channel.isActive = false;
     channel.activate = function() {
-        // TODO: why?!
-        if (this.isActive) throw new Error();
+        if (this.isActive) return;
+        self.activate();
         channel.isActive = true;
         channel.dependanties = [self];
         self.onEvent([channel], function(e){
@@ -116,14 +106,14 @@ Cell.prototype.lift = function(f) {
         }, forget);
     };
     channel.activate();
-    
+
     return channel;
 };
 
 Cell.prototype.bind = function(f) {
     var self = this;
 
-    var result = new Variable.ctor();
+    var result = new Cell();
     var dispose = function() {};
     var forget = function(unsubscribe) {
         dispose();
@@ -133,13 +123,15 @@ Cell.prototype.bind = function(f) {
     };
     result.isActive = false;
     result.activate = function() {
-        if (this.isActive) throw new Error();
+        if (this.isActive) return;
+        self.activate();
         result.isActive = true;
         result.dependanties = [self];
-        self.onEvent([result], Variable.ctor.handler({
+        self.onEvent([result], Cell.handler({
             set: function(e) {
                 dispose();
                 var leader = f(e);
+                leader.activate();
                 result.dependanties = [self, leader];
                 dispose = leader.onEvent([result], Cell.handler(result));
             },
@@ -184,4 +176,7 @@ Cell.handler = function(handler) {
     };
 };
 
-Variable.ctor = Cell;
+return Cell;
+
+};
+});
