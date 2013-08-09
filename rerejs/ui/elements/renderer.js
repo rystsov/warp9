@@ -20,7 +20,7 @@ return {
             return element.view(element);
         } else if (element["_m_is_maybe"]) {
             return new MaybeElement(renderer, element)
-        } else if (element["rere/reactive/Channel"]) {
+        } else if (typeof element==="object" && element.type == rere.reactive.Cell) {
             return new RvElement(renderer, element);
         } else if (element["rere/reactive/ObservableList"]) {
             return new ObservableListElement(element.lift(function(e){

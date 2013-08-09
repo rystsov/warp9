@@ -19,7 +19,7 @@ return {
                     if (view.value!=v) view.value = v;
                 },
                 unset: function() {
-                    if (input.value!="") input.value = "";
+                    if (view.value!="") view.value = "";
                 }
             };
         },
@@ -52,7 +52,7 @@ return {
 	}),
     renderSingle: function(element, view) {
         var jq = rere.ui.jq;
-        var Variable = rere.reactive.Variable;
+        var Cell = rere.reactive.Cell;
         var FragmentElement = rere.ui.elements.FragmentElement;
 
         for (var name in element.data.attributes) {
@@ -81,8 +81,8 @@ return {
         if ("css" in element.data.attributes) {
             for (var property in element.data.attributes["css"]) {
                 (function(property, value){
-                    if (typeof value==="object" && value["rere/reactive/Channel"]) {
-                        value.onEvent(Variable.handler({
+                    if (typeof value==="object" && value.type == Cell) {
+                        value.onEvent(Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
                         }))
@@ -150,8 +150,8 @@ function addDefault(special) {
         }
     }
     function wrapRv(value, template) {
-        if (typeof value==="object" && value["rere/reactive/Channel"]) {
-            value.onEvent(rere.reactive.Variable.handler({
+        if (typeof value==="object" && value.type == Cell) {
+            value.onEvent([], rere.reactive.Cell.handler({
                 set: template.set,
                 unset: template.unset
             }));

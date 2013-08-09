@@ -28,10 +28,10 @@ return function(renderer) {
     renderer.addPithyTag("combobox", function(state) { return new ComboBox(state); })
 
     renderer.addTag("text", null, function(info) {
-        if (typeof info.casual[0] == 'string' || info.casual[0] instanceof String) {
-            return new rere.ui.Text(info.casual[0]);
+        if (typeof info.state == 'string' || info.state instanceof String) {
+            return new rere.ui.Text(info.state);
         } else {
-            return renderer.parse(renderer.h(info.casual[0].lift(function(text){
+            return renderer.parse(renderer.h(info.state.lift(function(text){
                 return renderer.h(new rere.ui.Text(text));
             })));
         }

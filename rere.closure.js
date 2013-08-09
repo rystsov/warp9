@@ -103,13 +103,10 @@ function Cell() {
         return this;
     };
 
-    // TODO: simple rvar must be able to be activated
-    this.activate = function() { throw new Error(); }
-
-    // TODO: deprecated
-    this.value = function() {
-        return this.content;
-    };
+    this.activate = function() {
+        if (this.isActive) return;
+        throw new Error();
+    }
 
     this.subscribe = function(f) {
         return this.onEvent([], function(e){
@@ -119,10 +116,10 @@ function Cell() {
         });
     };
 
+    // unsubscribe is called by GC, when it wants to uncut refs to dependants (if they all are garbage)
+    // unsubscribe expects function that will remove dependant record from this.dependants
+    // unsubscribe is never called if dependants is empty
     this.onEvent = function(dependants, f, unsubscribe) {
-        // TODO: activate must be explicit
-        if (!this.isActive) this.activate();
-
         var self = this;
         unsubscribe = unsubscribe || function(f) {
             f();
@@ -142,14 +139,10 @@ function Cell() {
     };
 
     this.set = function(value) {
-        // TODO: WHY?!
-        if (!this.isActive) throw new Error();
         this.content = new maybe.Some(value)
         Cell.raise(this, ["set", value])
     };
     this.unset = function() {
-        // TODO: WHY?!
-        if (!this.isActive) throw new Error();
         this.content = new maybe.None();
         Cell.raise(this, ["unset"])
     };
@@ -175,8 +168,8 @@ Cell.prototype.lift = function(f) {
     };
     channel.isActive = false;
     channel.activate = function() {
-        // TODO: why?!
-        if (this.isActive) throw new Error();
+        if (this.isActive) return;
+        self.activate();
         channel.isActive = true;
         channel.dependanties = [self];
         self.onEvent([channel], function(e){
@@ -191,7 +184,7 @@ Cell.prototype.lift = function(f) {
 Cell.prototype.bind = function(f) {
     var self = this;
 
-    var result = new Variable.ctor();
+    var result = new Cell();
     var dispose = function() {};
     var forget = function(unsubscribe) {
         dispose();
@@ -201,13 +194,15 @@ Cell.prototype.bind = function(f) {
     };
     result.isActive = false;
     result.activate = function() {
-        if (this.isActive) throw new Error();
+        if (this.isActive) return;
+        self.activate();
         result.isActive = true;
         result.dependanties = [self];
-        self.onEvent([result], Variable.ctor.handler({
+        self.onEvent([result], Cell.handler({
             set: function(e) {
                 dispose();
                 var leader = f(e);
+                leader.activate();
                 result.dependanties = [self, leader];
                 dispose = leader.onEvent([result], Cell.handler(result));
             },
@@ -404,7 +399,7 @@ return {
                     if (view.value!=v) view.value = v;
                 },
                 unset: function() {
-                    if (input.value!="") input.value = "";
+                    if (view.value!="") view.value = "";
                 }
             };
         },
@@ -437,7 +432,7 @@ return {
 	}),
     renderSingle: function(element, view) {
         var jq = rere.ui.jq;
-        var Variable = rere.reactive.Variable;
+        var Cell = rere.reactive.Cell;
         var FragmentElement = rere.ui.elements.FragmentElement;
 
         for (var name in element.data.attributes) {
@@ -466,8 +461,8 @@ return {
         if ("css" in element.data.attributes) {
             for (var property in element.data.attributes["css"]) {
                 (function(property, value){
-                    if (typeof value==="object" && value["rere/reactive/Channel"]) {
-                        value.onEvent(Variable.handler({
+                    if (typeof value==="object" && value.type == Cell) {
+                        value.onEvent(Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
                         }))
@@ -535,8 +530,8 @@ function addDefault(special) {
         }
     }
     function wrapRv(value, template) {
-        if (typeof value==="object" && value["rere/reactive/Channel"]) {
-            value.onEvent(rere.reactive.Variable.handler({
+        if (typeof value==="object" && value.type == Cell) {
+            value.onEvent([], rere.reactive.Cell.handler({
                 set: template.set,
                 unset: template.unset
             }));
@@ -636,10 +631,10 @@ return function(renderer) {
     renderer.addPithyTag("combobox", function(state) { return new ComboBox(state); })
 
     renderer.addTag("text", null, function(info) {
-        if (typeof info.casual[0] == 'string' || info.casual[0] instanceof String) {
-            return new rere.ui.Text(info.casual[0]);
+        if (typeof info.state == 'string' || info.state instanceof String) {
+            return new rere.ui.Text(info.state);
         } else {
-            return renderer.parse(renderer.h(info.casual[0].lift(function(text){
+            return renderer.parse(renderer.h(info.state.lift(function(text){
                 return renderer.h(new rere.ui.Text(text));
             })));
         }
@@ -808,7 +803,7 @@ function build() {
             function lift(e) {
                 if (e["_is_html_element"]) {
                     return flow(e.element);
-                } else if (e["rere/reactive/Channel"]) {
+                } else if (typeof e==="object" && e.type == rere.reactive.Cell) {
                     return e.lift(function(v){
                         return lift(v);
                     });
@@ -1050,7 +1045,7 @@ define('rere/ui/elements/RvElement',[], function() {
 return function(rere) {
 
 return (function(renderer, rv) {
-    var Variable = rere.reactive.Variable;
+    var Cell = rere.reactive.Cell;
 
     var self = this;
     this.last = null;
@@ -1059,7 +1054,7 @@ return (function(renderer, rv) {
     this.bindto = function(element) {
         this.head = element;
         
-        self.dispose = rv.onEvent(Variable.handler({
+        self.dispose = rv.onEvent([], Cell.handler({
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
@@ -1116,7 +1111,7 @@ return {
             return element.view(element);
         } else if (element["_m_is_maybe"]) {
             return new MaybeElement(renderer, element)
-        } else if (element["rere/reactive/Channel"]) {
+        } else if (typeof element==="object" && element.type == rere.reactive.Cell) {
             return new RvElement(renderer, element);
         } else if (element["rere/reactive/ObservableList"]) {
             return new ObservableListElement(element.lift(function(e){

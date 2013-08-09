@@ -88,7 +88,7 @@ function build() {
             function lift(e) {
                 if (e["_is_html_element"]) {
                     return flow(e.element);
-                } else if (e["rere/reactive/Channel"]) {
+                } else if (typeof e==="object" && e.type == rere.reactive.Cell) {
                     return e.lift(function(v){
                         return lift(v);
                     });

@@ -2,7 +2,7 @@ define([], function() {
 return function(rere) {
 
 return (function(renderer, rv) {
-    var Variable = rere.reactive.Variable;
+    var Cell = rere.reactive.Cell;
 
     var self = this;
     this.last = null;
@@ -11,7 +11,7 @@ return (function(renderer, rv) {
     this.bindto = function(element) {
         this.head = element;
         
-        self.dispose = rv.onEvent(Variable.handler({
+        self.dispose = rv.onEvent([], Cell.handler({
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
