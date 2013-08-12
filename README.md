@@ -21,7 +21,7 @@ breaks an appilcation into two parts. That works great until:
 To beat the first point you can use a divide and conquer approach (if a templating language 
 is sophisticated). But if you face large and interactive template based app you are in 
 trouble. Templates and its code behide are tightly coupled, so almost any edits to templates 
-should be done simultaneously with edits to code behide. That fact makes impossible to use 
+should be done simultaneously with edits to code behind. That fact makes impossible to use 
 divide and conquer approach and that fact also kills an idea of extracting some interface 
 solution to a reusable component since it is an infinitely harder to distribute two files (
 template and code behide) compared to one.
@@ -29,6 +29,15 @@ template and code behide) compared to one.
 **My main point is that separation of concerns (templates) reduces complexity linearity 
 by a factor of 2, but divide and conquer does it logarithmic.** So we should develop a 
 library with divide and conquer in mind.
+
+### Alternative
+I blame templates in the last section, but what is the alternative? Lets see to templates from 
+bird's-eye view. 
+> It is a map defined in a special language from a model to a view. 
+
+Since we talk about complex web app and there is always a code behind highly coupled with template, what is 
+forces us to use a special language? Lets embed "templates" into the host language (javascript) and use its 
+natural way of composition (function composition or object composition) for the divide and conquer approach.
 
 ### Existsing solutions
 #### AngularJS
