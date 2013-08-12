@@ -7,7 +7,7 @@ Yes, this is yet another reactive js-library for builing dynamic applications.
 It is similar to AngularJS, KnockoutJS and React (and many others) by tasks it solves.
 The key difference is in an approach.
 
-## Templates doesn't fit modern high interactive web apps
+### Templates doesn't fit modern high interactive web apps
 At first I should mention that I strongy against to web template systems as a foundation 
 for complex web applications. Templates are fine for a content based sites (like blogs, 
 wiki, shops and etc.) but lack in case of a interactive one. The main idea beside templates 
@@ -29,3 +29,8 @@ template and code behide) compared to one.
 **My main point is that separation of concerns (templates) reduces complexity linearity 
 by a factor of 2, but divide and conquer does it logarithmic.** So we should develop a 
 library with divide and conquer in mind.
+
+### Existsing solutions
+#### AngularJS
+#### KnockoutJS
+#### React
