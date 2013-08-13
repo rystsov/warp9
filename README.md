@@ -35,9 +35,13 @@ I blame templates in the last section, but what is the alternative? Lets see to 
 bird's-eye view. 
 > It is a map defined in a special language from a model to a view. 
 
-Since we talk about complex web app and there is always a code behind highly coupled with template, what is 
-forces us to use a special language? Lets embed "templates" into the host language (javascript) and use its 
-natural way of composition (function composition or object composition) for the divide and conquer approach.
+Since we talk about complex web app and there is always a code behind that is highly coupled with a template. 
+And if we already have a lot of code related to GUI, what is forces us to use a special language for templates? 
+Lets embed "templates" into the host language (javascript) and use its natural way of composition (function 
+composition or object delegation) for the divide and conquer approach. Programming gui in code isn't nonsense, 
+it is used in [Hiccup](https://github.com/weavejester/hiccup), [React](http://facebook.github.io/react/) libraries 
+when we speak about web and almost in all libraries when we speak about desktop.
+
 
 ### Existsing solutions
 #### AngularJS
