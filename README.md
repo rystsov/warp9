@@ -42,6 +42,15 @@ composition or object delegation) for the divide and conquer approach. Programmi
 it is used in [Hiccup](https://github.com/weavejester/hiccup), [React](http://facebook.github.io/react/) libraries 
 when we speak about web and almost in all libraries when we speak about desktop.
 
+I prefer function composition over object delegation, so such code in angularjs:
+
+    AngularJS code
+
+could be rewritten in rere.js as
+
+    rere.js code
+
+So we cut off unnecessary entity (special language for templates) and got a way for building composable ui.
 
 ### Existsing solutions
 #### AngularJS
