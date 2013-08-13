@@ -49,11 +49,54 @@ when we speak about web and almost in all libraries when we speak about desktop.
 
 I prefer function composition over object delegation, so such code in angularjs:
 
-    AngularJS code
+```html
+<body>
+
+<script type="text/ng-template"  id="name-component.html">
+    <div class="name-component">
+        <div>First name: {{name.firstName}}</div>
+        <div>Last name: {{name.lastName}}</div>
+    </div>
+</script>
+
+<div ng-controller="App">
+    <div ng-repeat="name in names" ng-include="'name-component.html'"></div>
+</div>
+</body>
+
+<script type="text/javascript">
+    function App($scope) {
+        $scope.names = [
+            {firstName: "Denis", lastName: "Rystsov"},
+            {firstName: "Lisa", lastName: "Kosyachenko"}
+        ];
+    }
+</script>
+```
 
 could be rewritten in rere.js as
 
-    rere.js code
+```html
+<body>
+<div id="screen" />
+</body>
+
+<script type="text/javascript">
+    var H = rere.ui.renderer.h;
+    
+    function NAME(name) {
+        return ["div",
+            ["div", "First name: " + name.firstName],
+            ["div", "Last name: " + name.lastName]
+        ];
+    }
+    
+    rere.ui.renderer.render(screen, ["div", H([
+        {firstName: "Denis", lastName: "Rystsov"},
+        {firstName: "Lisa", lastName: "Kosyachenko"}
+    ].map(NAME))]);
+</script>
+```
 
 So we cut off unnecessary entity (special language for templates) and got a way for building composable ui.
 
