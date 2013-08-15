@@ -1,157 +1,118 @@
-define(["rere/ui/initHtml"], function(initHtml){
+define([], function(){
 return function(rere) {
 
-var renderer = build();
+var renderer = {
+    h: function(element) { return new H(element); },
+    tags: {
+        "div": tag("div"),
+        "input-text": inputText
+    },
+    parse: function(element) {
+        var Cell = rere.reactive.Cell;
 
-return initHtml(rere)(renderer);
-
-function build() {
-    return {
-        h : (function(){
-            var h = function(element) {
-                return {
-                    _is_html_element: true,
-                    element: element
-                }
-            };
-            h.at = function(attributes) {
-                return {
-                    _is_html_at: true,
-                    attributes: attributes
-                }
-            };
-            h.e = function(events) {
-                return {
-                    _is_html_events: true,
-                    events: events
-                }
-            };
-            h.s = function(state) {
-                return {
-                    _is_html_state: true,
-                    state: state
-                }
-            }
-            return h;
-        })(),
-        tags: {},
-        addTag: function(name, factory, builder) {
-            this.tags[name]={ factory: factory, builder: builder }
-        },
-        tag: function(name) {
-            return this.tags[name].factory;
-        },
-        addPithyTag: function(tag, factory) {
-            var renderer = this;
-            factory = factory || function() {
-                return new function() {
-                    rere.ui.Element.ctor.apply(this);
-                    this.view = function(element){
-                        return rere.ui.Element.renderContainer(element, document.createElement(tag));
-                    };
-                };
-            };
-            renderer.addTag(tag, factory, function(info){
-                var element = info.state ? factory(info.state) : factory();
-                if (info.attributes) element.attributes(info.attributes);
-                if (info.events) element.events(info.events);
-
-                element.content(info.casual.map(function(item){
-                    if (typeof item == 'string' || item instanceof String) {
-                        return new rere.ui.Text(item);
-                    } else {
-                        return renderer.parse(item);
-                    }
-                }));
-                return element.get();
-            });
-        },
-        addVoidTag : function(tag, factory) {
-            var renderer = this;
-            factory = factory || function() {
-                return new function() {
-                    rere.ui.Element.ctor.apply(this);
-                    this.view = function(element){
-                        return rere.ui.Element.renderSingle(element, document.createElement(tag));
-                    };
-                };
-            };
-            renderer.addTag(tag, factory, function(info){
-                var element = info.state ? factory(info.state) : factory();
-                if (info.attributes) element.attributes(info.attributes);
-                if (info.events) element.events(info.events);
-                return element.get();
-            });
-        },
-        parse: function(element) {
-            var self = this;
-            function lift(e) {
-                if (e["_is_html_element"]) {
-                    return flow(e.element);
-                } else if (typeof e==="object" && e.type == rere.reactive.Cell) {
-                    return e.lift(function(v){
-                        return lift(v);
-                    });
-                } else if (e instanceof Array ) {
-                    return e.map(flow);
-                } else if (e["_m_is_maybe"] ) {
-                    return e.lift(flow);
-                } else if (e["rere/reactive/ObservableList"] ) {
-                    return e.lift(lift);
-                } else {
-                    throw Error();
-                }
-            }
-            function flow(e) {
-                if (e instanceof Array ) {
-                    if (e.length==0) throw new Error("Where is the tag name?");
-                    if (!(e[0] in self.tags)) {
-                        throw new Error("Unknown tag: " + e[0]);
-                    }
-                    return self.tags[e[0]].builder(parseSpecial(e))
-                } else if (e["_is_html_element"]) {
-                    return lift(e.element);
-                } else {
-                    return e;
-                }
-
-                function parseSpecial(args) {
-                    var result = {
-                        /*attributes: {},
-                        events: {},
-                        state:*/
-                        casual: []
-                    };
-                    for (var i=1;i<args.length;i++) {
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_at)) {
-                            if (result.attributes) throw new Error("attributes may be set only once");
-                            result.attributes = args[i].attributes;
-                            continue;
-                        }
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_events)) {
-                            if (result.events) throw new Error("events may be set only once");
-                            result.events = args[i].events;
-                            continue;
-                        }
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_state)) {
-                            if ("state" in result) throw new Error("state may be set only once");
-                            result.state = args[i].state;
-                            continue;
-                        }
-                        result.casual.push(args[i]);
-                    }
-                    return result;
-                }
-            }
-            return flow(element);
-        },
-        render : function(canvas, element) {
-            var renderer = rere.ui.elements.renderer;
-            var Container = rere.ui.elements.Container;
-
-            renderer.render(this.parse(element)).bindto(new Container(canvas));
+        if (typeof element==="string" || element instanceof String) {
+            return new rere.ui.HtmlTextNode(element);
         }
+        if (element instanceof Array) {
+            if (element.length==0) throw new Error();
+            var tag = element[0];
+            if (!(tag in this.tags)) throw new Error("Unknown tag: " + tag);
+            return this.tags[tag](element.slice(1));
+        }
+        if (typeof element==="object" && element.type==Cell) {
+            return element.lift(this.parse.bind(this));
+        }
+
+        throw new Error();
+    },
+    render : function(canvas, element) {
+        var Container = rere.ui.elements.Container;
+
+        rere.ui.HtmlDom.wrap(this.parse(element)).bindto(new Container(canvas));
+    }
+};
+
+return renderer;
+
+function H(element) {
+    this.element = element
+}
+
+function tag(tagName) {
+    return function(args) {
+        var args = parseTagArgs(args);
+        var element = new rere.ui.HtmlElement(tagName);
+        setAttrEvents(element, args.attr);
+        element.children = [];
+        for (var i in args.children) {
+            var child = args.children[i];
+            child = rere.ui.renderer.parse(child);
+            element.children.push(child);
+        }
+        return element;
     };
+}
+
+function inputText(args) {
+    var Cell = rere.reactive.Cell;
+    args = parseTagArgs(args);
+    if (args.children.length != 1) throw new Error();
+    var value = args.children[0];
+    if (!(typeof value==="object" && value.type==Cell)) throw new Error();
+
+    var element = new rere.ui.HtmlElement("input");
+    setAttrEvents(element, args.attr);
+    element.attributes.type = "text";
+    element.attributes.value = value;
+    var input = "input" in element.events ? element.events.input : function(){};
+    element.events.input = function(control, view) {
+        input.apply(element.events, [control, view]);
+        value.set(view.value);
+    };
+
+    return element;
+}
+
+function parseTagArgs(args) {
+    var Cell = rere.reactive.Cell;
+    if (args.length==0) throw new Error();
+
+    var children = [args[0]];
+    var attr = null;
+
+    while(true) {
+        if (typeof args[0]==="string" || args[0] instanceof Array) break;
+        if (args[0] instanceof Array) break;
+        if (args[0] instanceof Object && args[0].type==Cell) break;
+        if (args[0] instanceof H) break;
+        children = [];
+        attr = args[0];
+        break;
+    }
+
+    for (var i=1;i<args.length;i++) {
+        children.push(args[i]);
+    }
+
+    if (children.length==1) {
+        if (children[0] instanceof H) {
+            children = children[0].element;
+        }
+    }
+
+    return {attr: attr, children: children};
+}
+
+function setAttrEvents(element, attr) {
+    if (attr!=null) {
+        for (var name in attr) {
+            if (typeof attr[name]==="function") {
+                element.events[name] = attr[name];
+                continue;
+            }
+            element.attributes[name] = attr[name];
+        }
+    }
 }
 
 };

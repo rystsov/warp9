@@ -1,7 +1,7 @@
 define([], function() {
 return function(rere) {
 
-return (function(renderer, rv) {
+return (function(rv) {
     var Cell = rere.reactive.Cell;
 
     var self = this;
@@ -16,7 +16,7 @@ return (function(renderer, rv) {
                 if (self.last!=null) {
                     self.last.remove();
                 };
-                self.last = renderer.render(e);
+                self.last = e;
                 self.last.bindto(element);
             },
             unset: function() {

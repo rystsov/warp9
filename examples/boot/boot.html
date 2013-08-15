@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <script src="../../rere.closure.js"></script>
+    </head>
+    <body>
+        <div id="canvas"></div>
+    </body>
+    <script type="text/javascript">
+        var renderer = rere.ui.renderer;
+        var Cell = rere.reactive.Cell;
+
+        var message = new Cell("");
+
+        renderer.render(canvas,
+            ["div", "Enter message:", ["input-text", message]]
+        );
+
+        //message.set("Hello, world!");
+    </script>
+</html>

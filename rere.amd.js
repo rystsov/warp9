@@ -350,177 +350,6 @@ return {
 };
 });
 
-define('rere/ui/Element',[], function(){
-return function(rere) {
-
-return {
-	setProperty: addDefault({
-	    checked: function(view, value) {
-	        return {
-	            set: function(v) { 
-	                view.checked = v; 
-	            },
-	            unset: function() { 
-	                view.checked = false; 
-	            }
-	        };
-	    }, 
-        value: function(view, value) {
-            return {
-                set: function(v) {
-                    if (view.value!=v) view.value = v;
-                },
-                unset: function() {
-                    if (view.value!="") view.value = "";
-                }
-            };
-        },
-        disabled: function(view, value) {
-            return {
-                set: function(v) {
-                    if (v) {
-                        view.setAttribute("disabled", "")
-                    } else {
-                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
-                    }
-                },
-                unset: function() {
-                    view.removeAttribute("disabled");
-                }
-            };
-        },
-        "class": function(view, value) {
-            var jq = rere.ui.jq;
-            return {
-                set: function(v) {
-                    jq.removeClass(view);
-                    view.classList.add(v);
-                },
-                unset: function() {
-                    jq.removeClass(view);
-                }
-            };
-        }
-	}),
-    renderSingle: function(element, view) {
-        var jq = rere.ui.jq;
-        var Cell = rere.reactive.Cell;
-        var FragmentElement = rere.ui.elements.FragmentElement;
-
-        for (var name in element.data.attributes) {
-            if (name=="css") continue;
-            
-            rere.ui.Element.setProperty(view, name, element.data.attributes[name])
-        }
-        
-        for (var name in element.data.events) {
-            (function(name){
-                if (name == "control:draw") return;
-                if (name == "key:enter") {
-                    view.addEventListener("keypress", function(event) {
-                        if (event.keyCode == 13) {
-                            element.data.events[name](element, view, event);
-                        }
-                    }, false);
-                } else {
-                    view.addEventListener(name, function(event) {
-                        element.data.events[name](element, view, event);
-                    }, false);
-                }
-            })(name);
-        }
-
-        if ("css" in element.data.attributes) {
-            for (var property in element.data.attributes["css"]) {
-                (function(property, value){
-                    if (typeof value==="object" && value.type == Cell) {
-                        value.onEvent(Cell.handler({
-                            set: function(e) { jq.css(view, property, e); },
-                            unset: function() { jq.css(view, property, null); }
-                        }))
-                    } else {
-                        jq.css(view, property, value);
-                    };
-                })(property, element.data.attributes["css"][property]);
-            };
-        };
-
-        var events = {};
-        if ("control:draw" in element.data.events) {
-            events.draw = function() {
-                element.data.events["control:draw"](element, view)
-            };
-        }
-        return new FragmentElement(view, events);
-    },
-    renderContainer: function(element, view) {
-        var renderer = rere.ui.elements.renderer;
-        var Container = rere.ui.elements.Container;
-
-        var fragment = rere.ui.Element.renderSingle(element, view);
-        var bindto = fragment.bindto;
-        fragment.bindto = function(head) {
-            bindto.apply(fragment, [head]);
-            renderer.render(element.data.content).bindto(new Container(view));
-        };
-        return fragment;
-    },
-    ctor: function() {
-        this._ui_is = true;
-        this.data = {
-            content: {},
-            attributes: {},
-            events: {}
-        };
-        this.content = function(content) {
-            this.data.content = content;
-            return this;
-        };
-        this.attributes = function(attributes) {
-            this.data.attributes = attributes
-            return this;
-        };
-        this.events = function(events) {
-            this.data.events = events
-            return this;
-        };
-        this.get = function() {
-            return this;
-        };
-    }
-};
-
-function addDefault(special) {
-	function defaultMap(view, name, value) {
-        return {
-            set: function(v) { view.setAttribute(name, v); },
-            unset: function() {
-                if (view.hasAttribute(name)) {
-                    view.removeAttribute(name);
-                }
-            }
-        }
-    }
-    function wrapRv(value, template) {
-        if (typeof value==="object" && value.type == Cell) {
-            value.onEvent([], rere.reactive.Cell.handler({
-                set: template.set,
-                unset: template.unset
-            }));
-        } else {
-            template.set(value);
-        }
-    }
-    return function(view, name, value) {
-        var setter = name in special ? special[name](view, value) : defaultMap(view, name, value);
-        
-        wrapRv(value, setter);
-    };
-}
-
-};
-});
-
 define('rere/ui/jq',[], function() {
 return function(rere) {
 
@@ -573,277 +402,6 @@ function dasherize(str) {
 };
 });
 
-define('rere/ui/initHtml',[], function() {
-return function(rere) {
-
-return function(renderer) {
-    renderer.addPithyTag("div");
-    renderer.addPithyTag("span");
-    renderer.addPithyTag("label");
-    renderer.addPithyTag("button");
-    renderer.addPithyTag("form");
-    renderer.addPithyTag("ul");
-    renderer.addPithyTag("li");
-    renderer.addPithyTag("table");
-    renderer.addPithyTag("tr");
-    renderer.addPithyTag("td");
-    renderer.addPithyTag("a");
-    renderer.addPithyTag("section");
-    renderer.addPithyTag("header");
-    renderer.addPithyTag("footer");
-    renderer.addPithyTag("h1");
-    renderer.addPithyTag("strong");
-    renderer.addPithyTag("option");
-    renderer.addPithyTag("sup");
-    renderer.addPithyTag("sub");
-
-    renderer.addVoidTag("input-radio", function(state) { return new InputCheck(state, "radio"); })
-    renderer.addVoidTag("input-check", function(state) { return new InputCheck(state, "checkbox"); })
-    renderer.addVoidTag("input-text", function(state) { return new InputText(state); })
-    renderer.addPithyTag("combobox", function(state) { return new ComboBox(state); })
-
-    renderer.addTag("text", null, function(info) {
-        if (typeof info.state == 'string' || info.state instanceof String) {
-            return new rere.ui.Text(info.state);
-        } else {
-            return renderer.parse(renderer.h(info.state.lift(function(text){
-                return renderer.h(new rere.ui.Text(text));
-            })));
-        }
-    });
-
-    return renderer;
-
-    function InputCheck(state, type) {
-        if (!type) {
-            throw new Error("type must be provider");
-        }
-        if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
-        rere.ui.Input.apply(this, []);
-        state = state || new Variable();
-
-        this.get = function() {
-            var self = this;
-            this.data.attributes.type=type;
-            this.data.attributes.checked = state.coalesce(false);
-            var change = this.data.events.change || function(){};
-            var checked = this.data.events["rere:checked"] || function(){};
-            var unchecked = this.data.events["rere:unchecked"] || function(){};
-            delete this.data.events["rere:checked"];
-            delete this.data.events["rere:unchecked"];
-            this.data.events.change = function(control, view) {
-                change.apply(self.data.events, [control, view]);
-                if (view.checked) {
-                    checked();
-                } else {
-                    unchecked();
-                }
-                state.set(view.checked);
-            };
-
-            return this;
-        }
-    }
-
-    function InputText(state) {
-        rere.ui.Input.apply(this, []);
-
-        this.get = function() {
-            var self = this;
-            this.data.attributes.type="text";
-            this.data.attributes.value = state;
-            var input = "input" in this.data.events ? this.data.events.input : function(){};
-            this.data.events.input = function(control, view) {
-                input.apply(self.data.events, [control, view]);
-                state.set(view.value);
-            };
-
-            return this;
-        }
-    }
-
-    function ComboBox(state) {
-        rere.ui.Element.ctor.apply(this);
-
-        this.get = function() {
-            var self = this;
-            this.data.attributes.value = state;
-            var change = "change" in this.data.events ? this.data.events.change : function(){};
-            this.data.events.change = function(control, view) {
-                change.apply(self.data.events, [control, view]);
-                state.set(view.value);
-            };
-            return this;
-        };
-
-        this.view = function(element){
-            return rere.ui.Element.renderContainer(element, document.createElement("select"));
-        };
-    }
-}
-
-};
-});
-
-define('rere/ui/renderer',["rere/ui/initHtml"], function(initHtml){
-return function(rere) {
-
-var renderer = build();
-
-return initHtml(rere)(renderer);
-
-function build() {
-    return {
-        h : (function(){
-            var h = function(element) {
-                return {
-                    _is_html_element: true,
-                    element: element
-                }
-            };
-            h.at = function(attributes) {
-                return {
-                    _is_html_at: true,
-                    attributes: attributes
-                }
-            };
-            h.e = function(events) {
-                return {
-                    _is_html_events: true,
-                    events: events
-                }
-            };
-            h.s = function(state) {
-                return {
-                    _is_html_state: true,
-                    state: state
-                }
-            }
-            return h;
-        })(),
-        tags: {},
-        addTag: function(name, factory, builder) {
-            this.tags[name]={ factory: factory, builder: builder }
-        },
-        tag: function(name) {
-            return this.tags[name].factory;
-        },
-        addPithyTag: function(tag, factory) {
-            var renderer = this;
-            factory = factory || function() {
-                return new function() {
-                    rere.ui.Element.ctor.apply(this);
-                    this.view = function(element){
-                        return rere.ui.Element.renderContainer(element, document.createElement(tag));
-                    };
-                };
-            };
-            renderer.addTag(tag, factory, function(info){
-                var element = info.state ? factory(info.state) : factory();
-                if (info.attributes) element.attributes(info.attributes);
-                if (info.events) element.events(info.events);
-
-                element.content(info.casual.map(function(item){
-                    if (typeof item == 'string' || item instanceof String) {
-                        return new rere.ui.Text(item);
-                    } else {
-                        return renderer.parse(item);
-                    }
-                }));
-                return element.get();
-            });
-        },
-        addVoidTag : function(tag, factory) {
-            var renderer = this;
-            factory = factory || function() {
-                return new function() {
-                    rere.ui.Element.ctor.apply(this);
-                    this.view = function(element){
-                        return rere.ui.Element.renderSingle(element, document.createElement(tag));
-                    };
-                };
-            };
-            renderer.addTag(tag, factory, function(info){
-                var element = info.state ? factory(info.state) : factory();
-                if (info.attributes) element.attributes(info.attributes);
-                if (info.events) element.events(info.events);
-                return element.get();
-            });
-        },
-        parse: function(element) {
-            var self = this;
-            function lift(e) {
-                if (e["_is_html_element"]) {
-                    return flow(e.element);
-                } else if (typeof e==="object" && e.type == rere.reactive.Cell) {
-                    return e.lift(function(v){
-                        return lift(v);
-                    });
-                } else if (e instanceof Array ) {
-                    return e.map(flow);
-                } else if (e["_m_is_maybe"] ) {
-                    return e.lift(flow);
-                } else if (e["rere/reactive/ObservableList"] ) {
-                    return e.lift(lift);
-                } else {
-                    throw Error();
-                }
-            }
-            function flow(e) {
-                if (e instanceof Array ) {
-                    if (e.length==0) throw new Error("Where is the tag name?");
-                    if (!(e[0] in self.tags)) {
-                        throw new Error("Unknown tag: " + e[0]);
-                    }
-                    return self.tags[e[0]].builder(parseSpecial(e))
-                } else if (e["_is_html_element"]) {
-                    return lift(e.element);
-                } else {
-                    return e;
-                }
-
-                function parseSpecial(args) {
-                    var result = {
-                        /*attributes: {},
-                        events: {},
-                        state:*/
-                        casual: []
-                    };
-                    for (var i=1;i<args.length;i++) {
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_at)) {
-                            if (result.attributes) throw new Error("attributes may be set only once");
-                            result.attributes = args[i].attributes;
-                            continue;
-                        }
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_events)) {
-                            if (result.events) throw new Error("events may be set only once");
-                            result.events = args[i].events;
-                            continue;
-                        }
-                        if ((typeof args[i] === "object")&&(args[i]._is_html_state)) {
-                            if ("state" in result) throw new Error("state may be set only once");
-                            result.state = args[i].state;
-                            continue;
-                        }
-                        result.casual.push(args[i]);
-                    }
-                    return result;
-                }
-            }
-            return flow(element);
-        },
-        render : function(canvas, element) {
-            var renderer = rere.ui.elements.renderer;
-            var Container = rere.ui.elements.Container;
-
-            renderer.render(this.parse(element)).bindto(new Container(canvas));
-        }
-    };
-}
-
-};
-});
-
 define('rere/ui/elements/Container',[],function() {
 return function(rere) {
 
@@ -857,32 +415,6 @@ return function(container) {
         } else {
             container.insertBefore(html, container.childNodes.item(0));
         }
-    };
-};
-
-};
-});
-
-define('rere/ui/elements/FragmentElement',[], function() {
-return function(rere) {
-
-return function(fragment, events) {
-	var jq = rere.ui.jq;
-
-    this.head = null;
-    this.bindto = function(element) {
-        element.place(fragment);
-        this.head = element;
-        if (events && events.draw) events.draw();
-    };
-    this.place = function(html) {
-        jq.after(fragment, html);
-    };
-    this.remove = function() {
-        jq.remove(fragment);
-        this.place = function(html) {
-            this.head.place(html);
-        };
     };
 };
 
@@ -920,103 +452,10 @@ return function(elements) {
 
 };
 });
-define('rere/ui/elements/MaybeElement',[], function() {
-return function(rere) {
-
-return (function(renderer, maybe) {
-    var self = this;
-    this.last = null;
-    this.head = null;
-    this.bindto = function(element) {
-        this.head = element;
-        if (!maybe.isempty()) {
-            self.last = renderer.render(maybe.value());
-            self.last.bindto(element);
-        }
-    };
-    this.place = function(html) {
-        if (this.last==null) {
-            this.head.place(html);
-        } else {
-            this.last.place(html);
-        }
-    };
-    this.remove = function() {
-        if (this.last!=null) {
-            this.last.remove()
-        }
-    };
-});
-
-};
-});
-
-define('rere/ui/elements/ObservableListElement',[], function() {
-return function(rere) {
-
-return function(list) {
-    var FragmentElement = rere.ui.elements.FragmentElement;
-
-    this.last = new FragmentElement(document.createElement("span"));
-    this.head = null;
-    this.elements = null;
-    this.hash = {};
-    this.bindto = function(element) {
-        var self = this;
-        this.head = element;
-        this.last.bindto(this.head);
-        list.subscribe(function(event){
-            if (event[0]=="data") {
-                if (self.elements!=null) {
-                    for (var i=0;i<self.elements.length;i++) {
-                        self.elements[i].value.remove();
-                    }
-                }
-                var previous = self.head;
-                for (var i=0;i<event[1].length;i++) {
-                    self.hash[event[1][i].key] = event[1][i];
-                    event[1][i].value.bindto(previous);
-                    previous = event[1][i].value;
-                }
-                self.elements = event[1]
-            } else if (event[0]=="add") {
-                if (self.elements.length==0) {
-                    event[1].value.bindto(self.head);
-                } else {
-                    event[1].value.bindto(self.elements[self.elements.length-1].value);
-                }
-                self.elements.push(event[1]);
-                self.hash[event[1].key] = event[1]
-            } else if (event[0]=="remove") {
-                if (event[1] in self.hash) {
-                    self.hash[event[1]].value.remove();
-                    delete self.hash[event[1]];
-                } else {
-                    console.log("Dirty behaviour, find dirty behaviour like this isolated at ~/issues/ObservableListElement/doubleDelete.html");
-                }
-            } else {
-                throw new Error();
-            }
-        })
-    };
-    this.place = function(html) {
-        this.last.place(html);
-    };
-    this.remove = function() {
-        this.last.remove();
-        this.place = function(html) {
-            this.head.place(html);
-        };
-    };
-};
-
-};
-});
-
 define('rere/ui/elements/RvElement',[], function() {
 return function(rere) {
 
-return (function(renderer, rv) {
+return (function(rv) {
     var Cell = rere.reactive.Cell;
 
     var self = this;
@@ -1031,7 +470,7 @@ return (function(renderer, rv) {
                 if (self.last!=null) {
                     self.last.remove();
                 };
-                self.last = renderer.render(e);
+                self.last = e;
                 self.last.bindto(element);
             },
             unset: function() {
@@ -1061,72 +500,21 @@ return (function(renderer, rv) {
 };
 });
 
-define('rere/ui/elements/renderer',[], function() {
-return function(rere) {
-
-return {
-    render : function(element) {
-        var renderer = rere.ui.elements.renderer;
-        var ListElement = rere.ui.elements.ListElement;
-        var RvElement = rere.ui.elements.RvElement;
-        var MaybeElement = rere.ui.elements.MaybeElement;
-        var ObservableListElement = rere.ui.elements.ObservableListElement;
-
-        var self = this;
-        if (element instanceof Array) {
-            return new ListElement(element.map(function(e){
-                return self.render(e)
-            }));
-        }
-
-        if (element._ui_is) {
-            return element.view(element);
-        } else if (element["_m_is_maybe"]) {
-            return new MaybeElement(renderer, element)
-        } else if (typeof element==="object" && element.type == rere.reactive.Cell) {
-            return new RvElement(renderer, element);
-        } else if (element["rere/reactive/ObservableList"]) {
-            return new ObservableListElement(element.lift(function(e){
-                return self.render(e)
-            }));
-        } else if (typeof(element) == "function") {
-            return element(renderer);
-        } else {
-            throw new Error();
-        }
-    }
-};
-
-};
-});
-
 define('rere/ui/elements/elements',
 [
-  "rere/ui/elements/Container", 
-  "rere/ui/elements/FragmentElement", 
-  "rere/ui/elements/ListElement", 
-  "rere/ui/elements/MaybeElement", 
-  "rere/ui/elements/ObservableListElement", 
-  "rere/ui/elements/RvElement", 
-  "rere/ui/elements/renderer"], 
+  "rere/ui/elements/Container",
+  "rere/ui/elements/ListElement",
+  "rere/ui/elements/RvElement"],
 function(
-  Container, 
-  FragmentElement, 
+  Container,
   ListElement, 
-  MaybeElement, 
-  ObservableListElement, 
-  RvElement, 
-  renderer) {
+  RvElement) {
 return function(rere) {
 
 return {
     Container: Container(rere), 
-    FragmentElement: FragmentElement(rere), 
-    ListElement: ListElement(rere), 
-    MaybeElement: MaybeElement(rere), 
-    ObservableListElement: ObservableListElement(rere), 
-    RvElement: RvElement(rere), 
-    renderer: renderer(rere)
+    ListElement: ListElement(rere),
+    RvElement: RvElement(rere)
 };
 
 };
@@ -1152,42 +540,395 @@ return {
 };
 });
 
+define('rere/ui/HtmlDom',[], function() {
+return function(rere) {
+
+return {
+    wrap : function(element) {
+        var Cell = rere.reactive.Cell;
+        var HtmlElement = rere.ui.HtmlElement;
+        var HtmlDomElement = rere.ui.HtmlDomElement;
+        var ListElement = rere.ui.elements.ListElement;
+        var RvElement = rere.ui.elements.RvElement;
+        var HtmlTextNode = rere.ui.HtmlTextNode;
+
+        if (element instanceof Array) {
+            return new ListElement(element.map(rere.ui.HtmlDom.wrap));
+        }
+        if (typeof element=="object" && element.type==HtmlElement) {
+            return new HtmlDomElement(element);
+        }
+        if (typeof element=="object" && element.type==HtmlTextNode) {
+            return new HtmlDomElement(element);
+        }
+        if (typeof element=="object" && element.type==Cell) {
+            return new RvElement(element.lift(rere.ui.HtmlDom.wrap));
+        }
+
+        throw new Error();
+    }
+};
+
+};
+});
+
+define('rere/ui/HtmlDomElement',[], function(){
+return function(rere) {
+
+function HtmlDomElement(element) {
+    var jq = rere.ui.jq;
+    var Container = rere.ui.elements.Container;
+
+    this.bindto = function(preceding) {
+        if ("preceding" in this) throw new Error();
+        this.preceding = preceding;
+        this.view = element.view();
+        preceding.place(this.view);
+
+        if (element.children instanceof Array) {
+            if (element.children.length!=0) {
+                rere.ui.HtmlDom.wrap(element.children).bindto(new Container(this.view));
+            }
+        } else {
+            throw new Error();
+        }
+
+        if ("control:draw" in element.events) {
+            element.events["control:draw"](element, this.view);
+        }
+    };
+    this.place = function(follower) {
+        if (!("preceding" in this)) throw new Error();
+        jq.after(this.view, follower);
+    };
+    this.remove = function() {
+        if (!("preceding" in this)) throw new Error();
+        jq.remove(this.view);
+        element.dispose();
+        this.place = function(follower) { this.preceding.place(follower); };
+        this.remove = function() { throw new Error(); }
+    };
+}
+
+return HtmlDomElement;
+
+};
+});
+
+define('rere/ui/HtmlElement',[], function(){
+return function(rere) {
+
+
+function HtmlElement(tag) {
+    var jq = rere.ui.jq;
+    var Cell = rere.reactive.Cell;
+
+    this.type = HtmlElement;
+    this.tag = tag;
+    this.attributes = {};
+    this.events = {};
+    this.children = [];
+
+    this.attributeSetters = defaultAttributeSetters();
+
+    this.dispose = function() {};
+    this.view = function() {
+        var view = document.createElement(tag);
+
+        for (var name in this.attributes) {
+            if (name=="css") continue;
+            this.setAttribute(view, name, this.attributes[name])
+        }
+
+        for (var name in this.events) {
+            (function(name){
+                if (name == "control:draw") return;
+                if (name == "key:enter") {
+                    view.addEventListener("keypress", function(event) {
+                        if (event.keyCode == 13) {
+                            this.events[name](this, view, event);
+                        }
+                    }.bind(this), false);
+                } else {
+                    view.addEventListener(name, function(event) {
+                        this.events[name](this, view, event);
+                    }.bind(this), false);
+                }
+            }.bind(this))(name);
+        }
+
+        if ("css" in this.attributes) {
+            for (var property in this.attributes["css"]) {
+                (function(property, value){
+                    if (typeof value==="object" && value.type == Cell) {
+                        value.onEvent(Cell.handler({
+                            set: function(e) { jq.css(view, property, e); },
+                            unset: function() { jq.css(view, property, null); }
+                        }));
+                    } else {
+                        jq.css(view, property, value);
+                    }
+                })(property, this.attributes["css"][property]);
+            }
+        }
+
+        this.view = function() {
+            throw new Error();
+        };
+
+        return view;
+    };
+    this.setAttribute = function(view, name, value) {
+        if (name in this.attributeSetters) {
+            wrapRv(value, this.attributeSetters[name](view));
+        } else {
+            wrapRv(value, defaultMap(view, name));
+        }
+
+        function defaultMap(view, name) {
+            return {
+                set: function(v) { view.setAttribute(name, v); },
+                unset: function() {
+                    if (view.hasAttribute(name)) {
+                        view.removeAttribute(name);
+                    }
+                }
+            }
+        }
+
+        function wrapRv(value, template) {
+            if (typeof value==="object" && value.type == Cell) {
+                value.onEvent([], rere.reactive.Cell.handler({
+                    set: template.set,
+                    unset: template.unset
+                }));
+            } else {
+                template.set(value);
+            }
+        }
+    };
+}
+
+return HtmlElement;
+
+function defaultAttributeSetters() {
+    return {
+        checked: function(view, value) {
+        	        return {
+        	            set: function(v) {
+        	                view.checked = v;
+        	            },
+        	            unset: function() {
+        	                view.checked = false;
+        	            }
+        	        };
+        	    },
+        value: function(view, value) {
+            return {
+                set: function(v) {
+                    if (view.value!=v) view.value = v;
+                },
+                unset: function() {
+                    if (view.value!="") view.value = "";
+                }
+            };
+        },
+        disabled: function(view, value) {
+            return {
+                set: function(v) {
+                    if (v) {
+                        view.setAttribute("disabled", "")
+                    } else {
+                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
+                    }
+                },
+                unset: function() {
+                    view.removeAttribute("disabled");
+                }
+            };
+        },
+        "class": function(view, value) {
+            var jq = rere.ui.jq;
+            return {
+                set: function(v) {
+                    jq.removeClass(view);
+                    view.classList.add(v);
+                },
+                unset: function() {
+                    jq.removeClass(view);
+                }
+            };
+        }
+    };
+}
+
+};
+});
+
+define('rere/ui/renderer',[], function(){
+return function(rere) {
+
+var renderer = {
+    h: function(element) { return new H(element); },
+    tags: {
+        "div": tag("div"),
+        "input-text": inputText
+    },
+    parse: function(element) {
+        var Cell = rere.reactive.Cell;
+
+        if (typeof element==="string" || element instanceof String) {
+            return new rere.ui.HtmlTextNode(element);
+        }
+        if (element instanceof Array) {
+            if (element.length==0) throw new Error();
+            var tag = element[0];
+            if (!(tag in this.tags)) throw new Error("Unknown tag: " + tag);
+            return this.tags[tag](element.slice(1));
+        }
+        if (typeof element==="object" && element.type==Cell) {
+            return element.lift(this.parse.bind(this));
+        }
+
+        throw new Error();
+    },
+    render : function(canvas, element) {
+        var Container = rere.ui.elements.Container;
+
+        rere.ui.HtmlDom.wrap(this.parse(element)).bindto(new Container(canvas));
+    }
+};
+
+return renderer;
+
+function H(element) {
+    this.element = element
+}
+
+function tag(tagName) {
+    return function(args) {
+        var args = parseTagArgs(args);
+        var element = new rere.ui.HtmlElement(tagName);
+        setAttrEvents(element, args.attr);
+        element.children = [];
+        for (var i in args.children) {
+            var child = args.children[i];
+            child = rere.ui.renderer.parse(child);
+            element.children.push(child);
+        }
+        return element;
+    };
+}
+
+function inputText(args) {
+    var Cell = rere.reactive.Cell;
+    args = parseTagArgs(args);
+    if (args.children.length != 1) throw new Error();
+    var value = args.children[0];
+    if (!(typeof value==="object" && value.type==Cell)) throw new Error();
+
+    var element = new rere.ui.HtmlElement("input");
+    setAttrEvents(element, args.attr);
+    element.attributes.type = "text";
+    element.attributes.value = value;
+    var input = "input" in element.events ? element.events.input : function(){};
+    element.events.input = function(control, view) {
+        input.apply(element.events, [control, view]);
+        value.set(view.value);
+    };
+
+    return element;
+}
+
+function parseTagArgs(args) {
+    var Cell = rere.reactive.Cell;
+    if (args.length==0) throw new Error();
+
+    var children = [args[0]];
+    var attr = null;
+
+    while(true) {
+        if (typeof args[0]==="string" || args[0] instanceof Array) break;
+        if (args[0] instanceof Array) break;
+        if (args[0] instanceof Object && args[0].type==Cell) break;
+        if (args[0] instanceof H) break;
+        children = [];
+        attr = args[0];
+        break;
+    }
+
+    for (var i=1;i<args.length;i++) {
+        children.push(args[i]);
+    }
+
+    if (children.length==1) {
+        if (children[0] instanceof H) {
+            children = children[0].element;
+        }
+    }
+
+    return {attr: attr, children: children};
+}
+
+function setAttrEvents(element, attr) {
+    if (attr!=null) {
+        for (var name in attr) {
+            if (typeof attr[name]==="function") {
+                element.events[name] = attr[name];
+                continue;
+            }
+            element.attributes[name] = attr[name];
+        }
+    }
+}
+
+};
+});
+
+define('rere/ui/HtmlTextNode',[], function(){
+return function(rere) {
+
+
+function HtmlTextNode(text) {
+    this.type = HtmlTextNode;
+    this.dispose = function() {};
+    this.children = [];
+    this.events = {};
+    this.view = function() {
+        var view = document.createTextNode(text);
+
+        this.view = function() {
+            throw new Error();
+        };
+
+        return view;
+    };
+}
+
+return HtmlTextNode;
+
+};
+});
+
 define('rere/ui/ui',
 [
-  "rere/ui/Element",
-
   "rere/ui/jq",
-  "rere/ui/renderer",
-
   "rere/ui/elements/elements",
-  "rere/ui/hacks"],
+  "rere/ui/hacks",
+  "rere/ui/HtmlDom",
+  "rere/ui/HtmlDomElement",
+  "rere/ui/HtmlElement",
+  "rere/ui/renderer",
+  "rere/ui/HtmlTextNode"],
 function() {
 var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "jq", "renderer", "elements", "hacks"
+  "jq", "elements", "hacks", "HtmlDom", "HtmlDomElement", "HtmlElement", "renderer", "HtmlTextNode"
 ]);
 
-obj.Input = single("input");
-obj.Text = function(text) {
-    this._ui_is = true;
-    this.view = function() {
-        var FragmentElement = rere.ui.elements.FragmentElement;
-        return new FragmentElement(document.createTextNode(text));
-    }
-};
-
 return obj;
-
-function single(tag) {
-    return function() {
-        rere.ui.Element.ctor.apply(this);
-        this.view = function(element){
-            return rere.ui.Element.renderSingle(element, document.createElement(tag));
-        };
-    };
-}
 
 };
 });

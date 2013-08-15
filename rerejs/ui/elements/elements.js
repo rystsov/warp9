@@ -1,30 +1,18 @@
 define(
 [
-  "rere/ui/elements/Container", 
-  "rere/ui/elements/FragmentElement", 
-  "rere/ui/elements/ListElement", 
-  "rere/ui/elements/MaybeElement", 
-  "rere/ui/elements/ObservableListElement", 
-  "rere/ui/elements/RvElement", 
-  "rere/ui/elements/renderer"], 
+  "rere/ui/elements/Container",
+  "rere/ui/elements/ListElement",
+  "rere/ui/elements/RvElement"],
 function(
-  Container, 
-  FragmentElement, 
+  Container,
   ListElement, 
-  MaybeElement, 
-  ObservableListElement, 
-  RvElement, 
-  renderer) {
+  RvElement) {
 return function(rere) {
 
 return {
     Container: Container(rere), 
-    FragmentElement: FragmentElement(rere), 
-    ListElement: ListElement(rere), 
-    MaybeElement: MaybeElement(rere), 
-    ObservableListElement: ObservableListElement(rere), 
-    RvElement: RvElement(rere), 
-    renderer: renderer(rere)
+    ListElement: ListElement(rere),
+    RvElement: RvElement(rere)
 };
 
 };

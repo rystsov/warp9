@@ -1,39 +1,22 @@
 define(
 [
-  "rere/ui/Element",
-
   "rere/ui/jq",
-  "rere/ui/renderer",
-
   "rere/ui/elements/elements",
-  "rere/ui/hacks"],
+  "rere/ui/hacks",
+  "rere/ui/HtmlDom",
+  "rere/ui/HtmlDomElement",
+  "rere/ui/HtmlElement",
+  "rere/ui/renderer",
+  "rere/ui/HtmlTextNode"],
 function() {
 var args = arguments;
 return function(rere) {
 
 var obj = rere.collect(args, [
-  "Element", "jq", "renderer", "elements", "hacks"
+  "jq", "elements", "hacks", "HtmlDom", "HtmlDomElement", "HtmlElement", "renderer", "HtmlTextNode"
 ]);
 
-obj.Input = single("input");
-obj.Text = function(text) {
-    this._ui_is = true;
-    this.view = function() {
-        var FragmentElement = rere.ui.elements.FragmentElement;
-        return new FragmentElement(document.createTextNode(text));
-    }
-};
-
 return obj;
-
-function single(tag) {
-    return function() {
-        rere.ui.Element.ctor.apply(this);
-        this.view = function(element){
-            return rere.ui.Element.renderSingle(element, document.createElement(tag));
-        };
-    };
-}
 
 };
 });
