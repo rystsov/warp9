@@ -15,7 +15,7 @@ function parse(element) {
     var Cell = root.reactive.Cell;
 
     if (typeof element==="string" || element instanceof String) {
-        return new root.ui.HtmlTextNode(element);
+        return new root.ui.ast.TextNode(element);
     }
     if (element instanceof Array) {
         if (element.length==0) throw new Error();
@@ -44,7 +44,7 @@ function H(element) {
 function tag(tagName) {
     return function(args) {
         var args = parseTagArgs(args);
-        var element = new root.ui.HtmlElement(tagName);
+        var element = new root.ui.ast.Element(tagName);
         setAttrEvents(element, args.attr);
         element.children = [];
         for (var i in args.children) {
@@ -63,7 +63,7 @@ function inputText(args) {
     var value = args.children[0];
     if (!(typeof value==="object" && value.type==Cell)) throw new Error();
 
-    var element = new root.ui.HtmlElement("input");
+    var element = new root.ui.ast.Element("input");
     setAttrEvents(element, args.attr);
     element.attributes.type = "text";
     element.attributes.value = value;

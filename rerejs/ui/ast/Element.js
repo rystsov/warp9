@@ -1,10 +1,10 @@
-expose(HtmlElement);
+expose(Element);
 
-function HtmlElement(tag) {
+function Element(tag) {
     var jq = root.ui.jq;
     var Cell = root.reactive.Cell;
 
-    this.type = HtmlElement;
+    this.type = Element;
     this.tag = tag;
     this.attributes = {};
     this.events = {};

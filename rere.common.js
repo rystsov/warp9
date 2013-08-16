@@ -17,7 +17,7 @@ function parse(element) {
     var Cell = root.reactive.Cell;
 
     if (typeof element==="string" || element instanceof String) {
-        return new root.ui.HtmlTextNode(element);
+        return new root.ui.ast.TextNode(element);
     }
     if (element instanceof Array) {
         if (element.length==0) throw new Error();
@@ -46,7 +46,7 @@ function H(element) {
 function tag(tagName) {
     return function(args) {
         var args = parseTagArgs(args);
-        var element = new root.ui.HtmlElement(tagName);
+        var element = new root.ui.ast.Element(tagName);
         setAttrEvents(element, args.attr);
         element.children = [];
         for (var i in args.children) {
@@ -65,7 +65,7 @@ function inputText(args) {
     var value = args.children[0];
     if (!(typeof value==="object" && value.type==Cell)) throw new Error();
 
-    var element = new root.ui.HtmlElement("input");
+    var element = new root.ui.ast.Element("input");
     setAttrEvents(element, args.attr);
     element.attributes.type = "text";
     element.attributes.value = value;
@@ -137,11 +137,155 @@ function unrecursion(f) {
 }
 
 }
-},{ path:["ui", "HtmlTextNode"], content: function(root, expose) {
-expose(HtmlTextNode);
+},{ path:["ui", "ast", "Element"], content: function(root, expose) {
+expose(Element);
 
-function HtmlTextNode(text) {
-    this.type = HtmlTextNode;
+function Element(tag) {
+    var jq = root.ui.jq;
+    var Cell = root.reactive.Cell;
+
+    this.type = Element;
+    this.tag = tag;
+    this.attributes = {};
+    this.events = {};
+    this.children = [];
+
+    this.attributeSetters = defaultAttributeSetters();
+
+    this.dispose = function() {};
+    this.view = function() {
+        var view = document.createElement(tag);
+
+        for (var name in this.attributes) {
+            if (name=="css") continue;
+            this.setAttribute(view, name, this.attributes[name])
+        }
+
+        for (var name in this.events) {
+            (function(name){
+                if (name == "control:draw") return;
+                if (name == "key:enter") {
+                    view.addEventListener("keypress", function(event) {
+                        if (event.keyCode == 13) {
+                            this.events[name](this, view, event);
+                        }
+                    }.bind(this), false);
+                } else {
+                    view.addEventListener(name, function(event) {
+                        this.events[name](this, view, event);
+                    }.bind(this), false);
+                }
+            }.bind(this))(name);
+        }
+
+        if ("css" in this.attributes) {
+            for (var property in this.attributes["css"]) {
+                (function(property, value){
+                    if (typeof value==="object" && value.type == Cell) {
+                        value.onEvent(Cell.handler({
+                            set: function(e) { jq.css(view, property, e); },
+                            unset: function() { jq.css(view, property, null); }
+                        }));
+                    } else {
+                        jq.css(view, property, value);
+                    }
+                })(property, this.attributes["css"][property]);
+            }
+        }
+
+        this.view = function() {
+            throw new Error();
+        };
+
+        return view;
+    };
+    this.setAttribute = function(view, name, value) {
+        if (name in this.attributeSetters) {
+            wrapRv(value, this.attributeSetters[name](view));
+        } else {
+            wrapRv(value, defaultMap(view, name));
+        }
+
+        function defaultMap(view, name) {
+            return {
+                set: function(v) { view.setAttribute(name, v); },
+                unset: function() {
+                    if (view.hasAttribute(name)) {
+                        view.removeAttribute(name);
+                    }
+                }
+            }
+        }
+
+        function wrapRv(value, template) {
+            if (typeof value==="object" && value.type == Cell) {
+                value.onEvent([], Cell.handler({
+                    set: template.set,
+                    unset: template.unset
+                }));
+            } else {
+                template.set(value);
+            }
+        }
+    };
+}
+
+function defaultAttributeSetters() {
+    return {
+        checked: function(view, value) {
+        	        return {
+        	            set: function(v) {
+        	                view.checked = v;
+        	            },
+        	            unset: function() {
+        	                view.checked = false;
+        	            }
+        	        };
+        	    },
+        value: function(view, value) {
+            return {
+                set: function(v) {
+                    if (view.value!=v) view.value = v;
+                },
+                unset: function() {
+                    if (view.value!="") view.value = "";
+                }
+            };
+        },
+        disabled: function(view, value) {
+            return {
+                set: function(v) {
+                    if (v) {
+                        view.setAttribute("disabled", "")
+                    } else {
+                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
+                    }
+                },
+                unset: function() {
+                    view.removeAttribute("disabled");
+                }
+            };
+        },
+        "class": function(view, value) {
+            var jq = root.ui.jq;
+            return {
+                set: function(v) {
+                    jq.removeClass(view);
+                    view.classList.add(v);
+                },
+                unset: function() {
+                    jq.removeClass(view);
+                }
+            };
+        }
+    };
+}
+}
+},{ path:["ui", "ast", "TextNode"], content: function(root, expose) {
+expose(TextNode);
+
+function TextNode(text) {
+    this.type = TextNode;
     this.dispose = function() {};
     this.children = [];
     this.events = {};
@@ -351,19 +495,19 @@ expose({wrap: wrap});
 
 function wrap(element) {
     var Cell = root.reactive.Cell;
-    var HtmlElement = root.ui.HtmlElement;
+    var Element = root.ui.ast.Element;
     var DomElement = root.ui.dom.DomElement;
     var DomList = root.ui.dom.DomList;
     var DomCell = root.ui.dom.DomCell;
-    var HtmlTextNode = root.ui.HtmlTextNode;
+    var TextNode = root.ui.ast.TextNode;
 
     if (element instanceof Array) {
         return new DomList(element.map(wrap));
     }
-    if (typeof element=="object" && element.type==HtmlElement) {
+    if (typeof element=="object" && element.type==Element) {
         return new DomElement(element);
     }
-    if (typeof element=="object" && element.type==HtmlTextNode) {
+    if (typeof element=="object" && element.type==TextNode) {
         return new DomElement(element);
     }
     if (typeof element=="object" && element.type==Cell) {
@@ -373,150 +517,6 @@ function wrap(element) {
     throw new Error();
 }
 
-}
-},{ path:["ui", "HtmlElement"], content: function(root, expose) {
-expose(HtmlElement);
-
-function HtmlElement(tag) {
-    var jq = root.ui.jq;
-    var Cell = root.reactive.Cell;
-
-    this.type = HtmlElement;
-    this.tag = tag;
-    this.attributes = {};
-    this.events = {};
-    this.children = [];
-
-    this.attributeSetters = defaultAttributeSetters();
-
-    this.dispose = function() {};
-    this.view = function() {
-        var view = document.createElement(tag);
-
-        for (var name in this.attributes) {
-            if (name=="css") continue;
-            this.setAttribute(view, name, this.attributes[name])
-        }
-
-        for (var name in this.events) {
-            (function(name){
-                if (name == "control:draw") return;
-                if (name == "key:enter") {
-                    view.addEventListener("keypress", function(event) {
-                        if (event.keyCode == 13) {
-                            this.events[name](this, view, event);
-                        }
-                    }.bind(this), false);
-                } else {
-                    view.addEventListener(name, function(event) {
-                        this.events[name](this, view, event);
-                    }.bind(this), false);
-                }
-            }.bind(this))(name);
-        }
-
-        if ("css" in this.attributes) {
-            for (var property in this.attributes["css"]) {
-                (function(property, value){
-                    if (typeof value==="object" && value.type == Cell) {
-                        value.onEvent(Cell.handler({
-                            set: function(e) { jq.css(view, property, e); },
-                            unset: function() { jq.css(view, property, null); }
-                        }));
-                    } else {
-                        jq.css(view, property, value);
-                    }
-                })(property, this.attributes["css"][property]);
-            }
-        }
-
-        this.view = function() {
-            throw new Error();
-        };
-
-        return view;
-    };
-    this.setAttribute = function(view, name, value) {
-        if (name in this.attributeSetters) {
-            wrapRv(value, this.attributeSetters[name](view));
-        } else {
-            wrapRv(value, defaultMap(view, name));
-        }
-
-        function defaultMap(view, name) {
-            return {
-                set: function(v) { view.setAttribute(name, v); },
-                unset: function() {
-                    if (view.hasAttribute(name)) {
-                        view.removeAttribute(name);
-                    }
-                }
-            }
-        }
-
-        function wrapRv(value, template) {
-            if (typeof value==="object" && value.type == Cell) {
-                value.onEvent([], Cell.handler({
-                    set: template.set,
-                    unset: template.unset
-                }));
-            } else {
-                template.set(value);
-            }
-        }
-    };
-}
-
-function defaultAttributeSetters() {
-    return {
-        checked: function(view, value) {
-        	        return {
-        	            set: function(v) {
-        	                view.checked = v;
-        	            },
-        	            unset: function() {
-        	                view.checked = false;
-        	            }
-        	        };
-        	    },
-        value: function(view, value) {
-            return {
-                set: function(v) {
-                    if (view.value!=v) view.value = v;
-                },
-                unset: function() {
-                    if (view.value!="") view.value = "";
-                }
-            };
-        },
-        disabled: function(view, value) {
-            return {
-                set: function(v) {
-                    if (v) {
-                        view.setAttribute("disabled", "")
-                    } else {
-                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
-                    }
-                },
-                unset: function() {
-                    view.removeAttribute("disabled");
-                }
-            };
-        },
-        "class": function(view, value) {
-            var jq = root.ui.jq;
-            return {
-                set: function(v) {
-                    jq.removeClass(view);
-                    view.classList.add(v);
-                },
-                unset: function() {
-                    jq.removeClass(view);
-                }
-            };
-        }
-    };
-}
 }
 },{ path:["adt", "maybe"], content: function(root, expose) {
 expose({

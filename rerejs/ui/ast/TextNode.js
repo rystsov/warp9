@@ -1,7 +1,7 @@
-expose(HtmlTextNode);
+expose(TextNode);
 
-function HtmlTextNode(text) {
-    this.type = HtmlTextNode;
+function TextNode(text) {
+    this.type = TextNode;
     this.dispose = function() {};
     this.children = [];
     this.events = {};

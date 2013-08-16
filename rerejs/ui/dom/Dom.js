@@ -2,19 +2,19 @@ expose({wrap: wrap});
 
 function wrap(element) {
     var Cell = root.reactive.Cell;
-    var HtmlElement = root.ui.HtmlElement;
+    var Element = root.ui.ast.Element;
     var DomElement = root.ui.dom.DomElement;
     var DomList = root.ui.dom.DomList;
     var DomCell = root.ui.dom.DomCell;
-    var HtmlTextNode = root.ui.HtmlTextNode;
+    var TextNode = root.ui.ast.TextNode;
 
     if (element instanceof Array) {
         return new DomList(element.map(wrap));
     }
-    if (typeof element=="object" && element.type==HtmlElement) {
+    if (typeof element=="object" && element.type==Element) {
         return new DomElement(element);
     }
-    if (typeof element=="object" && element.type==HtmlTextNode) {
+    if (typeof element=="object" && element.type==TextNode) {
         return new DomElement(element);
     }
     if (typeof element=="object" && element.type==Cell) {
