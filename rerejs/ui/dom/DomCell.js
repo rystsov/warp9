@@ -14,7 +14,7 @@ function DomCell(rv) {
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
-                };
+                }
                 self.last = e;
                 self.last.bindto(element);
             },
@@ -22,7 +22,7 @@ function DomCell(rv) {
                 if (self.last!=null) {
                     self.last.remove();
                     self.last = null;
-                };
+                }
             }
         }));
     };
@@ -38,6 +38,6 @@ function DomCell(rv) {
         if (self.last!=null) {
             self.last.remove();
             self.last = null;
-        };
+        }
     };
 }

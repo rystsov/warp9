@@ -40,7 +40,7 @@ function collect() {
     function markGarbageCollectUsed(rv, used) {
         rv.era = era;
         rv.isGarbage = true;
-        if (rv.isUsed) {
+        if (rv.hasUsers()) {
             used.push(rv);
         }
         for (var i in rv.dependants) {

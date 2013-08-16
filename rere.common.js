@@ -140,6 +140,8 @@ function unrecursion(f) {
 },{ path:["ui", "ast", "Element"], content: function(root, expose) {
 expose(Element);
 
+var id = 0;
+
 function Element(tag) {
     var jq = root.ui.jq;
     var Cell = root.reactive.Cell;
@@ -149,10 +151,16 @@ function Element(tag) {
     this.attributes = {};
     this.events = {};
     this.children = [];
+    this.id = "rere/ast/element/" + (id++);
 
     this.attributeSetters = defaultAttributeSetters();
 
-    this.dispose = function() {};
+    this.disposes = [];
+    this.dispose = function() {
+        for (var i in this.disposes) {
+            this.disposes[i]();
+        }
+    };
     this.view = function() {
         var view = document.createElement(tag);
 
@@ -182,14 +190,14 @@ function Element(tag) {
             for (var property in this.attributes["css"]) {
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
-                        value.onEvent(Cell.handler({
+                        this.disposes.push(value.onEvent(Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
-                        }));
+                        })));
                     } else {
                         jq.css(view, property, value);
                     }
-                })(property, this.attributes["css"][property]);
+                }.bind(this))(property, this.attributes["css"][property]);
             }
         }
 
@@ -200,6 +208,7 @@ function Element(tag) {
         return view;
     };
     this.setAttribute = function(view, name, value) {
+        var self = this;
         if (name in this.attributeSetters) {
             wrapRv(value, this.attributeSetters[name](view));
         } else {
@@ -219,10 +228,10 @@ function Element(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                value.onEvent([], Cell.handler({
+                self.disposes.push(value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
-                }));
+                })));
             } else {
                 template.set(value);
             }
@@ -233,15 +242,15 @@ function Element(tag) {
 function defaultAttributeSetters() {
     return {
         checked: function(view, value) {
-        	        return {
-        	            set: function(v) {
-        	                view.checked = v;
-        	            },
-        	            unset: function() {
-        	                view.checked = false;
-        	            }
-        	        };
-        	    },
+            return {
+                set: function(v) {
+                    view.checked = v;
+                },
+                unset: function() {
+                    view.checked = false;
+                }
+            };
+        },
         value: function(view, value) {
             return {
                 set: function(v) {
@@ -421,7 +430,7 @@ function DomCell(rv) {
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
-                };
+                }
                 self.last = e;
                 self.last.bindto(element);
             },
@@ -429,7 +438,7 @@ function DomCell(rv) {
                 if (self.last!=null) {
                     self.last.remove();
                     self.last = null;
-                };
+                }
             }
         }));
     };
@@ -445,7 +454,7 @@ function DomCell(rv) {
         if (self.last!=null) {
             self.last.remove();
             self.last = null;
-        };
+        }
     };
 }
 
@@ -592,7 +601,7 @@ function collect() {
     function markGarbageCollectUsed(rv, used) {
         rv.era = era;
         rv.isGarbage = true;
-        if (rv.isUsed) {
+        if (rv.hasUsers()) {
             used.push(rv);
         }
         for (var i in rv.dependants) {
@@ -677,7 +686,19 @@ function Cell() {
 
     // used in garbage collection
     this.isActive = true;
-    this.isUsed = false;
+    this.users = [];
+    this.addUser = function(userId) {
+        if (this.users.indexOf(userId)>=0) throw new Error();
+        this.users.push(userId);
+    };
+    this.hasUsers = function() {
+        return this.users.length>0;
+    };
+    this.removeUser = function(userId) {
+        if (this.users.indexOf(userId)<0) throw new Error();
+        this.users = this.users.filter(function(item){ return item != userId });
+        if (this.users.indexOf(userId)>=0) throw new Error();
+    };
     this.isGarbage = false;
 
     this.type = Cell;

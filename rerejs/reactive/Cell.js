@@ -11,7 +11,19 @@ function Cell() {
 
     // used in garbage collection
     this.isActive = true;
-    this.isUsed = false;
+    this.users = [];
+    this.addUser = function(userId) {
+        if (this.users.indexOf(userId)>=0) throw new Error();
+        this.users.push(userId);
+    };
+    this.hasUsers = function() {
+        return this.users.length>0;
+    };
+    this.removeUser = function(userId) {
+        if (this.users.indexOf(userId)<0) throw new Error();
+        this.users = this.users.filter(function(item){ return item != userId });
+        if (this.users.indexOf(userId)>=0) throw new Error();
+    };
     this.isGarbage = false;
 
     this.type = Cell;

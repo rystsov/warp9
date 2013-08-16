@@ -14,7 +14,7 @@ exports.collect = function(test){
             return new Cell(a + 2 * b).name("b-bind");
         }).name("a-bind");
     }).name("c");
-    c.isUsed = true;
+    c.addUser(0);
 
     var objects = GC.count(a,b);
     a.set(3);
@@ -51,7 +51,7 @@ exports.lift = function(test){
 
     var a = new Cell(1);
     var b = a.lift(function(v) { return v*2; });
-    b.isUsed = true;
+    b.addUser(0);
 
     test.equal(2, b.unwrap());
     GC.collect(a, b);
@@ -93,7 +93,7 @@ exports.bind = function(test){
             return new Cell(2*a+b);
         })
     });
-    c.isUsed = true;
+    c.addUser(0);
 
     test.equal(4, c.unwrap());
     GC.collect(a, b, c);
