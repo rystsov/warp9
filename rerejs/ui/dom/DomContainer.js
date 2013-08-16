@@ -1,6 +1,6 @@
-expose(Container);
+expose(DomContainer);
 
-function Container(container) {
+function DomContainer(container) {
     this.bindto = function(element) {
         throw new Error();
     };

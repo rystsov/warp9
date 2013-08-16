@@ -1,6 +1,6 @@
-expose(RvElement);
+expose(DomCell);
 
-function RvElement(rv) {
+function DomCell(rv) {
     var Cell = root.reactive.Cell;
 
     var self = this;

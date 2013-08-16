@@ -1,9 +1,9 @@
-expose(HtmlDomElement);
+expose(DomElement);
 
-function HtmlDomElement(element) {
+function DomElement(element) {
     var jq = root.ui.jq;
-    var Container = root.ui.elements.Container;
-    var HtmlDom = root.ui.HtmlDom;
+    var DomContainer = root.ui.dom.DomContainer;
+    var Dom = root.ui.dom.Dom;
 
     this.bindto = function(preceding) {
         if ("preceding" in this) throw new Error();
@@ -13,7 +13,7 @@ function HtmlDomElement(element) {
 
         if (element.children instanceof Array) {
             if (element.children.length!=0) {
-                HtmlDom.wrap(element.children).bindto(new Container(this.view));
+                Dom.wrap(element.children).bindto(new DomContainer(this.view));
             }
         } else {
             throw new Error();

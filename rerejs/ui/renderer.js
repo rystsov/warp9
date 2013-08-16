@@ -31,9 +31,9 @@ function parse(element) {
 }
 
 function render(canvas, element) {
-    var Container = root.ui.elements.Container;
+    var DomContainer = root.ui.dom.DomContainer;
 
-    root.ui.HtmlDom.wrap(parse(element)).bindto(new Container(canvas));
+    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
 }
 
 

@@ -33,9 +33,9 @@ function parse(element) {
 }
 
 function render(canvas, element) {
-    var Container = root.ui.elements.Container;
+    var DomContainer = root.ui.dom.DomContainer;
 
-    root.ui.HtmlDom.wrap(parse(element)).bindto(new Container(canvas));
+    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
 }
 
 
@@ -156,34 +156,6 @@ function HtmlTextNode(text) {
     };
 }
 }
-},{ path:["ui", "HtmlDom"], content: function(root, expose) {
-expose({wrap: wrap});
-
-function wrap(element) {
-    var Cell = root.reactive.Cell;
-    var HtmlElement = root.ui.HtmlElement;
-    var HtmlDomElement = root.ui.HtmlDomElement;
-    var ListElement = root.ui.elements.ListElement;
-    var RvElement = root.ui.elements.RvElement;
-    var HtmlTextNode = root.ui.HtmlTextNode;
-
-    if (element instanceof Array) {
-        return new ListElement(element.map(wrap));
-    }
-    if (typeof element=="object" && element.type==HtmlElement) {
-        return new HtmlDomElement(element);
-    }
-    if (typeof element=="object" && element.type==HtmlTextNode) {
-        return new HtmlDomElement(element);
-    }
-    if (typeof element=="object" && element.type==Cell) {
-        return new RvElement(element.lift(wrap));
-    }
-
-    throw new Error();
-}
-
-}
 },{ path:["ui", "jq"], content: function(root, expose) {
 expose({
     css: css,
@@ -241,50 +213,27 @@ function dasherize(str) {
 }
 
 }
-},{ path:["ui", "HtmlDomElement"], content: function(root, expose) {
-expose(HtmlDomElement);
+},{ path:["ui", "dom", "DomContainer"], content: function(root, expose) {
+expose(DomContainer);
 
-function HtmlDomElement(element) {
-    var jq = root.ui.jq;
-    var Container = root.ui.elements.Container;
-    var HtmlDom = root.ui.HtmlDom;
-
-    this.bindto = function(preceding) {
-        if ("preceding" in this) throw new Error();
-        this.preceding = preceding;
-        this.view = element.view();
-        preceding.place(this.view);
-
-        if (element.children instanceof Array) {
-            if (element.children.length!=0) {
-                HtmlDom.wrap(element.children).bindto(new Container(this.view));
-            }
+function DomContainer(container) {
+    this.bindto = function(element) {
+        throw new Error();
+    };
+    this.place = function(html) {
+        if (container.childNodes.length==0) {
+            container.appendChild(html);
         } else {
-            throw new Error();
+            container.insertBefore(html, container.childNodes.item(0));
         }
-
-        if ("control:draw" in element.events) {
-            element.events["control:draw"](element, this.view);
-        }
-    };
-    this.place = function(follower) {
-        if (!("preceding" in this)) throw new Error();
-        jq.after(this.view, follower);
-    };
-    this.remove = function() {
-        if (!("preceding" in this)) throw new Error();
-        jq.remove(this.view);
-        element.dispose();
-        this.place = function(follower) { this.preceding.place(follower); };
-        this.remove = function() { throw new Error(); }
     };
 }
 
 }
-},{ path:["ui", "elements", "ListElement"], content: function(root, expose) {
-expose(ListElement);
+},{ path:["ui", "dom", "DomList"], content: function(root, expose) {
+expose(DomList);
 
-function ListElement(elements) {
+function DomList(elements) {
     this.last = null;
     this.head = null;
     this.bindto = function(element) {
@@ -311,10 +260,10 @@ function ListElement(elements) {
 }
 
 }
-},{ path:["ui", "elements", "RvElement"], content: function(root, expose) {
-expose(RvElement);
+},{ path:["ui", "dom", "DomCell"], content: function(root, expose) {
+expose(DomCell);
 
-function RvElement(rv) {
+function DomCell(rv) {
     var Cell = root.reactive.Cell;
 
     var self = this;
@@ -357,20 +306,71 @@ function RvElement(rv) {
 }
 
 }
-},{ path:["ui", "elements", "Container"], content: function(root, expose) {
-expose(Container);
+},{ path:["ui", "dom", "DomElement"], content: function(root, expose) {
+expose(DomElement);
 
-function Container(container) {
-    this.bindto = function(element) {
-        throw new Error();
-    };
-    this.place = function(html) {
-        if (container.childNodes.length==0) {
-            container.appendChild(html);
+function DomElement(element) {
+    var jq = root.ui.jq;
+    var DomContainer = root.ui.dom.DomContainer;
+    var Dom = root.ui.dom.Dom;
+
+    this.bindto = function(preceding) {
+        if ("preceding" in this) throw new Error();
+        this.preceding = preceding;
+        this.view = element.view();
+        preceding.place(this.view);
+
+        if (element.children instanceof Array) {
+            if (element.children.length!=0) {
+                Dom.wrap(element.children).bindto(new DomContainer(this.view));
+            }
         } else {
-            container.insertBefore(html, container.childNodes.item(0));
+            throw new Error();
+        }
+
+        if ("control:draw" in element.events) {
+            element.events["control:draw"](element, this.view);
         }
     };
+    this.place = function(follower) {
+        if (!("preceding" in this)) throw new Error();
+        jq.after(this.view, follower);
+    };
+    this.remove = function() {
+        if (!("preceding" in this)) throw new Error();
+        jq.remove(this.view);
+        element.dispose();
+        this.place = function(follower) { this.preceding.place(follower); };
+        this.remove = function() { throw new Error(); }
+    };
+}
+
+}
+},{ path:["ui", "dom", "Dom"], content: function(root, expose) {
+expose({wrap: wrap});
+
+function wrap(element) {
+    var Cell = root.reactive.Cell;
+    var HtmlElement = root.ui.HtmlElement;
+    var DomElement = root.ui.dom.DomElement;
+    var DomList = root.ui.dom.DomList;
+    var DomCell = root.ui.dom.DomCell;
+    var HtmlTextNode = root.ui.HtmlTextNode;
+
+    if (element instanceof Array) {
+        return new DomList(element.map(wrap));
+    }
+    if (typeof element=="object" && element.type==HtmlElement) {
+        return new DomElement(element);
+    }
+    if (typeof element=="object" && element.type==HtmlTextNode) {
+        return new DomElement(element);
+    }
+    if (typeof element=="object" && element.type==Cell) {
+        return new DomCell(element.lift(wrap));
+    }
+
+    throw new Error();
 }
 
 }

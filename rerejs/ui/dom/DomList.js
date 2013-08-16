@@ -1,6 +1,6 @@
-expose(ListElement);
+expose(DomList);
 
-function ListElement(elements) {
+function DomList(elements) {
     this.last = null;
     this.head = null;
     this.bindto = function(element) {
