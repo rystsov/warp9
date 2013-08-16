@@ -1,4 +1,4 @@
-var rere = require('../rerejs/rere.common');
+var rere = require('../rere.common');
 
 var Cell = rere.reactive.Cell;
 

@@ -7,8 +7,6 @@
     </body>
     <script type="text/javascript">
         var Cell = rere.reactive.Cell;
-        var renderer = rere.ui.renderer;
-        var H = renderer.h;
 
         function NAME(firstName, lastName) {
             firstName = new Cell(firstName);
@@ -18,7 +16,7 @@
                     return new Cell(first + " " + last);
                 });
             });
-            return ["div", {"class": "name-component"},
+            return ["div",
                 ["div",
                     "First name:", ["input-text", firstName]],
                 ["div",
@@ -27,13 +25,7 @@
             ];
         }
 
-        function NAMES(names) {
-            return ["div", H(names.map(function(name){ return NAME(name.firstName, name.lastName); }))];
-        }
-
-        renderer.render(canvas, NAMES([
-            {firstName: "Denis", lastName: "Rystsov"},
-            {firstName: "Lisa", lastName: "Kosyachenko"}
-        ]));
+        var renderer = rere.ui.renderer;
+        renderer.render(canvas, NAME("Denis", "Rystsov"));
     </script>
 </html>

@@ -1,7 +1,6 @@
-define([],function() {
-return function(rere) {
+expose(Cell);
 
-var maybe = rere.adt.maybe;
+var maybe = root.adt.maybe;
 
 var id = 0;
 
@@ -175,8 +174,3 @@ Cell.handler = function(handler) {
         }
     };
 };
-
-return Cell;
-
-};
-});

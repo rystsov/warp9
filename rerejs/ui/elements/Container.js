@@ -1,7 +1,6 @@
-define([],function() {
-return function(rere) {
+expose(Container);
 
-return function(container) {
+function Container(container) {
     this.bindto = function(element) {
         throw new Error();
     };
@@ -12,7 +11,4 @@ return function(container) {
             container.insertBefore(html, container.childNodes.item(0));
         }
     };
-};
-
-};
-});
+}

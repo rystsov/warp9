@@ -1,10 +1,8 @@
-define([], function(){
-return function(rere) {
-
+expose(HtmlElement);
 
 function HtmlElement(tag) {
-    var jq = rere.ui.jq;
-    var Cell = rere.reactive.Cell;
+    var jq = root.ui.jq;
+    var Cell = root.reactive.Cell;
 
     this.type = HtmlElement;
     this.tag = tag;
@@ -81,7 +79,7 @@ function HtmlElement(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                value.onEvent([], rere.reactive.Cell.handler({
+                value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
                 }));
@@ -91,8 +89,6 @@ function HtmlElement(tag) {
         }
     };
 }
-
-return HtmlElement;
 
 function defaultAttributeSetters() {
     return {
@@ -131,7 +127,7 @@ function defaultAttributeSetters() {
             };
         },
         "class": function(view, value) {
-            var jq = rere.ui.jq;
+            var jq = root.ui.jq;
             return {
                 set: function(v) {
                     jq.removeClass(view);
@@ -144,6 +140,3 @@ function defaultAttributeSetters() {
         }
     };
 }
-
-};
-});

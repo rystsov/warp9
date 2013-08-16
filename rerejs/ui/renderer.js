@@ -1,38 +1,41 @@
-define([], function(){
-return function(rere) {
+expose({
+    h: h,
+    parse: parse,
+    render: render
+});
 
-var renderer = {
-    h: function(element) { return new H(element); },
-    tags: {
-        "div": tag("div"),
-        "input-text": inputText
-    },
-    parse: function(element) {
-        var Cell = rere.reactive.Cell;
-
-        if (typeof element==="string" || element instanceof String) {
-            return new rere.ui.HtmlTextNode(element);
-        }
-        if (element instanceof Array) {
-            if (element.length==0) throw new Error();
-            var tag = element[0];
-            if (!(tag in this.tags)) throw new Error("Unknown tag: " + tag);
-            return this.tags[tag](element.slice(1));
-        }
-        if (typeof element==="object" && element.type==Cell) {
-            return element.lift(this.parse.bind(this));
-        }
-
-        throw new Error();
-    },
-    render : function(canvas, element) {
-        var Container = rere.ui.elements.Container;
-
-        rere.ui.HtmlDom.wrap(this.parse(element)).bindto(new Container(canvas));
-    }
+var tags = {
+    "div": tag("div"),
+    "input-text": inputText
 };
 
-return renderer;
+function h(element) { return new H(element); }
+
+function parse(element) {
+    var Cell = root.reactive.Cell;
+
+    if (typeof element==="string" || element instanceof String) {
+        return new root.ui.HtmlTextNode(element);
+    }
+    if (element instanceof Array) {
+        if (element.length==0) throw new Error();
+        var tag = element[0];
+        if (!(tag in tags)) throw new Error("Unknown tag: " + tag);
+        return tags[tag](element.slice(1));
+    }
+    if (typeof element==="object" && element.type==Cell) {
+        return element.lift(parse);
+    }
+
+    throw new Error();
+}
+
+function render(canvas, element) {
+    var Container = root.ui.elements.Container;
+
+    root.ui.HtmlDom.wrap(parse(element)).bindto(new Container(canvas));
+}
+
 
 function H(element) {
     this.element = element
@@ -41,12 +44,12 @@ function H(element) {
 function tag(tagName) {
     return function(args) {
         var args = parseTagArgs(args);
-        var element = new rere.ui.HtmlElement(tagName);
+        var element = new root.ui.HtmlElement(tagName);
         setAttrEvents(element, args.attr);
         element.children = [];
         for (var i in args.children) {
             var child = args.children[i];
-            child = rere.ui.renderer.parse(child);
+            child = root.ui.renderer.parse(child);
             element.children.push(child);
         }
         return element;
@@ -54,13 +57,13 @@ function tag(tagName) {
 }
 
 function inputText(args) {
-    var Cell = rere.reactive.Cell;
+    var Cell = root.reactive.Cell;
     args = parseTagArgs(args);
     if (args.children.length != 1) throw new Error();
     var value = args.children[0];
     if (!(typeof value==="object" && value.type==Cell)) throw new Error();
 
-    var element = new rere.ui.HtmlElement("input");
+    var element = new root.ui.HtmlElement("input");
     setAttrEvents(element, args.attr);
     element.attributes.type = "text";
     element.attributes.value = value;
@@ -74,7 +77,7 @@ function inputText(args) {
 }
 
 function parseTagArgs(args) {
-    var Cell = rere.reactive.Cell;
+    var Cell = root.reactive.Cell;
     if (args.length==0) throw new Error();
 
     var children = [args[0]];
@@ -114,6 +117,3 @@ function setAttrEvents(element, attr) {
         }
     }
 }
-
-};
-});

@@ -1,7 +1,6 @@
-define([], function() {
-return function(rere) {
+expose(ListElement);
 
-return function(elements) {
+function ListElement(elements) {
     this.last = null;
     this.head = null;
     this.bindto = function(element) {
@@ -26,6 +25,3 @@ return function(elements) {
         }
     };
 }
-
-};
-});

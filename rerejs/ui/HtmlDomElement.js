@@ -1,9 +1,9 @@
-define([], function(){
-return function(rere) {
+expose(HtmlDomElement);
 
 function HtmlDomElement(element) {
-    var jq = rere.ui.jq;
-    var Container = rere.ui.elements.Container;
+    var jq = root.ui.jq;
+    var Container = root.ui.elements.Container;
+    var HtmlDom = root.ui.HtmlDom;
 
     this.bindto = function(preceding) {
         if ("preceding" in this) throw new Error();
@@ -13,7 +13,7 @@ function HtmlDomElement(element) {
 
         if (element.children instanceof Array) {
             if (element.children.length!=0) {
-                rere.ui.HtmlDom.wrap(element.children).bindto(new Container(this.view));
+                HtmlDom.wrap(element.children).bindto(new Container(this.view));
             }
         } else {
             throw new Error();
@@ -35,8 +35,3 @@ function HtmlDomElement(element) {
         this.remove = function() { throw new Error(); }
     };
 }
-
-return HtmlDomElement;
-
-};
-});

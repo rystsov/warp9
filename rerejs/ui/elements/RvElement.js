@@ -1,8 +1,7 @@
-define([], function() {
-return function(rere) {
+expose(RvElement);
 
-return (function(rv) {
-    var Cell = rere.reactive.Cell;
+function RvElement(rv) {
+    var Cell = root.reactive.Cell;
 
     var self = this;
     this.last = null;
@@ -10,7 +9,7 @@ return (function(rv) {
     this.dispose = function() {};
     this.bindto = function(element) {
         this.head = element;
-        
+
         self.dispose = rv.onEvent([], Cell.handler({
             set: function(e) {
                 if (self.last!=null) {
@@ -41,7 +40,4 @@ return (function(rv) {
             self.last = null;
         };
     };
-});
-
-};
-});
+}

@@ -1,55 +1,65 @@
 #!/bin/bash
 
-echo 'require(["rere/rere"], function(rere){console.info(rere);});' > rerejs/rere.module.js
-nodejs node_modules/requirejs/bin/r.js -o baseUrl=rerejs name=rere.module paths.rere=. out=rere.amd.js optimize=none
-rm rerejs/rere.module.js
-tail -n +2 rere.amd.js | head -n -4 > .rere.amd.js
+echo "var rere = (function(){" > rere.js
+echo -n "    var files = " >> rere.js
+python build.py >> rere.js
+cat << EOF >> rere.js
+    var library = {};
+    for (var i in files) {
+        initModuleStructure(library, library, files[i].path, files[i].content);
+    }
+    for (var i in files) {
+        addModuleContent(library, library, files[i].path, files[i].content);
+    }
+    return library;
 
-
-cat .rere.amd.js > rere.amd.js
-
-
-cat << EOF > rere.closure.js
-var rere = (function(){
-
-var modules = {};
-var cache = {};
-
-function resolve(dependencies) {
-    return dependencies.map(function(dependency){
-        if (!(dependency in modules)) throw new Error("Unknown module: " + dependency);
-        if (!(dependency in cache)) {
-            cache[dependency] = modules[dependency].unit.apply(null, resolve(modules[dependency].dependencies));
+    function initModuleStructure(library, namespace, path, content) {
+        if (path.length==0) throw new Error();
+        if (path.length>1) {
+            var name = path[0];
+            if (!(name in namespace)) {
+                namespace[name] = {};
+            }
+            initModuleStructure(library, namespace[name], path.slice(1), content);
         }
-        return cache[dependency];
-    });
-}
+        if (path.length==1) {
+            var exposed = null;
+            try {
+                content(library, function(obj) {
+                    exposed = obj;
+                    throw new ExposeBreak();
+                })
+            } catch (e) {
+                if (!(e instanceof ExposeBreak)) throw new Error(e);
+            }
+            if (exposed!=null) {
+                if (typeof exposed==="object") {
+                    namespace[path[0]] = {};
+                }
+            }
+        }
+        function ExposeBreak() {}
+    }
+    function addModuleContent(library, namespace, path, content) {
+        if (path.length>1) {
+            addModuleContent(library, namespace[path[0]], path.slice(1), content);
+        }
+        if (path.length==1) {
+            content(library, function(obj) {
+                if (typeof obj==="function") {
+                    namespace[path[0]] = obj;
+                }
+                if (typeof obj==="object") {
+                    for (var key in obj) {
+                        namespace[path[0]][key] = obj[key];
+                    }
+                }
+            });
+        }
+    }
 
-function define(what, dependencies, unit) {
-    if (arguments.length!=3) throw new Error("Bad count of arguments for: " + what);
-    if (what in modules) throw new Error("Module \"" + what + "\" already known");
-    modules[what] = {
-        dependencies: dependencies,
-        unit: unit
-    };
-}
-
-function require(dependencies, app) {
-    app.apply(null, resolve(dependencies));
-}
-
+})();
 EOF
-cat .rere.amd.js >> rere.closure.js
-cat << EOF >> rere.closure.js
 
-var rere = null;
-require(["rere/rere"], function(rr){
-    rere = rr;
-});
-return rere;
-
-EOF
-echo "})();" >> rere.closure.js
-
-
-rm .rere.amd.js
+cat rere.js > rere.common.js
+echo "module.exports = rere;" >> rere.common.js

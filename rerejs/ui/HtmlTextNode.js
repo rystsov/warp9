@@ -1,6 +1,4 @@
-define([], function(){
-return function(rere) {
-
+expose(HtmlTextNode);
 
 function HtmlTextNode(text) {
     this.type = HtmlTextNode;
@@ -17,8 +15,3 @@ function HtmlTextNode(text) {
         return view;
     };
 }
-
-return HtmlTextNode;
-
-};
-});
