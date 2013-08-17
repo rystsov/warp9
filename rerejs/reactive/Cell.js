@@ -10,6 +10,7 @@ function Cell() {
     this.id = id++;
 
     // used in garbage collection
+    this.era = new Object();
     this.isActive = true;
     this.users = [];
     this.addUser = function(userId) {

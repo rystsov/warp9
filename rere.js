@@ -1,6 +1,9 @@
 var rere = (function(){
     var files = [{ path:["utils"], content: function(root, expose) {
-expose({ hashLen: hashLen });
+expose({
+    hashLen: hashLen,
+    hashValues: hashValues
+});
 
 function hashLen(hash) {
     var count = 0;
@@ -11,6 +14,14 @@ function hashLen(hash) {
     return count;
 }
 
+function hashValues(hash) {
+    var values = [];
+    for (var i in hash) {
+        if (!hash.hasOwnProperty(i)) continue;
+        values.push(hash[i]);
+    }
+    return values;
+}
 }
 },{ path:["ui", "ast", "Element"], content: function(root, expose) {
 expose(Element);
@@ -439,13 +450,18 @@ expose({
     trackCellsBlock: trackCellsBlock,
     forgetCellsBlock: forgetCellsBlock,
     info: info,
-    collect: collect
+    collect: collect,
+    count: count
 });
 
 var blocks = {}
 
 function collect() {
+    root.reactive.GC.collect.apply(root.reactive.GC, cellRoots());
+}
 
+function count() {
+    return root.reactive.GC.count.apply(root.reactive.GC, cellRoots());
 }
 
 function trackCellsBlock(block) {
@@ -465,6 +481,31 @@ function info() {
             count++;
         }
         return count;
+    }
+}
+
+function cellRoots() {
+    var era = new Object();
+
+    var roots = {};
+    for (var i in blocks) {
+        if (!blocks.hasOwnProperty(i)) continue;
+        for (var j in blocks[i]) {
+            if (!blocks[i].hasOwnProperty(j)) continue;
+            findRoot(blocks[i][j], roots);
+        }
+    }
+
+    return root.utils.hashValues(roots);
+
+    function findRoot(cell, roots) {
+        if (cell.era===era) return;
+        cell.era = era;
+        if (cell.dependanties.length==0) {
+            roots[cell.id] = cell;
+        } else {
+            cell.dependanties.forEach(function(item){ findRoot(item, roots); });
+        }
     }
 }
 }
@@ -643,8 +684,6 @@ expose({
     printFullDependencies: printFullDependencies
 });
 
-var era = 0;
-
 function count() {
     var memory = {}
     for (var i=0;i<arguments.length;i++) {
@@ -664,11 +703,12 @@ function count() {
 }
 
 function collect() {
+    var era = new Object();
     var used = [];
     for (var i in arguments) {
         markGarbageCollectUsed(arguments[i], used);
     }
-    era++;
+    era = new Object();
     for (var i in used) {
         unGarbageAncestors(used[i])
     }
@@ -689,7 +729,7 @@ function collect() {
         }
     }
     function unGarbageAncestors(rv) {
-        if (rv.era==era) return;
+        if (rv.era===era) return;
 
         rv.isGarbage = false;
         rv.era = era;
@@ -739,12 +779,12 @@ function printFullDependencies(rv) {
             }
         }
         for (var i in dependants) {
-            result.dependants.push(collect(dependants[i]))
+            result.dependants.push(collect(dependants[i]));
         }
         return result;
     }
     function print(info, offset) {
-        console.info(offset + info.name + (info.dependants.length==0 ? "" : ":"))
+        console.info(offset + info.name + (info.dependants.length==0 ? "" : ":"));
         info.dependants.map(function(x) { print(x, offset + "  "); })
     }
 }
@@ -763,6 +803,7 @@ function Cell() {
     this.id = id++;
 
     // used in garbage collection
+    this.era = new Object();
     this.isActive = true;
     this.users = [];
     this.addUser = function(userId) {

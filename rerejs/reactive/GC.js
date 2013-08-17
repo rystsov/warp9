@@ -4,8 +4,6 @@ expose({
     printFullDependencies: printFullDependencies
 });
 
-var era = 0;
-
 function count() {
     var memory = {}
     for (var i=0;i<arguments.length;i++) {
@@ -25,11 +23,12 @@ function count() {
 }
 
 function collect() {
+    var era = new Object();
     var used = [];
     for (var i in arguments) {
         markGarbageCollectUsed(arguments[i], used);
     }
-    era++;
+    era = new Object();
     for (var i in used) {
         unGarbageAncestors(used[i])
     }
@@ -50,7 +49,7 @@ function collect() {
         }
     }
     function unGarbageAncestors(rv) {
-        if (rv.era==era) return;
+        if (rv.era===era) return;
 
         rv.isGarbage = false;
         rv.era = era;
@@ -100,12 +99,12 @@ function printFullDependencies(rv) {
             }
         }
         for (var i in dependants) {
-            result.dependants.push(collect(dependants[i]))
+            result.dependants.push(collect(dependants[i]));
         }
         return result;
     }
     function print(info, offset) {
-        console.info(offset + info.name + (info.dependants.length==0 ? "" : ":"))
+        console.info(offset + info.name + (info.dependants.length==0 ? "" : ":"));
         info.dependants.map(function(x) { print(x, offset + "  "); })
     }
 }
