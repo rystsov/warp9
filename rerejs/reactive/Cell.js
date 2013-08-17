@@ -19,6 +19,9 @@ function Cell() {
     this.hasUsers = function() {
         return this.users.length>0;
     };
+    this.hasUser = function(userId) {
+        return this.users.indexOf(userId)>=0;
+    };
     this.removeUser = function(userId) {
         if (this.users.indexOf(userId)<0) throw new Error();
         this.users = this.users.filter(function(item){ return item != userId });

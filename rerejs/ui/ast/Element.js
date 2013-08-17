@@ -11,25 +11,25 @@ function Element(tag) {
     this.attributes = {};
     this.events = {};
     this.children = [];
-    this.id = "rere/ast/element/" + (id++);
+    this.elementId = "rere/ui/ast/element/" + (id++);
 
     this.attributeSetters = defaultAttributeSetters();
 
     this.disposes = [];
     this.dispose = function() {
-        for (var i in this.disposes) {
-            this.disposes[i]();
-        }
+        this.disposes.forEach(function(x) { x(); });
     };
     this.view = function() {
         var view = document.createElement(tag);
 
         for (var name in this.attributes) {
+            if (!this.attributes.hasOwnProperty(name)) continue;
             if (name=="css") continue;
             this.setAttribute(view, name, this.attributes[name])
         }
 
         for (var name in this.events) {
+            if (!this.events.hasOwnProperty(name)) continue;
             (function(name){
                 if (name == "control:draw") return;
                 if (name == "key:enter") {
@@ -45,15 +45,26 @@ function Element(tag) {
                 }
             }.bind(this))(name);
         }
-
         if ("css" in this.attributes) {
             for (var property in this.attributes["css"]) {
+                if (!this.attributes["css"].hasOwnProperty(property)) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
-                        this.disposes.push(value.onEvent(Cell.handler({
+                        var unuse = function() {};
+                        if (!value.hasUser(this.elementId)) {
+                            value.addUser(this.elementId);
+                            unuse = function() {
+                                value.removeUser(this.elementId);
+                            }.bind(this);
+                        }
+                        var dispose = value.onEvent(Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
-                        })));
+                        }));
+                        this.disposes.push(function(){
+                            dispose();
+                            unuse();
+                        });
                     } else {
                         jq.css(view, property, value);
                     }
@@ -88,10 +99,21 @@ function Element(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                self.disposes.push(value.onEvent([], Cell.handler({
+                var unuse = function() {};
+                if (!value.hasUser(self.elementId)) {
+                    value.addUser(self.elementId);
+                    unuse = function() {
+                        value.removeUser(self.elementId);
+                    };
+                }
+                var dispose = value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
-                })));
+                }));
+                self.disposes.push(function(){
+                    dispose();
+                    unuse();
+                });
             } else {
                 template.set(value);
             }
@@ -101,7 +123,7 @@ function Element(tag) {
 
 function defaultAttributeSetters() {
     return {
-        checked: function(view, value) {
+        checked: function(view) {
             return {
                 set: function(v) {
                     view.checked = v;
@@ -111,7 +133,7 @@ function defaultAttributeSetters() {
                 }
             };
         },
-        value: function(view, value) {
+        value: function(view) {
             return {
                 set: function(v) {
                     if (view.value!=v) view.value = v;
@@ -121,7 +143,7 @@ function defaultAttributeSetters() {
                 }
             };
         },
-        disabled: function(view, value) {
+        disabled: function(view) {
             return {
                 set: function(v) {
                     if (v) {
@@ -135,7 +157,7 @@ function defaultAttributeSetters() {
                 }
             };
         },
-        "class": function(view, value) {
+        "class": function(view) {
             var jq = root.ui.jq;
             return {
                 set: function(v) {

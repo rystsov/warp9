@@ -1,16 +1,20 @@
 expose(DomCell);
 
+var id = 0;
+
 function DomCell(rv) {
     var Cell = root.reactive.Cell;
 
-    var self = this;
     this.last = null;
     this.head = null;
+    this.cellId = "rere/ui/dom/cell/" + (id++);
     this.dispose = function() {};
     this.bindto = function(element) {
-        this.head = element;
+        var self = this;
 
-        self.dispose = rv.onEvent([], Cell.handler({
+        this.head = element;
+        rv.addUser(this.cellId);
+        this.dispose = rv.onEvent([], Cell.handler({
             set: function(e) {
                 if (self.last!=null) {
                     self.last.remove();
@@ -34,10 +38,11 @@ function DomCell(rv) {
         }
     };
     this.remove = function() {
-        self.dispose();
-        if (self.last!=null) {
-            self.last.remove();
-            self.last = null;
+        this.dispose();
+        rv.removeUser(this.cellId);
+        if (this.last!=null) {
+            this.last.remove();
+            this.last = null;
         }
     };
 }
