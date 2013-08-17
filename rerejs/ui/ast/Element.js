@@ -16,8 +16,15 @@ function Element(tag) {
     this.attributeSetters = defaultAttributeSetters();
 
     this.disposes = [];
+    this.cells = {};
     this.dispose = function() {
         this.disposes.forEach(function(x) { x(); });
+        for (var i in this.cells) {
+            if (!this.cells.hasOwnProperty(i)) continue;
+            this.cells[i].removeUser(this.elementId);
+        }
+
+        this.dispose = function() { throw new Error(); }
     };
     this.view = function() {
         var view = document.createElement(tag);
@@ -50,26 +57,23 @@ function Element(tag) {
                 if (!this.attributes["css"].hasOwnProperty(property)) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
-                        var unuse = function() {};
-                        if (!value.hasUser(this.elementId)) {
-                            value.addUser(this.elementId);
-                            unuse = function() {
-                                value.removeUser(this.elementId);
-                            }.bind(this);
-                        }
-                        var dispose = value.onEvent(Cell.handler({
-                            set: function(e) { jq.css(view, property, e); },
-                            unset: function() { jq.css(view, property, null); }
-                        }));
+                        this.cells[value.id] = value;
                         this.disposes.push(function(){
-                            dispose();
-                            unuse();
+                            value.onEvent(Cell.handler({
+                                set: function(e) { jq.css(view, property, e); },
+                                unset: function() { jq.css(view, property, null); }
+                            }))
                         });
                     } else {
                         jq.css(view, property, value);
                     }
                 }.bind(this))(property, this.attributes["css"][property]);
             }
+        }
+
+        for (var i in this.cells) {
+            if (!this.cells.hasOwnProperty(i)) continue;
+            this.cells[i].addUser(this.elementId);
         }
 
         this.view = function() {
@@ -99,21 +103,11 @@ function Element(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                var unuse = function() {};
-                if (!value.hasUser(self.elementId)) {
-                    value.addUser(self.elementId);
-                    unuse = function() {
-                        value.removeUser(self.elementId);
-                    };
-                }
-                var dispose = value.onEvent([], Cell.handler({
+                self.cells[value.id] = value;
+                self.disposes.push(value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
-                }));
-                self.disposes.push(function(){
-                    dispose();
-                    unuse();
-                });
+                })));
             } else {
                 template.set(value);
             }

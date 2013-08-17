@@ -29,6 +29,12 @@ function DomCell(rv) {
                 }
             }
         }));
+        var block = {
+            id: this.cellId,
+            cells: {}
+        };
+        block.cells[rv.id] = rv;
+        root.ui.GC.trackCellsBlock(block);
     };
     this.place = function(html) {
         if (this.last==null) {
@@ -39,6 +45,7 @@ function DomCell(rv) {
     };
     this.remove = function() {
         this.dispose();
+        root.ui.GC.forgetCellsBlock({ id: this.cellId });
         rv.removeUser(this.cellId);
         if (this.last!=null) {
             this.last.remove();

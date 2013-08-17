@@ -1,5 +1,18 @@
 var rere = (function(){
-    var files = [{ path:["ui", "ast", "Element"], content: function(root, expose) {
+    var files = [{ path:["utils"], content: function(root, expose) {
+expose({ hashLen: hashLen });
+
+function hashLen(hash) {
+    var count = 0;
+    for (var i in hash) {
+        if (!hash.hasOwnProperty(i)) continue;
+        count++;
+    }
+    return count;
+}
+
+}
+},{ path:["ui", "ast", "Element"], content: function(root, expose) {
 expose(Element);
 
 var id = 0;
@@ -18,8 +31,15 @@ function Element(tag) {
     this.attributeSetters = defaultAttributeSetters();
 
     this.disposes = [];
+    this.cells = {};
     this.dispose = function() {
         this.disposes.forEach(function(x) { x(); });
+        for (var i in this.cells) {
+            if (!this.cells.hasOwnProperty(i)) continue;
+            this.cells[i].removeUser(this.elementId);
+        }
+
+        this.dispose = function() { throw new Error(); }
     };
     this.view = function() {
         var view = document.createElement(tag);
@@ -52,26 +72,23 @@ function Element(tag) {
                 if (!this.attributes["css"].hasOwnProperty(property)) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
-                        var unuse = function() {};
-                        if (!value.hasUser(this.elementId)) {
-                            value.addUser(this.elementId);
-                            unuse = function() {
-                                value.removeUser(this.elementId);
-                            }.bind(this);
-                        }
-                        var dispose = value.onEvent(Cell.handler({
-                            set: function(e) { jq.css(view, property, e); },
-                            unset: function() { jq.css(view, property, null); }
-                        }));
+                        this.cells[value.id] = value;
                         this.disposes.push(function(){
-                            dispose();
-                            unuse();
+                            value.onEvent(Cell.handler({
+                                set: function(e) { jq.css(view, property, e); },
+                                unset: function() { jq.css(view, property, null); }
+                            }))
                         });
                     } else {
                         jq.css(view, property, value);
                     }
                 }.bind(this))(property, this.attributes["css"][property]);
             }
+        }
+
+        for (var i in this.cells) {
+            if (!this.cells.hasOwnProperty(i)) continue;
+            this.cells[i].addUser(this.elementId);
         }
 
         this.view = function() {
@@ -101,21 +118,11 @@ function Element(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                var unuse = function() {};
-                if (!value.hasUser(self.elementId)) {
-                    value.addUser(self.elementId);
-                    unuse = function() {
-                        value.removeUser(self.elementId);
-                    };
-                }
-                var dispose = value.onEvent([], Cell.handler({
+                self.cells[value.id] = value;
+                self.disposes.push(value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
-                }));
-                self.disposes.push(function(){
-                    dispose();
-                    unuse();
-                });
+                })));
             } else {
                 template.set(value);
             }
@@ -182,6 +189,7 @@ function TextNode(text) {
     this.dispose = function() {};
     this.children = [];
     this.events = {};
+    this.cells = {};
     this.view = function() {
         var view = document.createTextNode(text);
 
@@ -254,16 +262,26 @@ function DomList(elements) {
 },{ path:["ui", "dom", "DomElement"], content: function(root, expose) {
 expose(DomElement);
 
+var id = 0;
+
 function DomElement(element) {
     var jq = root.ui.jq;
     var DomContainer = root.ui.dom.DomContainer;
     var Dom = root.ui.dom.Dom;
+
+    this.elementId = "rere/ui/dom/element/" + (id++);
 
     this.bindto = function(preceding) {
         if ("preceding" in this) throw new Error();
         this.preceding = preceding;
         this.view = element.view();
         preceding.place(this.view);
+        if (root.utils.hashLen(element.cells)>0) {
+            root.ui.GC.trackCellsBlock({
+                id: this.elementId,
+                cells: element.cells
+            });
+        }
 
         if (element.children instanceof Array) {
             if (element.children.length!=0) {
@@ -285,6 +303,9 @@ function DomElement(element) {
         if (!("preceding" in this)) throw new Error();
         jq.remove(this.view);
         element.dispose();
+        root.ui.GC.forgetCellsBlock({
+            id: this.elementId
+        });
         this.place = function(follower) { this.preceding.place(follower); };
         this.remove = function() { throw new Error(); }
     };
@@ -340,6 +361,12 @@ function DomCell(rv) {
                 }
             }
         }));
+        var block = {
+            id: this.cellId,
+            cells: {}
+        };
+        block.cells[rv.id] = rv;
+        root.ui.GC.trackCellsBlock(block);
     };
     this.place = function(html) {
         if (this.last==null) {
@@ -350,6 +377,7 @@ function DomCell(rv) {
     };
     this.remove = function() {
         this.dispose();
+        root.ui.GC.forgetCellsBlock({ id: this.cellId });
         rv.removeUser(this.cellId);
         if (this.last!=null) {
             this.last.remove();
@@ -405,6 +433,40 @@ function render(canvas, element) {
     root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
 }
 
+}
+},{ path:["ui", "GC"], content: function(root, expose) {
+expose({
+    trackCellsBlock: trackCellsBlock,
+    forgetCellsBlock: forgetCellsBlock,
+    info: info,
+    collect: collect
+});
+
+var blocks = {}
+
+function collect() {
+
+}
+
+function trackCellsBlock(block) {
+    blocks[block.id] = block.cells;
+}
+
+function forgetCellsBlock(block) {
+    delete blocks[block.id];
+}
+
+function info() {
+    return {blocks: len(blocks) };
+    function len(hash) {
+        var count = 0;
+        for (var i in hash) {
+            if (!hash.hasOwnProperty(i)) continue;
+            count++;
+        }
+        return count;
+    }
+}
 }
 },{ path:["ui", "hacks"], content: function(root, expose) {
 expose({unrecursion: unrecursion});

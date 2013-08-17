@@ -5,6 +5,7 @@ function TextNode(text) {
     this.dispose = function() {};
     this.children = [];
     this.events = {};
+    this.cells = {};
     this.view = function() {
         var view = document.createTextNode(text);
 
