@@ -1,6 +1,12 @@
 expose({
-    parseTagArgs: parseTagArgs
+    parseTagArgs: parseTagArgs,
+    setProperties: setProperties,
+    H: H
 });
+
+function H(element) {
+    this.element = element
+}
 
 function parseTagArgs(args) {
     var Cell = root.reactive.Cell;
@@ -30,4 +36,16 @@ function parseTagArgs(args) {
     }
 
     return {attr: attr, children: children};
+}
+
+function setProperties(element, attr) {
+    if (attr!=null) {
+        for (var name in attr) {
+            if (typeof attr[name]==="function") {
+                element.events[name] = attr[name];
+                continue;
+            }
+            element.attributes[name] = attr[name];
+        }
+    }
 }

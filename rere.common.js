@@ -1,147 +1,5 @@
 var rere = (function(){
-    var files = [{ path:["ui", "renderer"], content: function(root, expose) {
-expose({
-    h: h,
-    parse: parse,
-    render: render
-}, ctor);
-
-function ctor() {
-    console.info("hello!");
-}
-
-var tags = {
-    "div": tag("div"),
-    "input-text": inputText
-};
-
-function h(element) { return new H(element); }
-
-function parse(element) {
-    var Cell = root.reactive.Cell;
-
-    if (typeof element==="string" || element instanceof String) {
-        return new root.ui.ast.TextNode(element);
-    }
-    if (element instanceof Array) {
-        if (element.length==0) throw new Error();
-        var tag = element[0];
-        if (!(tag in tags)) throw new Error("Unknown tag: " + tag);
-        return tags[tag](element.slice(1));
-    }
-    if (typeof element==="object" && element.type==Cell) {
-        return element.lift(parse);
-    }
-
-    throw new Error();
-}
-
-function render(canvas, element) {
-    var DomContainer = root.ui.dom.DomContainer;
-
-    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
-}
-
-
-function H(element) {
-    this.element = element
-}
-
-function tag(tagName) {
-    return function(args) {
-        var args = parseTagArgs(args);
-        var element = new root.ui.ast.Element(tagName);
-        setAttrEvents(element, args.attr);
-        element.children = [];
-        for (var i in args.children) {
-            var child = args.children[i];
-            child = root.ui.renderer.parse(child);
-            element.children.push(child);
-        }
-        return element;
-    };
-}
-
-function inputText(args) {
-    var Cell = root.reactive.Cell;
-    args = parseTagArgs(args);
-    if (args.children.length != 1) throw new Error();
-    var value = args.children[0];
-    if (!(typeof value==="object" && value.type==Cell)) throw new Error();
-
-    var element = new root.ui.ast.Element("input");
-    setAttrEvents(element, args.attr);
-    element.attributes.type = "text";
-    element.attributes.value = value;
-    var input = "input" in element.events ? element.events.input : function(){};
-    element.events.input = function(control, view) {
-        input.apply(element.events, [control, view]);
-        value.set(view.value);
-    };
-
-    return element;
-}
-
-function parseTagArgs(args) {
-    var Cell = root.reactive.Cell;
-    if (args.length==0) throw new Error();
-
-    var children = [args[0]];
-    var attr = null;
-
-    while(true) {
-        if (typeof args[0]==="string" || args[0] instanceof Array) break;
-        if (args[0] instanceof Array) break;
-        if (args[0] instanceof Object && args[0].type==Cell) break;
-        if (args[0] instanceof H) break;
-        children = [];
-        attr = args[0];
-        break;
-    }
-
-    for (var i=1;i<args.length;i++) {
-        children.push(args[i]);
-    }
-
-    if (children.length==1) {
-        if (children[0] instanceof H) {
-            children = children[0].element;
-        }
-    }
-
-    return {attr: attr, children: children};
-}
-
-function setAttrEvents(element, attr) {
-    if (attr!=null) {
-        for (var name in attr) {
-            if (typeof attr[name]==="function") {
-                element.events[name] = attr[name];
-                continue;
-            }
-            element.attributes[name] = attr[name];
-        }
-    }
-}
-
-}
-},{ path:["ui", "hacks"], content: function(root, expose) {
-expose({unrecursion: unrecursion});
-
-// https://gist.github.com/rystsov/5898584
-// https://code.google.com/p/chromium/issues/detail?id=117307
-function unrecursion(f) {
-    var active = false;
-    return function() {
-        if (active) return;
-        active = true;
-        f.apply(null, arguments);
-        active = false;
-    };
-}
-
-}
-},{ path:["ui", "ast", "Element"], content: function(root, expose) {
+    var files = [{ path:["ui", "ast", "Element"], content: function(root, expose) {
 expose(Element);
 
 var id = 0;
@@ -335,6 +193,235 @@ function TextNode(text) {
     };
 }
 }
+},{ path:["ui", "dom", "Dom"], content: function(root, expose) {
+expose({wrap: wrap});
+
+function wrap(element) {
+    var Cell = root.reactive.Cell;
+    var Element = root.ui.ast.Element;
+    var DomElement = root.ui.dom.DomElement;
+    var DomList = root.ui.dom.DomList;
+    var DomCell = root.ui.dom.DomCell;
+    var TextNode = root.ui.ast.TextNode;
+
+    if (element instanceof Array) {
+        return new DomList(element.map(wrap));
+    }
+    if (typeof element=="object" && element.type==Element) {
+        return new DomElement(element);
+    }
+    if (typeof element=="object" && element.type==TextNode) {
+        return new DomElement(element);
+    }
+    if (typeof element=="object" && element.type==Cell) {
+        return new DomCell(element.lift(wrap));
+    }
+
+    throw new Error();
+}
+
+}
+},{ path:["ui", "dom", "DomList"], content: function(root, expose) {
+expose(DomList);
+
+function DomList(elements) {
+    this.last = null;
+    this.head = null;
+    this.bindto = function(element) {
+        this.head = element;
+        var previous = element;
+        for (var i=0;i<elements.length;i++) {
+            elements[i].bindto(previous);
+            previous = elements[i];
+            this.last = previous;
+        }
+    };
+    this.place = function(html) {
+        if (this.last != null) {
+            this.last.place(html);
+        } else {
+            this.head.place(html);
+        }
+    };
+    this.remove = function() {
+        for (var i=0;i<elements.length;i++) {
+            elements[i].remove();
+        }
+    };
+}
+
+}
+},{ path:["ui", "dom", "DomElement"], content: function(root, expose) {
+expose(DomElement);
+
+function DomElement(element) {
+    var jq = root.ui.jq;
+    var DomContainer = root.ui.dom.DomContainer;
+    var Dom = root.ui.dom.Dom;
+
+    this.bindto = function(preceding) {
+        if ("preceding" in this) throw new Error();
+        this.preceding = preceding;
+        this.view = element.view();
+        preceding.place(this.view);
+
+        if (element.children instanceof Array) {
+            if (element.children.length!=0) {
+                Dom.wrap(element.children).bindto(new DomContainer(this.view));
+            }
+        } else {
+            throw new Error();
+        }
+
+        if ("control:draw" in element.events) {
+            element.events["control:draw"](element, this.view);
+        }
+    };
+    this.place = function(follower) {
+        if (!("preceding" in this)) throw new Error();
+        jq.after(this.view, follower);
+    };
+    this.remove = function() {
+        if (!("preceding" in this)) throw new Error();
+        jq.remove(this.view);
+        element.dispose();
+        this.place = function(follower) { this.preceding.place(follower); };
+        this.remove = function() { throw new Error(); }
+    };
+}
+
+}
+},{ path:["ui", "dom", "DomContainer"], content: function(root, expose) {
+expose(DomContainer);
+
+function DomContainer(container) {
+    this.bindto = function(element) {
+        throw new Error();
+    };
+    this.place = function(html) {
+        if (container.childNodes.length==0) {
+            container.appendChild(html);
+        } else {
+            container.insertBefore(html, container.childNodes.item(0));
+        }
+    };
+}
+
+}
+},{ path:["ui", "dom", "DomCell"], content: function(root, expose) {
+expose(DomCell);
+
+var id = 0;
+
+function DomCell(rv) {
+    var Cell = root.reactive.Cell;
+
+    this.last = null;
+    this.head = null;
+    this.cellId = "rere/ui/dom/cell/" + (id++);
+    this.dispose = function() {};
+    this.bindto = function(element) {
+        var self = this;
+
+        this.head = element;
+        rv.addUser(this.cellId);
+        this.dispose = rv.onEvent([], Cell.handler({
+            set: function(e) {
+                if (self.last!=null) {
+                    self.last.remove();
+                }
+                self.last = e;
+                self.last.bindto(element);
+            },
+            unset: function() {
+                if (self.last!=null) {
+                    self.last.remove();
+                    self.last = null;
+                }
+            }
+        }));
+    };
+    this.place = function(html) {
+        if (this.last==null) {
+            this.head.place(html);
+        } else {
+            this.last.place(html);
+        }
+    };
+    this.remove = function() {
+        this.dispose();
+        rv.removeUser(this.cellId);
+        if (this.last!=null) {
+            this.last.remove();
+            this.last = null;
+        }
+    };
+}
+
+}
+},{ path:["ui", "renderer"], content: function(root, expose) {
+expose({
+    h: h,
+    parse: parse,
+    render: render,
+    addTag: addTag
+}, ctor);
+
+function ctor() {
+    addTag("div", root.ui.tags.TagParserFactory("div"));
+    addTag("input-text", root.ui.tags.InputTextParser);
+}
+
+var tags = {};
+
+function addTag(name, parser) {
+    tags[name] = parser;
+}
+
+function h(element) { return new root.ui.tags.utils.H(element); }
+
+function parse(element) {
+    var Cell = root.reactive.Cell;
+
+    if (typeof element==="string" || element instanceof String) {
+        return new root.ui.ast.TextNode(element);
+    }
+    if (element instanceof Array) {
+        if (element.length==0) throw new Error();
+        var tag = element[0];
+        if (!(tag in tags)) throw new Error("Unknown tag: " + tag);
+        return tags[tag](element.slice(1));
+    }
+    if (typeof element==="object" && element.type==Cell) {
+        return element.lift(parse);
+    }
+
+    throw new Error();
+}
+
+function render(canvas, element) {
+    var DomContainer = root.ui.dom.DomContainer;
+
+    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
+}
+
+}
+},{ path:["ui", "hacks"], content: function(root, expose) {
+expose({unrecursion: unrecursion});
+
+// https://gist.github.com/rystsov/5898584
+// https://code.google.com/p/chromium/issues/detail?id=117307
+function unrecursion(f) {
+    var active = false;
+    return function() {
+        if (active) return;
+        active = true;
+        f.apply(null, arguments);
+        active = false;
+    };
+}
+
+}
 },{ path:["ui", "jq"], content: function(root, expose) {
 expose({
     css: css,
@@ -392,202 +479,100 @@ function dasherize(str) {
 }
 
 }
-},{ path:["ui", "dom", "DomContainer"], content: function(root, expose) {
-expose(DomContainer);
-
-function DomContainer(container) {
-    this.bindto = function(element) {
-        throw new Error();
-    };
-    this.place = function(html) {
-        if (container.childNodes.length==0) {
-            container.appendChild(html);
-        } else {
-            container.insertBefore(html, container.childNodes.item(0));
-        }
-    };
-}
-
-}
-},{ path:["ui", "dom", "DomList"], content: function(root, expose) {
-expose(DomList);
-
-function DomList(elements) {
-    this.last = null;
-    this.head = null;
-    this.bindto = function(element) {
-        this.head = element;
-        var previous = element;
-        for (var i=0;i<elements.length;i++) {
-            elements[i].bindto(previous);
-            previous = elements[i];
-            this.last = previous;
-        }
-    };
-    this.place = function(html) {
-        if (this.last != null) {
-            this.last.place(html);
-        } else {
-            this.head.place(html);
-        }
-    };
-    this.remove = function() {
-        for (var i=0;i<elements.length;i++) {
-            elements[i].remove();
-        }
-    };
-}
-
-}
-},{ path:["ui", "dom", "DomCell"], content: function(root, expose) {
-expose(DomCell);
-
-var id = 0;
-
-function DomCell(rv) {
-    var Cell = root.reactive.Cell;
-
-    this.last = null;
-    this.head = null;
-    this.cellId = "rere/ui/dom/cell/" + (id++);
-    this.dispose = function() {};
-    this.bindto = function(element) {
-        var self = this;
-
-        this.head = element;
-        rv.addUser(this.cellId);
-        this.dispose = rv.onEvent([], Cell.handler({
-            set: function(e) {
-                if (self.last!=null) {
-                    self.last.remove();
-                }
-                self.last = e;
-                self.last.bindto(element);
-            },
-            unset: function() {
-                if (self.last!=null) {
-                    self.last.remove();
-                    self.last = null;
-                }
-            }
-        }));
-    };
-    this.place = function(html) {
-        if (this.last==null) {
-            this.head.place(html);
-        } else {
-            this.last.place(html);
-        }
-    };
-    this.remove = function() {
-        this.dispose();
-        rv.removeUser(this.cellId);
-        if (this.last!=null) {
-            this.last.remove();
-            this.last = null;
-        }
-    };
-}
-
-}
-},{ path:["ui", "dom", "DomElement"], content: function(root, expose) {
-expose(DomElement);
-
-function DomElement(element) {
-    var jq = root.ui.jq;
-    var DomContainer = root.ui.dom.DomContainer;
-    var Dom = root.ui.dom.Dom;
-
-    this.bindto = function(preceding) {
-        if ("preceding" in this) throw new Error();
-        this.preceding = preceding;
-        this.view = element.view();
-        preceding.place(this.view);
-
-        if (element.children instanceof Array) {
-            if (element.children.length!=0) {
-                Dom.wrap(element.children).bindto(new DomContainer(this.view));
-            }
-        } else {
-            throw new Error();
-        }
-
-        if ("control:draw" in element.events) {
-            element.events["control:draw"](element, this.view);
-        }
-    };
-    this.place = function(follower) {
-        if (!("preceding" in this)) throw new Error();
-        jq.after(this.view, follower);
-    };
-    this.remove = function() {
-        if (!("preceding" in this)) throw new Error();
-        jq.remove(this.view);
-        element.dispose();
-        this.place = function(follower) { this.preceding.place(follower); };
-        this.remove = function() { throw new Error(); }
-    };
-}
-
-}
-},{ path:["ui", "dom", "Dom"], content: function(root, expose) {
-expose({wrap: wrap});
-
-function wrap(element) {
-    var Cell = root.reactive.Cell;
-    var Element = root.ui.ast.Element;
-    var DomElement = root.ui.dom.DomElement;
-    var DomList = root.ui.dom.DomList;
-    var DomCell = root.ui.dom.DomCell;
-    var TextNode = root.ui.ast.TextNode;
-
-    if (element instanceof Array) {
-        return new DomList(element.map(wrap));
-    }
-    if (typeof element=="object" && element.type==Element) {
-        return new DomElement(element);
-    }
-    if (typeof element=="object" && element.type==TextNode) {
-        return new DomElement(element);
-    }
-    if (typeof element=="object" && element.type==Cell) {
-        return new DomCell(element.lift(wrap));
-    }
-
-    throw new Error();
-}
-
-}
-},{ path:["adt", "maybe"], content: function(root, expose) {
+},{ path:["ui", "tags", "utils"], content: function(root, expose) {
 expose({
-    Some: Some,
-    None: None
+    parseTagArgs: parseTagArgs,
+    setProperties: setProperties,
+    H: H
 });
 
-function Some(value) {
-    this.value = function() {
-        return value;
-    };
-    this.isEmpty = function() {
-        return false;
-    };
-    this.lift = function(f) {
-        return new Some(f(value));
-    };
+function H(element) {
+    this.element = element
 }
 
-function None() {
-    this.value = function() {
-        throw new Error();
-    };
-    this.isEmpty = function() {
-        return true;
-    };
-    this.lift = function() {
-        return this;
-    };
+function parseTagArgs(args) {
+    var Cell = root.reactive.Cell;
+    if (args.length==0) throw new Error();
+
+    var children = [args[0]];
+    var attr = null;
+
+    while(true) {
+        if (typeof args[0]==="string" || args[0] instanceof Array) break;
+        if (args[0] instanceof Array) break;
+        if (args[0] instanceof Object && args[0].type==Cell) break;
+        if (args[0] instanceof H) break;
+        children = [];
+        attr = args[0];
+        break;
+    }
+
+    for (var i=1;i<args.length;i++) {
+        children.push(args[i]);
+    }
+
+    if (children.length==1) {
+        if (children[0] instanceof H) {
+            children = children[0].element;
+        }
+    }
+
+    return {attr: attr, children: children};
 }
 
+function setProperties(element, attr) {
+    if (attr!=null) {
+        for (var name in attr) {
+            if (typeof attr[name]==="function") {
+                element.events[name] = attr[name];
+                continue;
+            }
+            element.attributes[name] = attr[name];
+        }
+    }
+}
+}
+},{ path:["ui", "tags", "InputTextParser"], content: function(root, expose) {
+expose(InputTextParser);
+
+function InputTextParser(args) {
+    var Cell = root.reactive.Cell;
+    args = root.ui.tags.utils.parseTagArgs(args);
+    if (args.children.length != 1) throw new Error();
+    var value = args.children[0];
+    if (!(typeof value==="object" && value.type==Cell)) throw new Error();
+
+    var element = new root.ui.ast.Element("input");
+    root.ui.tags.utils.setProperties(element, args.attr);
+    element.attributes.type = "text";
+    element.attributes.value = value;
+    var input = "input" in element.events ? element.events.input : function(){};
+    element.events.input = function(control, view) {
+        input.apply(element.events, [control, view]);
+        value.set(view.value);
+    };
+
+    return element;
+}
+
+}
+},{ path:["ui", "tags", "TagParserFactory"], content: function(root, expose) {
+expose(TagParserFactory);
+
+function TagParserFactory(tagName) {
+    return function(args) {
+        var args = root.ui.tags.utils.parseTagArgs(args);
+        var element = new root.ui.ast.Element(tagName);
+        root.ui.tags.utils.setProperties(element, args.attr);
+        element.children = [];
+        for (var i in args.children) {
+            var child = args.children[i];
+            child = root.ui.renderer.parse(child);
+            element.children.push(child);
+        }
+        return element;
+    };
+}
 }
 },{ path:["reactive", "GC"], content: function(root, expose) {
 expose({
@@ -895,6 +880,37 @@ Cell.handler = function(handler) {
         }
     };
 };
+
+}
+},{ path:["adt", "maybe"], content: function(root, expose) {
+expose({
+    Some: Some,
+    None: None
+});
+
+function Some(value) {
+    this.value = function() {
+        return value;
+    };
+    this.isEmpty = function() {
+        return false;
+    };
+    this.lift = function(f) {
+        return new Some(f(value));
+    };
+}
+
+function None() {
+    this.value = function() {
+        throw new Error();
+    };
+    this.isEmpty = function() {
+        return true;
+    };
+    this.lift = function() {
+        return this;
+    };
+}
 
 }
 }];
