@@ -8,9 +8,11 @@ cat << EOF >> rere.js
     for (var i in files) {
         initModuleStructure(library, library, files[i].path, files[i].content);
     }
+    var ctors = [];
     for (var i in files) {
-        addModuleContent(library, library, files[i].path, files[i].content);
+        addModuleContentCollectCtor(library, library, files[i].path, files[i].content, ctors);
     }
+    ctors.forEach(function(x){ x(); });
     return library;
 
     function initModuleStructure(library, namespace, path, content) {
@@ -25,7 +27,7 @@ cat << EOF >> rere.js
         if (path.length==1) {
             var exposed = null;
             try {
-                content(library, function(obj) {
+                content(library, function(obj, ctor) {
                     exposed = obj;
                     throw new ExposeBreak();
                 })
@@ -40,12 +42,13 @@ cat << EOF >> rere.js
         }
         function ExposeBreak() {}
     }
-    function addModuleContent(library, namespace, path, content) {
+    function addModuleContentCollectCtor(library, namespace, path, content, ctors) {
         if (path.length>1) {
-            addModuleContent(library, namespace[path[0]], path.slice(1), content);
+            addModuleContentCollectCtor(library, namespace[path[0]], path.slice(1), content, ctors);
         }
         if (path.length==1) {
-            content(library, function(obj) {
+            content(library, function(obj, ctor) {
+                if (ctor) ctors.push(ctor);
                 if (typeof obj==="function") {
                     namespace[path[0]] = obj;
                 }
