@@ -85,8 +85,8 @@ return function(init) {
 };
 });
 
-define('rere/adt/adt',
-["rere/adt/maybe", "rere/adt/error", "rere/adt/defaultdict"], 
+define(
+'rere/adt/adt',["rere/adt/maybe", "rere/adt/error", "rere/adt/defaultdict"], 
 function(maybe, error, Defaultdict) {
 return function(rere) {
 
@@ -289,8 +289,8 @@ return {
 
 };
 });
-define('rere/reactive/Variable',
-["rere/reactive/Variable.Core", "rere/reactive/Variable.Extensions"], 
+define(
+'rere/reactive/Variable',["rere/reactive/Variable.Core", "rere/reactive/Variable.Extensions"], 
 function(VariableCore, extensions) {
 return function(rere) {
 
@@ -629,8 +629,8 @@ return function() {
 
 };
 });
-define('rere/reactive/ObservableList',
-["rere/reactive/ObservableList.Core", "rere/reactive/ObservableList.collector", "rere/reactive/ObservableList.tolist", "rere/reactive/ObservableList.flatten"], 
+define(
+'rere/reactive/ObservableList',["rere/reactive/ObservableList.Core", "rere/reactive/ObservableList.collector", "rere/reactive/ObservableList.tolist", "rere/reactive/ObservableList.flatten"], 
 function(ObservableListCore, collector, tolist, flatten) {
 return function(rere) {
 
@@ -1107,8 +1107,8 @@ function logical(args, op, seed) {
 
 };
 });
-define('rere/reactive/reactive',
-["rere/reactive/Variable", "rere/reactive/ObservableList", "rere/reactive/ReduceTree", "rere/reactive/rv"], 
+define(
+'rere/reactive/reactive',["rere/reactive/Variable", "rere/reactive/ObservableList", "rere/reactive/ReduceTree", "rere/reactive/rv"], 
 function(Variable, ObservableList, ReduceTree, rv) {
 return function(rere) {
 
@@ -1398,9 +1398,11 @@ return function(renderer) {
             var self = this;
             this.data.attributes.type=type;
             this.data.attributes.checked = state.coalesce(false);
+            var isViewOnly = this.data.attributes["rere:role"]==="view";
             var change = this.data.events.change || function(){};
             var checked = this.data.events["rere:checked"] || function(){};
             var unchecked = this.data.events["rere:unchecked"] || function(){};
+            var changed = this.data.events["rere:changed"] || function(){};
             delete this.data.events["rere:checked"];
             delete this.data.events["rere:unchecked"];
             this.data.events.change = function(control, view) {
@@ -1410,7 +1412,10 @@ return function(renderer) {
                 } else {
                     unchecked();
                 }
-                state.set(view.checked);
+                changed(view.checked);
+                if (!isViewOnly) {
+                    state.set(view.checked);
+                }
             };
 
             return this;
@@ -1872,8 +1877,8 @@ return {
 };
 });
 
-define('rere/ui/elements/elements',
-[
+define(
+'rere/ui/elements/elements',[
   "rere/ui/elements/Container", 
   "rere/ui/elements/FragmentElement", 
   "rere/ui/elements/ListElement", 
@@ -1924,8 +1929,8 @@ return {
 };
 });
 
-define('rere/ui/ui',
-[
+define(
+'rere/ui/ui',[
   "rere/ui/Element",
 
   "rere/ui/jq",
@@ -1964,8 +1969,8 @@ function single(tag) {
 };
 });
 
-define('rere/rere',
-["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui"], 
+define(
+'rere/rere',["rere/adt/adt", "rere/reactive/reactive", "rere/ui/ui"], 
 function(adt, reactive, ui) {
 
 var rere = {

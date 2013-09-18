@@ -51,9 +51,11 @@ return function(renderer) {
             var self = this;
             this.data.attributes.type=type;
             this.data.attributes.checked = state.coalesce(false);
+            var isViewOnly = this.data.attributes["rere:role"]==="view";
             var change = this.data.events.change || function(){};
             var checked = this.data.events["rere:checked"] || function(){};
             var unchecked = this.data.events["rere:unchecked"] || function(){};
+            var changed = this.data.events["rere:changed"] || function(){};
             delete this.data.events["rere:checked"];
             delete this.data.events["rere:unchecked"];
             this.data.events.change = function(control, view) {
@@ -63,7 +65,10 @@ return function(renderer) {
                 } else {
                     unchecked();
                 }
-                state.set(view.checked);
+                changed(view.checked);
+                if (!isViewOnly) {
+                    state.set(view.checked);
+                }
             };
 
             return this;

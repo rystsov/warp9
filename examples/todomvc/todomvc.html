@@ -30,14 +30,14 @@
             seed.map(function(todo){ addTodo(todos, todo); });
             rv.unwrapObject(todos.lift(function(item){ return {mark:item.mark, name:item.name} })).subscribe(save);
 
-            var toggleAll = new Variable();
+            var toggleAll = todos.lift(function(item){ return item.mark; }).reduceCA(function(a,b){
+                return a && b;
+            }).coalesce(false);
             var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
                 return state ? [0,1] : [1,0];
             }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
             var activeTab = new Variable("All"); // All, Active, Completed
             var hasItem = todos.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
-
-            addToggleLogic(todos, toggleAll);
 
             return ["section", H.at({id:"todoapp"}),
                 (function(name) {
@@ -66,7 +66,13 @@
                                 }).lift(function(item){ return H(ITEM(item)); })));
                             }))],
                         H(rv.when(hasItem, true,
-                            H(["div", ["input-check", H.at({id:"toggle-all"}), H.s(toggleAll)]])))
+                            H(["div", ["input-check",
+                                H.at({id:"toggle-all","rere:role": "view"}),
+                                H.s(toggleAll),
+                                H.e({"rere:changed": function(state){
+                                    todos.values().forEach(function(e){ e.mark.set(state); });
+                                }})
+                            ]])))
                     ];
                 })(),
 
@@ -107,25 +113,6 @@
                         name: rv.batch(new Variable(todo.name)),
                         remove: function() { todos.remove(id); }
                     };
-                });
-            }
-
-            function addToggleLogic(todos, toggleAll) {
-                var toggleEvent = rv.event(toggleAll);
-                var toggleAgg = rv.batch(todos.lift(function(item){ return item.mark; }).reduceCA(
-                        function(a,b){ return a && b;}
-                ).coalesce(false));
-                toggleAll.follows(toggleAgg);
-                toggleEvent.bind(function(event){
-                    return toggleAgg.bind(function(state){
-                        return event==state ? new Variable() : new Variable(event);
-                    });
-                }).subscribe(function(change){
-                    toggleAgg.batch();
-                    todos.getData().map(function(item){
-                        item.value.mark.set(change);
-                    });
-                    toggleAgg.commit();
                 });
             }
 
