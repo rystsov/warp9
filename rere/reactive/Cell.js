@@ -50,7 +50,7 @@ function Cell() {
     this.activate = function() {
         if (this.isActive) return;
         throw new Error();
-    }
+    };
 
     this.subscribe = function(f) {
         return this.onEvent([], function(e){
@@ -99,6 +99,74 @@ function Cell() {
 Cell.prototype.unwrap = function(alt) {
     if (arguments.length==0 && this.content.isEmpty()) throw new Error();
     return this.content.isEmpty() ? alt : this.content.value();
+};
+
+Cell.prototype.when = function(condition, value) {
+    var self = this;
+
+    var test = typeof condition === "function" ? condition : function(value) {
+        return value === condition;
+    };
+
+    var channel = new Cell()
+    var forget = function(unsubscribe) {
+        channel.isActive = false;
+        channel.dependanties = [];
+        unsubscribe();
+    };
+    channel.isActive = false;
+    channel.activate = function() {
+        if (this.isActive) return;
+        self.activate();
+        channel.isActive = true;
+        channel.dependanties = [self];
+        self.onEvent([channel], function(e){
+            if (e[0]==="set") {
+                if (test(e[1])) {
+                    channel.set(value);
+                } else {
+                    channel.unset();
+                }
+            } else if (e[0]==="unset") {
+                channel.unset();
+            } else {
+                throw new Error();
+            }
+        }, forget);
+    };
+    channel.activate();
+
+    return channel;
+};
+
+Cell.prototype.coalesce = function(value) {
+    var self = this;
+
+    var channel = new Cell()
+    var forget = function(unsubscribe) {
+        channel.isActive = false;
+        channel.dependanties = [];
+        unsubscribe();
+    };
+    channel.isActive = false;
+    channel.activate = function() {
+        if (this.isActive) return;
+        self.activate();
+        channel.isActive = true;
+        channel.dependanties = [self];
+        self.onEvent([channel], function(e){
+            if (e[0]==="set") {
+                channel.set(e[1]);
+            } else if (e[0]==="unset") {
+                channel.set(value);
+            } else {
+                throw new Error();
+            }
+        }, forget);
+    };
+    channel.activate();
+
+    return channel;
 };
 
 Cell.prototype.lift = function(f) {

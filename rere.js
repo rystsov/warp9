@@ -87,15 +87,14 @@ var rere = (function(){
                         if ("css" in this.attributes) {
                             for (var property in this.attributes["css"]) {
                                 if (!this.attributes["css"].hasOwnProperty(property)) continue;
+                                if (property.indexOf("rere:")==0) continue;
                                 (function(property, value){
                                     if (typeof value==="object" && value.type == Cell) {
                                         this.cells[value.id] = value;
-                                        this.disposes.push(function(){
-                                            value.onEvent(Cell.handler({
-                                                set: function(e) { jq.css(view, property, e); },
-                                                unset: function() { jq.css(view, property, null); }
-                                            }))
-                                        });
+                                        this.disposes.push(value.onEvent([], Cell.handler({
+                                            set: function(e) { jq.css(view, property, e); },
+                                            unset: function() { jq.css(view, property, null); }
+                                        })));
                                     } else {
                                         jq.css(view, property, value);
                                     }
@@ -223,6 +222,27 @@ var rere = (function(){
             }
         },
         {
+            path: ["ui", "ast", "Fragment"],
+            content: function(root, expose) {
+                expose(Fragment);
+                
+                function Fragment(html) {
+                    this.type = Fragment;
+                    this.dispose = function() {};
+                    this.children = [];
+                    this.events = {};
+                    this.cells = {};
+                    this.view = function() {
+                        this.view = function() {
+                            throw new Error();
+                        };
+                
+                        return html;
+                    };
+                }
+            }
+        },
+        {
             path: ["ui", "dom", "Dom"],
             content: function(root, expose) {
                 expose({wrap: wrap});
@@ -231,22 +251,33 @@ var rere = (function(){
                     var Cell = root.reactive.Cell;
                     var Element = root.ui.ast.Element;
                     var DomElement = root.ui.dom.DomElement;
+                    var DomArray = root.ui.dom.DomArray;
                     var DomList = root.ui.dom.DomList;
                     var DomCell = root.ui.dom.DomCell;
                     var TextNode = root.ui.ast.TextNode;
+                    var Fragment = root.ui.ast.Fragment;
                 
                     if (element instanceof Array) {
-                        return new DomList(element.map(wrap));
+                        return new DomArray(element.map(wrap));
                     }
-                    if (typeof element=="object" && element.type==Element) {
-                        return new DomElement(element);
+                    if (typeof element==="object") {
+                        if (element.type==Element) {
+                            return new DomElement(element);
+                        }
+                        if (element.type==TextNode) {
+                            return new DomElement(element);
+                        }
+                        if (element.type==Fragment) {
+                            return new DomElement(element);
+                        }
+                        if (element.type==Cell) {
+                            return new DomCell(element.lift(wrap));
+                        }
+                        if (element.type==root.reactive.List) {
+                            return new DomList(element.lift(wrap));
+                        }
                     }
-                    if (typeof element=="object" && element.type==TextNode) {
-                        return new DomElement(element);
-                    }
-                    if (typeof element=="object" && element.type==Cell) {
-                        return new DomCell(element.lift(wrap));
-                    }
+                
                 
                     throw new Error();
                 }
@@ -258,7 +289,74 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(DomList);
                 
-                function DomList(elements) {
+                function DomList(list) {
+                    var Fragment = root.ui.ast.Fragment;
+                    var Dom = root.ui.dom.Dom;
+                
+                    this.last = Dom.wrap(new Fragment(document.createElement("script")));
+                    this.head = null;
+                    this.elements = null;
+                    this.hash = {};
+                
+                    this.bindto = function(element) {
+                        var self = this;
+                        this.head = element;
+                        this.last.bindto(this.head);
+                        list.subscribe(function(event){
+                            if (event[0]=="data") {
+                                if (self.elements!=null) {
+                                    for (var i=0;i<self.elements.length;i++) {
+                                        self.elements[i].value.remove();
+                                    }
+                                }
+                                var previous = self.head;
+                                for (var i=0;i<event[1].length;i++) {
+                                    self.hash[event[1][i].key] = event[1][i];
+                                    event[1][i].value.bindto(previous);
+                                    previous = event[1][i].value;
+                                }
+                                self.elements = event[1]
+                            } else if (event[0]=="add") {
+                                if (self.elements.length==0) {
+                                    event[1].value.bindto(self.head);
+                                } else {
+                                    event[1].value.bindto(self.elements[self.elements.length-1].value);
+                                }
+                                self.elements.push(event[1]);
+                                self.hash[event[1].key] = event[1]
+                            } else if (event[0]=="remove") {
+                                if (event[1] in self.hash) {
+                                    self.hash[event[1]].value.remove();
+                                    delete self.hash[event[1]];
+                                } else {
+                                    console.log("Dirty behaviour, find dirty behaviour like this isolated at ~/issues/ObservableListElement/doubleDelete.html");
+                                }
+                            } else {
+                                throw new Error();
+                            }
+                        })
+                    };
+                
+                    this.place = function(html) {
+                        this.last.place(html);
+                    };
+                
+                    this.remove = function() {
+                        this.last.remove();
+                        this.place = function(html) {
+                            this.head.place(html);
+                        };
+                    };
+                }
+                
+            }
+        },
+        {
+            path: ["ui", "dom", "DomArray"],
+            content: function(root, expose) {
+                expose(DomArray);
+                
+                function DomArray(elements) {
                     this.last = null;
                     this.head = null;
                     this.bindto = function(element) {
@@ -435,7 +533,20 @@ var rere = (function(){
                 
                 function ctor() {
                     addTag("div", root.ui.tags.TagParserFactory("div"));
+                    addTag("a", root.ui.tags.TagParserFactory("a"));
+                    addTag("section", root.ui.tags.TagParserFactory("section"));
+                    addTag("header", root.ui.tags.TagParserFactory("header"));
+                    addTag("footer", root.ui.tags.TagParserFactory("footer"));
+                    addTag("span", root.ui.tags.TagParserFactory("span"));
+                    addTag("strong", root.ui.tags.TagParserFactory("strong"));
+                    addTag("h1", root.ui.tags.TagParserFactory("h1"));
+                    addTag("ul", root.ui.tags.TagParserFactory("ul"));
+                    addTag("li", root.ui.tags.TagParserFactory("li"));
+                    addTag("label", root.ui.tags.TagParserFactory("label"));
+                    addTag("button", root.ui.tags.TagParserFactory("button"));
+                
                     addTag("input-text", root.ui.tags.InputTextParser);
+                    addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
                 }
                 
                 var tags = {};
@@ -448,8 +559,12 @@ var rere = (function(){
                 
                 function parse(element) {
                     var Cell = root.reactive.Cell;
+                    var List = root.reactive.List;
                 
                     if (typeof element==="string" || element instanceof String) {
+                        return new root.ui.ast.TextNode(element);
+                    }
+                    if (typeof element==="number") {
                         return new root.ui.ast.TextNode(element);
                     }
                     if (element instanceof Array) {
@@ -458,8 +573,13 @@ var rere = (function(){
                         if (!(tag in tags)) throw new Error("Unknown tag: " + tag);
                         return tags[tag](element.slice(1));
                     }
-                    if (typeof element==="object" && element.type==Cell) {
-                        return element.lift(parse);
+                    if (typeof element==="object") {
+                        if (element.type==Cell) {
+                            return element.lift(parse);
+                        }
+                        if (element.type==List) {
+                            return element.lift(parse);
+                        }
                     }
                 
                     throw new Error();
@@ -624,7 +744,9 @@ var rere = (function(){
             content: function(root, expose) {
                 expose({
                     parseTagArgs: parseTagArgs,
-                    setProperties: setProperties,
+                    normalizeAttributes: normalizeAttributes,
+                    denormalizeAttributes: denormalizeAttributes,
+                    tryEnrich: tryEnrich,
                     H: H
                 });
                 
@@ -634,15 +756,17 @@ var rere = (function(){
                 
                 function parseTagArgs(args) {
                     var Cell = root.reactive.Cell;
+                    var List = root.reactive.List;
                     if (args.length==0) throw new Error();
                 
                     var children = [args[0]];
                     var attr = null;
                 
                     while(true) {
-                        if (typeof args[0]==="string" || args[0] instanceof Array) break;
+                        if (typeof args[0]==="string") break;
                         if (args[0] instanceof Array) break;
                         if (args[0] instanceof Object && args[0].type==Cell) break;
+                        if (args[0] instanceof Object && args[0].type==List) break;
                         if (args[0] instanceof H) break;
                         children = [];
                         attr = args[0];
@@ -662,17 +786,129 @@ var rere = (function(){
                     return {attr: attr, children: children};
                 }
                 
-                function setProperties(element, attr) {
+                function tryEnrich(target, supplement) {
+                    if (!supplement) return;
+                    for(var key in supplement) {
+                        if (!supplement.hasOwnProperty(key)) continue;
+                        if (key in target) {
+                            if (typeof target[key]==="object") {
+                                if (typeof supplement[key]!=="object") {
+                                    throw new Error();
+                                }
+                                tryEnrich(target[key], supplement[key]);
+                            } else {
+                                continue;
+                            }
+                        }
+                        target[key] = supplement[key];
+                    }
+                }
+                
+                function normalizeAttributes(attr) {
+                    var element = {
+                        events: {},
+                        attributes: {}
+                    };
                     if (attr!=null) {
                         for (var name in attr) {
-                            if (typeof attr[name]==="function") {
-                                element.events[name] = attr[name];
+                            if (!attr.hasOwnProperty(name)) continue;
+                
+                            if (typeof attr[name]==="function" && name[0]==="!") {
+                                element.events[name.substring(1)] = attr[name];
                                 continue;
+                            }
+                            if (name.indexOf("css/")===0) {
+                                if (!element.attributes.css) {
+                                    element.attributes.css = {};
+                                }
+                                element.attributes.css[name.substring(4)] = attr[name];
+                                continue;
+                            }
+                            if (name==="css") {
+                                if (!element.attributes.css) {
+                                    element.attributes.css = {};
+                                }
+                                for (var key in attr[name]) {
+                                    if (!attr[name].hasOwnProperty(key)) continue;
+                                    element.attributes.css[key] = attr[name][key];
+                                }
                             }
                             element.attributes[name] = attr[name];
                         }
                     }
+                    return element;
                 }
+                
+                function denormalizeAttributes(attr) {
+                    var result = {};
+                    for (var attrKey in attr.attributes) {
+                        if (!attr.attributes.hasOwnProperty(attrKey)) continue;
+                        result[attrKey] = attr.attributes[attrKey];
+                    }
+                    for (var eventKey in attr.events) {
+                        if (!attr.events.hasOwnProperty(eventKey)) continue;
+                        result["!"+eventKey] = attr.events[eventKey];
+                    }
+                    return result;
+                }
+            }
+        },
+        {
+            path: ["ui", "tags", "InputCheckParser"],
+            content: function(root, expose) {
+                expose(InputCheckParser, function(){
+                    Cell = root.reactive.Cell;
+                });
+                
+                var Cell;
+                
+                function InputCheckParser(type) {
+                    if (!type) {
+                        throw new Error("type must be provided");
+                    }
+                    if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
+                    return function(args) {
+                        args = root.ui.tags.utils.parseTagArgs(args);
+                        var state;
+                        if (args.children.length == 0) {
+                            state = new Cell();
+                        } else {
+                            if (args.children.length != 1) throw new Error();
+                            state = args.children[0];
+                            if (!(typeof state==="object" && state.type==Cell)) throw new Error();
+                        }
+                
+                        var element = new root.ui.ast.Element("input");
+                        var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
+                        element.events = attr.events;
+                        element.attributes = attr.attributes;
+                        element.attributes.type = type;
+                        element.attributes.checked = state.coalesce(false);
+                
+                        var isViewOnly = element.attributes["rere:role"]==="view";
+                        var change = element.events.change || function(){};
+                        var checked = element.events["rere:checked"] || function(){};
+                        var unchecked = element.events["rere:unchecked"] || function(){};
+                        var changed = element.events["rere:changed"] || function(){};
+                        delete element.events["rere:checked"];
+                        delete element.events["rere:unchecked"];
+                        element.events.change = function(control, view) {
+                            change.apply(element.events, [control, view]);
+                            if (view.checked) {
+                                checked();
+                            } else {
+                                unchecked();
+                            }
+                            changed(view.checked);
+                            if (!isViewOnly) {
+                                state.set(view.checked);
+                            }
+                        };
+                
+                        return element;
+                    };
+                }
+                
             }
         },
         {
@@ -688,7 +924,10 @@ var rere = (function(){
                     if (!(typeof value==="object" && value.type==Cell)) throw new Error();
                 
                     var element = new root.ui.ast.Element("input");
-                    root.ui.tags.utils.setProperties(element, args.attr);
+                    var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
+                    element.events = attr.events;
+                    element.attributes = attr.attributes;
+                
                     element.attributes.type = "text";
                     element.attributes.value = value;
                     var input = "input" in element.events ? element.events.input : function(){};
@@ -711,7 +950,9 @@ var rere = (function(){
                     return function(args) {
                         var args = root.ui.tags.utils.parseTagArgs(args);
                         var element = new root.ui.ast.Element(tagName);
-                        root.ui.tags.utils.setProperties(element, args.attr);
+                        var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
+                        element.events = attr.events;
+                        element.attributes = attr.attributes;
                         element.children = [];
                         for (var i in args.children) {
                             var child = args.children[i];
@@ -840,6 +1081,187 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "List"],
+            content: function(root, expose) {
+                expose(List);
+                
+                var listId = 0;
+                
+                function List(data) {
+                    var self = this;
+                    var elementId = 0;
+                
+                    this.type = List;
+                
+                    this.handlers   = [];
+                    this.handlersId = 0;
+                    this.data = [];
+                    this.id = listId++;
+                    var count = new root.reactive.Cell(0);
+                
+                    this.count = function() {
+                        if (arguments.length===0) return count;
+                
+                        var f = arguments[0];
+                        var matches = new Cell(0);
+                        var subscribes = {};
+                
+                        this.subscribe(List.handler({
+                            data: function(e) {
+                                var matched = 0;
+                                for (var i=0;i < e.length;i++) {
+                                    if (add(e[i].key, e[i].value)) matched++;
+                                }
+                                if (matched>0) {
+                                    matches.set(matches.unwrap()+matched);
+                                }
+                            },
+                            add: function(e) {
+                                add(e.key, e.value);
+                            },
+                            remove: function(e) {
+                                if (e in subscribes) {
+                                    subscribes[e]();
+                                    delete subscribes[e];
+                                }
+                            }
+                        }));
+                
+                        return matches;
+                
+                        function add(key, item) {
+                            var mark = f(item);
+                            if (typeof mark === "boolean") {
+                                return mark;
+                            } else if (typeof mark === "object" && mark.type === Cell) {
+                                var isSet = false;
+                                var unsubscribe = mark.onEvent([matches], Cell.handler({
+                                    "set": function(value) {
+                                        if (value == isSet) return;
+                                        matches.set(matches.unwrap()+(isSet ? -1: 1));
+                                        isSet = value;
+                                    },
+                                    "unset": function() {
+                                        if (isSet) {
+                                            matches.set(matches.unwrap()-1);
+                                            isSet = false;
+                                        }
+                                    }
+                                }));
+                                subscribes[key] = function() {
+                                    if (isSet) {
+                                        matches.set(matches.unwrap()-1);
+                                    }
+                                    unsubscribe();
+                                }
+                            } else {
+                                throw new Error();
+                            }
+                            return false;
+                        }
+                    };
+                
+                    this.setData = function(data) {
+                        var length = this.data.length;
+                        this.data = data.map(function(item){
+                            return {
+                                key: elementId++,
+                                value: item
+                            }
+                        });
+                        if (length!=this.data.length) {
+                            count.set(this.data.length);
+                        }
+                        for (var i=0; i<this.handlers.length; i++) {
+                            this.handlers[i].f([
+                                "data",
+                                this.data.slice()
+                            ]);
+                        }
+                    };
+                
+                    this.remove = function(key) {
+                        var removed = false;
+                        var length = this.data.length;
+                        this.data = this.data.filter(function(item){
+                            return item.key != key;
+                        });
+                        if (length!=this.data.length) {
+                            count.set(this.data.length);
+                            removed = true;
+                        }
+                        for (var i=0;i<this.handlers.length;i++) {
+                            this.handlers[i].f(["remove", key]);
+                        }
+                        return removed;
+                    };
+                
+                    this.removeWhich = function(f) {
+                        this.data.filter(function(item) {
+                            return f(item.value);
+                        }).forEach(function(item){
+                            this.remove(item.key);
+                        }.bind(this));
+                    };
+                
+                    this.add = function(f) {
+                        if (typeof(f) != "function") throw new Error();
+                        var key = elementId++;
+                        var e = {key: key, value: f(key)};
+                        this.data.push(e);
+                        count.set(this.data.length);
+                        for (var i=0;i<this.handlers.length;i++) {
+                            this.handlers[i].f(["add", e]);
+                        }
+                    };
+                
+                    this.addKeyValue = function(key, value) {
+                        var e = {key: key, value: value};
+                        this.data.push(e);
+                        count.set(this.data.length);
+                        for (var i=0;i<this.handlers.length;i++) {
+                            this.handlers[i].f(["add", e]);
+                        }
+                    };
+                
+                    this.lift = function(f) {
+                        var nova = new List([]);
+                        this.subscribe(List.handler({
+                            data: function(e) { nova.setData(e.map(function(i){ return f(i.value); })); },
+                            add: function(e) { nova.addKeyValue(e.key, f(e.value)); },
+                            remove: function(e) { nova.remove(e); }
+                        }));
+                        return nova;
+                    };
+                
+                    this.subscribe = function(f) {
+                        var id = this.handlersId++;
+                        this.handlers.push({key: id, f:f});
+                        f(["data", this.data.slice()]);
+                        return function() {
+                            self.handlers = self.handlers.filter(function(handler) {
+                                return handler.key!=id;
+                            });
+                        }
+                    };
+                
+                    this.setData(data);
+                }
+                
+                List.handler = function(handlers) {
+                    return function(e) {
+                        while(true) {
+                            if (e[0]==="data") break;
+                            if (e[0]==="add") break;
+                            if (e[0]==="remove") break;
+                            throw new Error();
+                        }
+                        handlers[e[0]].call(handlers, e[1]);
+                    };
+                };
+            }
+        },
+        {
             path: ["reactive", "Cell"],
             content: function(root, expose) {
                 expose(Cell);
@@ -943,6 +1365,74 @@ var rere = (function(){
                 Cell.prototype.unwrap = function(alt) {
                     if (arguments.length==0 && this.content.isEmpty()) throw new Error();
                     return this.content.isEmpty() ? alt : this.content.value();
+                };
+                
+                Cell.prototype.when = function(condition, value) {
+                    var self = this;
+                
+                    var test = typeof condition === "function" ? condition : function(value) {
+                        return value === condition;
+                    };
+                
+                    var channel = new Cell()
+                    var forget = function(unsubscribe) {
+                        channel.isActive = false;
+                        channel.dependanties = [];
+                        unsubscribe();
+                    };
+                    channel.isActive = false;
+                    channel.activate = function() {
+                        if (this.isActive) return;
+                        self.activate();
+                        channel.isActive = true;
+                        channel.dependanties = [self];
+                        self.onEvent([channel], function(e){
+                            if (e[0]==="set") {
+                                if (test(e[1])) {
+                                    channel.set(value);
+                                } else {
+                                    channel.unset();
+                                }
+                            } else if (e[0]==="unset") {
+                                channel.unset();
+                            } else {
+                                throw new Error();
+                            }
+                        }, forget);
+                    };
+                    channel.activate();
+                
+                    return channel;
+                };
+                
+                Cell.prototype.coalesce = function(value) {
+                    var self = this;
+                
+                    var channel = new Cell()
+                    var forget = function(unsubscribe) {
+                        channel.isActive = false;
+                        channel.dependanties = [];
+                        unsubscribe();
+                    };
+                    channel.isActive = false;
+                    channel.activate = function() {
+                        if (this.isActive) return;
+                        self.activate();
+                        channel.isActive = true;
+                        channel.dependanties = [self];
+                        self.onEvent([channel], function(e){
+                            if (e[0]==="set") {
+                                channel.set(e[1]);
+                            } else if (e[0]==="unset") {
+                                channel.set(value);
+                            } else {
+                                throw new Error();
+                            }
+                        }, forget);
+                    };
+                    channel.activate();
+                
+                    return channel;
                 };
                 
                 Cell.prototype.lift = function(f) {

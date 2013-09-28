@@ -55,15 +55,14 @@ function Element(tag) {
         if ("css" in this.attributes) {
             for (var property in this.attributes["css"]) {
                 if (!this.attributes["css"].hasOwnProperty(property)) continue;
+                if (property.indexOf("rere:")==0) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
                         this.cells[value.id] = value;
-                        this.disposes.push(function(){
-                            value.onEvent(Cell.handler({
-                                set: function(e) { jq.css(view, property, e); },
-                                unset: function() { jq.css(view, property, null); }
-                            }))
-                        });
+                        this.disposes.push(value.onEvent([], Cell.handler({
+                            set: function(e) { jq.css(view, property, e); },
+                            unset: function() { jq.css(view, property, null); }
+                        })));
                     } else {
                         jq.css(view, property, value);
                     }

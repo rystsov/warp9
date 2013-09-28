@@ -8,7 +8,10 @@ function InputTextParser(args) {
     if (!(typeof value==="object" && value.type==Cell)) throw new Error();
 
     var element = new root.ui.ast.Element("input");
-    root.ui.tags.utils.setProperties(element, args.attr);
+    var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
+    element.events = attr.events;
+    element.attributes = attr.attributes;
+
     element.attributes.type = "text";
     element.attributes.value = value;
     var input = "input" in element.events ? element.events.input : function(){};
