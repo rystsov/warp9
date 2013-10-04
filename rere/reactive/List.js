@@ -14,25 +14,17 @@ function List(data) {
     this.id = listId++;
     var count = new root.reactive.Cell(0);
 
-    this.count = function() {
-        if (arguments.length===0) return count;
 
-        var f = arguments[0];
-        var matches = new Cell(0);
+    this.initReducer = function(reducer) {
         var subscribes = {};
-
         this.subscribe(List.handler({
             data: function(e) {
-                var matched = 0;
                 for (var i=0;i < e.length;i++) {
-                    if (add(e[i].key, e[i].value)) matched++;
-                }
-                if (matched>0) {
-                    matches.set(matches.unwrap()+matched);
+                    subscribes[e[i].key] = reducer.add(e[i].value);
                 }
             },
             add: function(e) {
-                add(e.key, e.value);
+                subscribes[e.key] = reducer.add(e.value);
             },
             remove: function(e) {
                 if (e in subscribes) {
@@ -41,40 +33,76 @@ function List(data) {
                 }
             }
         }));
+    };
 
-        return matches;
+    this.reduceGroup = function(group, opt) {
+        if (!opt) opt = {};
+        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
 
-        function add(key, item) {
-            var mark = f(item);
-            if (typeof mark === "boolean") {
-                return mark;
-            } else if (typeof mark === "object" && mark.type === Cell) {
-                var isSet = false;
-                var unsubscribe = mark.onEvent([matches], Cell.handler({
-                    "set": function(value) {
-                        if (value == isSet) return;
-                        matches.set(matches.unwrap()+(isSet ? -1: 1));
-                        isSet = value;
-                    },
-                    "unset": function() {
-                        if (isSet) {
-                            matches.set(matches.unwrap()-1);
-                            isSet = false;
-                        }
-                    }
-                }));
-                subscribes[key] = function() {
-                    if (isSet) {
-                        matches.set(matches.unwrap()-1);
-                    }
-                    unsubscribe();
-                }
-            } else {
-                throw new Error();
+        var counter = new root.reactive.algebra.Sigma(group, opt.wrap, opt.unwrap);
+        this.initReducer(counter);
+        return counter.value;
+    };
+
+    this.reduceMonoid = function(monoid, opt) {
+        if (!opt) opt = {};
+        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+        if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+
+        var counter = new root.reactive.algebra.ReduceTree(monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+        this.initReducer(counter);
+        return counter.value;
+    };
+
+    this.reduce = function(identity, add, opt) {
+        return this.reduceMonoid({
+            identity: function() {return identity; },
+            add: add
+        }, opt);
+    };
+
+    this.count = function() {
+        if (arguments.length===0) return count;
+
+        var predicate = arguments[0];
+
+        return this.lift(function(x){
+            x = predicate(x);
+            if (typeof x === "object" && x.type === Cell) {
+                return x.lift(function(x) { return bool_to(x, 1, 0); });
             }
-            return false;
+            return bool_to(x, 1, 0);
+        }).reduceGroup({
+            identity: function() { return 0; },
+            add: function(x,y) { return x+y; },
+            invert: function(x) { return -x; }
+        });
+    };
+
+    this.all = function(predicate) {
+        return this.lift(predicate).reduceGroup({
+            identity: function() { return [0,0]; },
+            add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+            invert: function(x) { return [-x[0],-x[1]]; }
+        },{
+            wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
+            unwrap: function(x) { return x[0]==x[1]; }
+        });
+    };
+
+    this.forEach = function(callback) {
+        for(var i=0;i<this.data.length;i++) {
+            callback(this.data[i].value);
         }
     };
+
+    function bool_to(x, t, f) {
+        if (x === true) return t;
+        if (x === false) return f;
+        throw new Error();
+    }
 
     this.setData = function(data) {
         var length = this.data.length;

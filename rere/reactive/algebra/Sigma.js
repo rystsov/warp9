@@ -1,13 +1,10 @@
-exclude(Sigma, function() {
-    Cell = rere.reactive.Cell;
+expose(Sigma, function() {
+    Cell = root.reactive.Cell;
 });
 
 var Cell;
 
 function Sigma(group, wrap, unwrap) {
-    wrap = wrap || function(x) { return x; };
-    unwrap = unwrap || function(x) { return x; };
-
     var sum = group.identity();
     var blocks = 0;
 
@@ -50,9 +47,9 @@ function Sigma(group, wrap, unwrap) {
                 if (isBlocked) {
                     blocks--;
                     isBlocked = false;
-                    if (blocks==0) {
-                        this.value.set(unwrap(sum));
-                    }
+                }
+                if (blocks==0) {
+                    this.value.set(unwrap(sum));
                 }
             }.bind(this);
         } else {

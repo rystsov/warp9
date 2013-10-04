@@ -58,7 +58,9 @@ def printmodule(module, name, data):
                     throw new ExposeBreak();
                 })
             } catch (e) {
-                if (!(e instanceof ExposeBreak)) throw new Error(e);
+                if (!(e instanceof ExposeBreak)) {
+                    throw new Error(e);
+                }
             }
             if (exposed!=null) {
                 if (typeof exposed==="object") {

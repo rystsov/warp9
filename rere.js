@@ -965,6 +965,65 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "utils"],
+            content: function(root, expose) {
+                expose({
+                    unwrapObject: unwrapObject
+                }, function(){
+                    Cell = root.reactive.Cell;
+                    List = root.reactive.List;
+                });
+                
+                var Cell, List;
+                
+                function unwrapObject(obj, opt) {
+                    if (typeof obj == "function") {
+                        throw new Error("Can't unwrap functions");
+                    }
+                    if (typeof obj != "object") {
+                        return new Cell(obj);
+                    }
+                    if (obj instanceof Skip) return new Cell(obj);
+                    if (obj.type === Cell) {
+                        return obj.bind(function(value){
+                            return unwrapObject(value);
+                        });
+                    }
+                    if (obj.type === List) {
+                        return obj.lift(unwrapObject).reduce(
+                            [], function(a,b) { return a.concat(b); }, {
+                                wrap: function(x) { return [x]; },
+                                ignoreUnset: true
+                            }
+                        );
+                    }
+                    var disassembled = [];
+                    for (var key in obj) {
+                        if (!obj.hasOwnProperty(key)) continue;
+                        if (typeof obj[key] == "function") continue;
+                        (function(key){
+                            disassembled.push(unwrapObject(obj[key]).lift(function(value){
+                                return new Skip({key: key, value: value});
+                            }));
+                        })(key);
+                    }
+                    return unwrapObject(new List(disassembled)).lift(function(items){
+                        var obj = {};
+                        for (var i=0;i<items.length;i++) {
+                            var kv = items[i].value;
+                            obj[kv.key] = kv.value;
+                        }
+                        return obj;
+                    });
+                }
+                
+                function Skip(value) {
+                    this.value = value;
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "GC"],
             content: function(root, expose) {
                 expose({
@@ -1099,25 +1158,17 @@ var rere = (function(){
                     this.id = listId++;
                     var count = new root.reactive.Cell(0);
                 
-                    this.count = function() {
-                        if (arguments.length===0) return count;
                 
-                        var f = arguments[0];
-                        var matches = new Cell(0);
+                    this.initReducer = function(reducer) {
                         var subscribes = {};
-                
                         this.subscribe(List.handler({
                             data: function(e) {
-                                var matched = 0;
                                 for (var i=0;i < e.length;i++) {
-                                    if (add(e[i].key, e[i].value)) matched++;
-                                }
-                                if (matched>0) {
-                                    matches.set(matches.unwrap()+matched);
+                                    subscribes[e[i].key] = reducer.add(e[i].value);
                                 }
                             },
                             add: function(e) {
-                                add(e.key, e.value);
+                                subscribes[e.key] = reducer.add(e.value);
                             },
                             remove: function(e) {
                                 if (e in subscribes) {
@@ -1126,40 +1177,76 @@ var rere = (function(){
                                 }
                             }
                         }));
+                    };
                 
-                        return matches;
+                    this.reduceGroup = function(group, opt) {
+                        if (!opt) opt = {};
+                        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
                 
-                        function add(key, item) {
-                            var mark = f(item);
-                            if (typeof mark === "boolean") {
-                                return mark;
-                            } else if (typeof mark === "object" && mark.type === Cell) {
-                                var isSet = false;
-                                var unsubscribe = mark.onEvent([matches], Cell.handler({
-                                    "set": function(value) {
-                                        if (value == isSet) return;
-                                        matches.set(matches.unwrap()+(isSet ? -1: 1));
-                                        isSet = value;
-                                    },
-                                    "unset": function() {
-                                        if (isSet) {
-                                            matches.set(matches.unwrap()-1);
-                                            isSet = false;
-                                        }
-                                    }
-                                }));
-                                subscribes[key] = function() {
-                                    if (isSet) {
-                                        matches.set(matches.unwrap()-1);
-                                    }
-                                    unsubscribe();
-                                }
-                            } else {
-                                throw new Error();
+                        var counter = new root.reactive.algebra.Sigma(group, opt.wrap, opt.unwrap);
+                        this.initReducer(counter);
+                        return counter.value;
+                    };
+                
+                    this.reduceMonoid = function(monoid, opt) {
+                        if (!opt) opt = {};
+                        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                        if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                
+                        var counter = new root.reactive.algebra.ReduceTree(monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                        this.initReducer(counter);
+                        return counter.value;
+                    };
+                
+                    this.reduce = function(identity, add, opt) {
+                        return this.reduceMonoid({
+                            identity: function() {return identity; },
+                            add: add
+                        }, opt);
+                    };
+                
+                    this.count = function() {
+                        if (arguments.length===0) return count;
+                
+                        var predicate = arguments[0];
+                
+                        return this.lift(function(x){
+                            x = predicate(x);
+                            if (typeof x === "object" && x.type === Cell) {
+                                return x.lift(function(x) { return bool_to(x, 1, 0); });
                             }
-                            return false;
+                            return bool_to(x, 1, 0);
+                        }).reduceGroup({
+                            identity: function() { return 0; },
+                            add: function(x,y) { return x+y; },
+                            invert: function(x) { return -x; }
+                        });
+                    };
+                
+                    this.all = function(predicate) {
+                        return this.lift(predicate).reduceGroup({
+                            identity: function() { return [0,0]; },
+                            add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+                            invert: function(x) { return [-x[0],-x[1]]; }
+                        },{
+                            wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
+                            unwrap: function(x) { return x[0]==x[1]; }
+                        });
+                    };
+                
+                    this.forEach = function(callback) {
+                        for(var i=0;i<this.data.length;i++) {
+                            callback(this.data[i].value);
                         }
                     };
+                
+                    function bool_to(x, t, f) {
+                        if (x === true) return t;
+                        if (x === false) return f;
+                        throw new Error();
+                    }
                 
                     this.setData = function(data) {
                         var length = this.data.length;
@@ -1262,6 +1349,239 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "algebra", "ReduceTree"],
+            content: function(root, expose) {
+                expose(ReduceTree, function(){
+                    Cell = root.reactive.Cell;
+                });
+                
+                var Cell;
+                
+                function ReduceTree(monoid, wrap, unwrap, ignoreUnset) {
+                    this.monoid = monoid;
+                    this.root = null;
+                    this.value = new Cell(unwrap(monoid.identity()));
+                    this.index = {};
+                    this.blocks = 0;
+                    this.keyId = 0;
+                
+                    this.tryUpdateValue = function() {
+                        if (this.blocks === 0) {
+                            this.value.set(unwrap(this.root==null ? monoid.identity() : this.root.value));
+                        }
+                    };
+                
+                    this.upsert = function(key, value) {
+                        value = wrap(value);
+                        if (this.index.hasOwnProperty(key)) {
+                            this.root = this.root.change(this.monoid, this.index[key], value);
+                        } else {
+                            this.index[key] = s(this.root);
+                            this.root = this.root==null ? Node.leaf(value) : this.root.put(monoid, value);
+                        }
+                        this.tryUpdateValue();
+                    };
+                
+                    this.delete = function(key) {
+                        if (!this.index.hasOwnProperty(key)) return;
+                        if (this.index[key]+1 !== s(this.root)) {
+                            this.root = this.root.change(this.monoid, this.index[key], this.root.peek());
+                        }
+                        this.root = this.root.pop(monoid);
+                        delete this.index[key];
+                        this.tryUpdateValue();
+                    };
+                
+                    this.add = function(value) {
+                        var key = this.keyId++;
+                        if (typeof value === "object" && value.type === Cell) {
+                            var isBlocked = false;
+                            var unblock = function() {
+                                if (isBlocked) {
+                                    isBlocked = false;
+                                    this.blocks--;
+                                }
+                            }.bind(this);
+                            var unsubscribe = value.onEvent([this.value], Cell.handler({
+                                "set": function(value) {
+                                    unblock();
+                                    this.upsert(key, value);
+                                }.bind(this),
+                                "unset": function() {
+                                    if (ignoreUnset) {
+                                        this.delete(key);
+                                    } else if (!isBlocked) {
+                                        isBlocked = true;
+                                        this.blocks++;
+                                        this.value.unset();
+                                    }
+                                }.bind(this)
+                            }));
+                            return function(){
+                                unsubscribe();
+                                unblock();
+                                this.delete(key);
+                            }.bind(this);
+                        } else {
+                            this.upsert(key, value);
+                            return function() {
+                                this.delete(key);
+                            }.bind(this);
+                        }
+                    }
+                }
+                
+                function Node(value, size, left, right) {
+                    this.value = value;
+                    this.size = size;
+                    this.left = left;
+                    this.right = right;
+                }
+                Node.leaf = function(value) {
+                    return new Node(value, 1, null, null);
+                };
+                Node.of = function(monoid, left, right) {
+                    return new Node(monoid.add(left.value, right.value), left.size + right.size, left, right);
+                };
+                
+                Node.prototype.change = function(monoid, index, value) {
+                    if (index === 0 && this.size === 1) {
+                        return Node.leaf(value);
+                    }
+                    if (index < this.left.size) {
+                        return Node.of(monoid, this.left.change(monoid, index, value), this.right);
+                    } else {
+                        return Node.of(monoid, this.left, this.right.change(monoid, index - this.left.size, value));
+                    }
+                };
+                
+                Node.prototype.peek = function() {
+                    return this.size === 1 ? this.value : this.right.peek();
+                };
+                
+                Node.prototype.put = function(monoid, value) {
+                    assert (s(this.left)>=s(this.right));
+                    var left, right;
+                    if (s(this.left)==s(this.right)) {
+                        left = this;
+                        right = Node.leaf(value);
+                    } else {
+                        left = this.left;
+                        right = this.right.put(monoid, value);
+                    }
+                    return Node.of(monoid, left, right);
+                };
+                
+                Node.prototype.pop = function(monoid) {
+                    if (this.size==1) return null;
+                    assert (this.right!=null);
+                    assert (this.left!=null);
+                    var right = this.right.pop(monoid);
+                    if (right==null) {
+                        return this.left;
+                    } else {
+                        return Node.of(monoid, this.left, right);
+                    }
+                };
+                
+                function s(node) {
+                    return node==null ? 0 : node.size;
+                }
+                
+                function assert(value) {
+                    if (!value) throw new Error();
+                }
+            }
+        },
+        {
+            path: ["reactive", "algebra", "Sigma"],
+            content: function(root, expose) {
+                expose(Sigma, function() {
+                    Cell = root.reactive.Cell;
+                });
+                
+                var Cell;
+                
+                function Sigma(group, wrap, unwrap) {
+                    var sum = group.identity();
+                    var blocks = 0;
+                
+                    this.value = new Cell(unwrap(sum));
+                
+                    this.add = function(value) {
+                        if (typeof value === "object" && value.type === Cell) {
+                            var last = null;
+                            var isBlocked = false;
+                            var unsubscribe = value.onEvent([this.value], Cell.handler({
+                                "set": function(value) {
+                                    if (isBlocked) {
+                                        blocks--;
+                                        isBlocked = false;
+                                    }
+                                    if (last!=null) {
+                                        sum = group.add(sum, group.invert(last.value));
+                                    }
+                                    last = { value: wrap(value) };
+                                    sum = group.add(sum, last.value);
+                                    if (blocks==0) {
+                                        this.value.set(unwrap(sum));
+                                    }
+                                }.bind(this),
+                                "unset": function() {
+                                    if (!isBlocked) {
+                                        isBlocked = true;
+                                        blocks++;
+                                        this.value.unset();
+                                    }
+                                }.bind(this)
+                            }));
+                
+                            return function() {
+                                unsubscribe();
+                                if (last!=null) {
+                                    sum = group.add(sum, group.invert(last.value));
+                                    last = null;
+                                }
+                                if (isBlocked) {
+                                    blocks--;
+                                    isBlocked = false;
+                                }
+                                if (blocks==0) {
+                                    this.value.set(unwrap(sum));
+                                }
+                            }.bind(this);
+                        } else {
+                            sum = group.add(sum, wrap(value));
+                            this.value.set(unwrap(sum));
+                            return function() {
+                                sum = group.add(sum, group.invert(value));
+                                this.value.set(unwrap(sum));
+                            }.bind(this);
+                        }
+                    };
+                }
+            }
+        },
+        {
+            path: ["reactive", "algebra", "Group"],
+            content: function(root, expose) {
+                expose(Group);
+                
+                function Group() {
+                    this.identity = function() {
+                        throw new Error();
+                    };
+                    this.add = function(a,b) {
+                        throw new Error();
+                    };
+                    this.invert = function(x) {
+                        return x;
+                    };
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "Cell"],
             content: function(root, expose) {
                 expose(Cell);
@@ -1316,7 +1636,7 @@ var rere = (function(){
                     this.activate = function() {
                         if (this.isActive) return;
                         throw new Error();
-                    }
+                    };
                 
                     this.subscribe = function(f) {
                         return this.onEvent([], function(e){
@@ -1589,7 +1909,9 @@ var rere = (function(){
                     throw new ExposeBreak();
                 })
             } catch (e) {
-                if (!(e instanceof ExposeBreak)) throw new Error(e);
+                if (!(e instanceof ExposeBreak)) {
+                    throw new Error(e);
+                }
             }
             if (exposed!=null) {
                 if (typeof exposed==="object") {
