@@ -66,7 +66,8 @@ var rere = (function(){
                     this.monoid = monoid;
                     this.root = null;
                     this.value = new Cell(unwrap(monoid.identity()));
-                    this.index = {};
+                    this.keyToIndex = {};
+                    this.indexToKey = [];
                     this.blocks = 0;
                     this.keyId = 0;
                 
@@ -78,22 +79,29 @@ var rere = (function(){
                 
                     this.upsert = function(key, value) {
                         value = wrap(value);
-                        if (this.index.hasOwnProperty(key)) {
-                            this.root = this.root.change(this.monoid, this.index[key], value);
+                        if (this.keyToIndex.hasOwnProperty(key)) {
+                            this.root = this.root.change(this.monoid, this.keyToIndex[key], value);
                         } else {
-                            this.index[key] = s(this.root);
+                            this.keyToIndex[key] = s(this.root);
+                            this.indexToKey.push(key);
                             this.root = this.root==null ? Node.leaf(value) : this.root.put(monoid, value);
+                            assert(s(this.root) == this.indexToKey.length);
                         }
                         this.tryUpdateValue();
                     };
                 
                     this.delete = function(key) {
-                        if (!this.index.hasOwnProperty(key)) return;
-                        if (this.index[key]+1 !== s(this.root)) {
-                            this.root = this.root.change(this.monoid, this.index[key], this.root.peek());
+                        if (!this.keyToIndex.hasOwnProperty(key)) return;
+                        if (this.keyToIndex[key]+1 !== this.indexToKey.length) {
+                            this.root = this.root.change(this.monoid, this.keyToIndex[key], this.root.peek());
+                            var lastKey = this.indexToKey.pop();
+                            this.indexToKey[this.keyToIndex[key]] = lastKey;
+                            this.keyToIndex[lastKey] = this.keyToIndex[key];
+                        } else {
+                            this.indexToKey.pop();
                         }
                         this.root = this.root.pop(monoid);
-                        delete this.index[key];
+                        delete this.keyToIndex[key];
                         this.tryUpdateValue();
                     };
                 
@@ -282,25 +290,7 @@ var rere = (function(){
                     this.id = id++;
                 
                     // used in garbage collection
-                    this.era = new Object();
                     this.isActive = true;
-                    this.users = [];
-                    this.addUser = function(userId) {
-                        if (this.users.indexOf(userId)>=0) throw new Error();
-                        this.users.push(userId);
-                    };
-                    this.hasUsers = function() {
-                        return this.users.length>0;
-                    };
-                    this.hasUser = function(userId) {
-                        return this.users.indexOf(userId)>=0;
-                    };
-                    this.removeUser = function(userId) {
-                        if (this.users.indexOf(userId)<0) throw new Error();
-                        this.users = this.users.filter(function(item){ return item != userId });
-                        if (this.users.indexOf(userId)>=0) throw new Error();
-                    };
-                    this.isGarbage = false;
                 
                     this.type = Cell;
                     this.content = new maybe.None();
@@ -534,122 +524,6 @@ var rere = (function(){
             }
         },
         {
-            path: ["reactive", "GC"],
-            content: function(root, expose) {
-                expose({
-                    count: count,
-                    collect: collect,
-                    printFullDependencies: printFullDependencies
-                });
-                
-                function count() {
-                    var memory = {}
-                    for (var i=0;i<arguments.length;i++) {
-                        if (arguments[i].type != root.reactive.Cell) throw new Error();
-                        counter(arguments[i]);
-                    }
-                    var total = 0;
-                    for (var i in memory) total+=1;
-                    return total;
-                
-                    function counter(rv) {
-                        memory[rv.id] = rv;
-                        rv.dependants.map(function(dep) {
-                            dep.dependants.map(counter)
-                        });
-                    }
-                }
-                
-                function collect() {
-                    var era = new Object();
-                    var used = [];
-                    for (var i in arguments) {
-                        markGarbageCollectUsed(arguments[i], used);
-                    }
-                    era = new Object();
-                    for (var i in used) {
-                        unGarbageAncestors(used[i])
-                    }
-                    for (var i in arguments) {
-                        cutGarbage(arguments[i]);
-                    }
-                
-                    function markGarbageCollectUsed(rv, used) {
-                        rv.era = era;
-                        rv.isGarbage = true;
-                        if (rv.hasUsers()) {
-                            used.push(rv);
-                        }
-                        for (var i in rv.dependants) {
-                            for (var j in rv.dependants[i].dependants) {
-                                markGarbageCollectUsed(rv.dependants[i].dependants[j], used);
-                            }
-                        }
-                    }
-                    function unGarbageAncestors(rv) {
-                        if (rv.era===era) return;
-                
-                        rv.isGarbage = false;
-                        rv.era = era;
-                        for (var i in rv.dependanties) {
-                            unGarbageAncestors(rv.dependanties[i]);
-                        }
-                    }
-                    function cutGarbage(rv) {
-                        var items = rv.dependants;
-                        for (var i in items) {
-                            var item = items[i];
-                
-                            var isGarbage = item.dependants.length > 0;
-                            for (var j in item.dependants) {
-                                if (!item.dependants[j].isGarbage) {
-                                    isGarbage = false;
-                                    break;
-                                }
-                            }
-                            if (isGarbage) {
-                                var id = item.key;
-                                item.unsubscribe(function(){
-                                    rv.dependants = rv.dependants.filter(function(dependant) {
-                                        return dependant.key!=id;
-                                    });
-                                });
-                            } else {
-                                for (var j in item.dependants) {
-                                    cutGarbage(item.dependants[j]);
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                function printFullDependencies(rv) {
-                    print(collect(rv), "");
-                    function collect(rv) {
-                        var result = {
-                            name: rv.name(),
-                            dependants: []
-                        };
-                        var dependants = {}
-                        for (var i in rv.dependants) {
-                            for (var j in rv.dependants[i].dependants) {
-                                dependants[rv.dependants[i].dependants[j].id] = rv.dependants[i].dependants[j];
-                            }
-                        }
-                        for (var i in dependants) {
-                            result.dependants.push(collect(dependants[i]));
-                        }
-                        return result;
-                    }
-                    function print(info, offset) {
-                        console.info(offset + info.name + (info.dependants.length==0 ? "" : ":"));
-                        info.dependants.map(function(x) { print(x, offset + "  "); })
-                    }
-                }
-                
-            }
-        },
-        {
             path: ["reactive", "List"],
             content: function(root, expose) {
                 expose(List);
@@ -870,10 +744,14 @@ var rere = (function(){
                 
                 var Cell, List;
                 
-                function unwrapObject(obj) {
+                function unwrapObject(obj, opt) {
+                    if (typeof obj == "function") {
+                        throw new Error("Can't unwrap functions");
+                    }
                     if (typeof obj != "object") {
                         return new Cell(obj);
                     }
+                    if (obj instanceof Skip) return new Cell(obj);
                     if (obj.type === Cell) {
                         return obj.bind(function(value){
                             return unwrapObject(value);
@@ -885,62 +763,32 @@ var rere = (function(){
                                 wrap: function(x) { return [x]; },
                                 ignoreUnset: true
                             }
-                        ).value;
+                        );
                     }
-                
-                
-                    if (obj["rere/reactive/rv.unwrapObject.wait"]) {
-                        return self.unwrapObject.wait(self.unwrapObject(obj.value));
+                    var disassembled = [];
+                    for (var key in obj) {
+                        if (!obj.hasOwnProperty(key)) continue;
+                        if (typeof obj[key] == "function") continue;
+                        (function(key){
+                            disassembled.push(unwrapObject(obj[key]).lift(function(value){
+                                return new Skip({key: key, value: value});
+                            }));
+                        })(key);
                     }
-                    if (obj["rere/reactive/rv.unwrapObject.ignore"]) {
-                        return new Variable(obj);
-                    }
+                    return unwrapObject(new List(disassembled)).lift(function(items){
+                        var obj = {};
+                        for (var i=0;i<items.length;i++) {
+                            var kv = items[i].value;
+                            obj[kv.key] = kv.value;
+                        }
+                        return obj;
+                    });
                 }
                 
-                function kvsGroup() {
-                    this.identity = function() { return new AddKVS({}); };
-                    this.invert = function(x) {
-                        if (!(x instanceof AddKVS)) throw new Error();
-                        return new SubtractKVS(x.value);
-                    };
-                    this.add = function(x,y) {
-                        if (!(x instanceof AddKVS)) throw new Error();
-                        x = x.value;
-                        if (y instanceof AddKVS) {
-                            y = y.value;
-                            var join = {};
-                            for (var xKey in x) {
-                                if (!x.hasOwnProperty(xKey)) continue;
-                                join[xKey] = x[xKey];
-                            }
-                            for (var yKey in y) {
-                                if (!y.hasOwnProperty(yKey)) continue;
-                                if (join.hasOwnProperty(yKey)) throw Error();
-                                join[yKey] = y[yKey];
-                            }
-                            return new AddKVS(join);
-                        }
-                        if (y instanceof SubtractKVS) {
-                            y = y.value;
-                            var diff = {};
-                            for (var key in x) {
-                                if (!x.hasOwnProperty(key)) continue;
-                                if (y.hasOwnProperty(key)) continue;
-                                diff[key] = x[key];
-                            }
-                            return new AddKVS(join);
-                        }
-                        throw Error();
-                    }
-                }
-                
-                function AddKVS(value) {
+                function Skip(value) {
                     this.value = value;
                 }
                 
-                function SubtractKVS(value) {
-                    this.value = value;
-                }
             }
         },
         {
@@ -967,10 +815,6 @@ var rere = (function(){
                     this.cells = {};
                     this.dispose = function() {
                         this.disposes.forEach(function(x) { x(); });
-                        for (var i in this.cells) {
-                            if (!this.cells.hasOwnProperty(i)) continue;
-                            this.cells[i].removeUser(this.elementId);
-                        }
                 
                         this.dispose = function() { throw new Error(); }
                     };
@@ -1016,11 +860,6 @@ var rere = (function(){
                                     }
                                 }.bind(this))(property, this.attributes["css"][property]);
                             }
-                        }
-                
-                        for (var i in this.cells) {
-                            if (!this.cells.hasOwnProperty(i)) continue;
-                            this.cells[i].addUser(this.elementId);
                         }
                 
                         this.view = function() {
@@ -1251,7 +1090,6 @@ var rere = (function(){
                         var self = this;
                 
                         this.head = element;
-                        rv.addUser(this.cellId);
                         this.dispose = rv.onEvent([], Cell.handler({
                             set: function(e) {
                                 if (self.last!=null) {
@@ -1272,7 +1110,6 @@ var rere = (function(){
                             cells: {}
                         };
                         block.cells[rv.id] = rv;
-                        root.ui.GC.trackCellsBlock(block);
                     };
                     this.place = function(html) {
                         if (this.last==null) {
@@ -1283,8 +1120,6 @@ var rere = (function(){
                     };
                     this.remove = function() {
                         this.dispose();
-                        root.ui.GC.forgetCellsBlock({ id: this.cellId });
-                        rv.removeUser(this.cellId);
                         if (this.last!=null) {
                             this.last.remove();
                             this.last = null;
@@ -1333,12 +1168,6 @@ var rere = (function(){
                         this.preceding = preceding;
                         this.view = element.view();
                         preceding.place(this.view);
-                        if (root.utils.hashLen(element.cells)>0) {
-                            root.ui.GC.trackCellsBlock({
-                                id: this.elementId,
-                                cells: element.cells
-                            });
-                        }
                 
                         if (element.children instanceof Array) {
                             if (element.children.length!=0) {
@@ -1360,9 +1189,6 @@ var rere = (function(){
                         if (!("preceding" in this)) throw new Error();
                         jq.remove(this.view);
                         element.dispose();
-                        root.ui.GC.forgetCellsBlock({
-                            id: this.elementId
-                        });
                         this.place = function(follower) { this.preceding.place(follower); };
                         this.remove = function() { throw new Error(); }
                     };
@@ -1435,73 +1261,6 @@ var rere = (function(){
                     };
                 }
                 
-            }
-        },
-        {
-            path: ["ui", "GC"],
-            content: function(root, expose) {
-                expose({
-                    trackCellsBlock: trackCellsBlock,
-                    forgetCellsBlock: forgetCellsBlock,
-                    info: info,
-                    collect: collect,
-                    count: count
-                });
-                
-                var blocks = {}
-                
-                function collect() {
-                    root.reactive.GC.collect.apply(root.reactive.GC, cellRoots());
-                }
-                
-                function count() {
-                    return root.reactive.GC.count.apply(root.reactive.GC, cellRoots());
-                }
-                
-                function trackCellsBlock(block) {
-                    blocks[block.id] = block.cells;
-                }
-                
-                function forgetCellsBlock(block) {
-                    delete blocks[block.id];
-                }
-                
-                function info() {
-                    return {blocks: len(blocks) };
-                    function len(hash) {
-                        var count = 0;
-                        for (var i in hash) {
-                            if (!hash.hasOwnProperty(i)) continue;
-                            count++;
-                        }
-                        return count;
-                    }
-                }
-                
-                function cellRoots() {
-                    var era = new Object();
-                
-                    var roots = {};
-                    for (var i in blocks) {
-                        if (!blocks.hasOwnProperty(i)) continue;
-                        for (var j in blocks[i]) {
-                            if (!blocks[i].hasOwnProperty(j)) continue;
-                            findRoot(blocks[i][j], roots);
-                        }
-                    }
-                
-                    return root.utils.hashValues(roots);
-                
-                    function findRoot(cell, roots) {
-                        if (cell.era===era) return;
-                        cell.era = era;
-                        if (cell.dependanties.length==0) {
-                            roots[cell.id] = cell;
-                        } else {
-                            cell.dependanties.forEach(function(item){ findRoot(item, roots); });
-                        }
-                    }
-                }
             }
         },
         {

@@ -8,7 +8,8 @@ function ReduceTree(monoid, wrap, unwrap, ignoreUnset) {
     this.monoid = monoid;
     this.root = null;
     this.value = new Cell(unwrap(monoid.identity()));
-    this.index = {};
+    this.keyToIndex = {};
+    this.indexToKey = [];
     this.blocks = 0;
     this.keyId = 0;
 
@@ -20,22 +21,29 @@ function ReduceTree(monoid, wrap, unwrap, ignoreUnset) {
 
     this.upsert = function(key, value) {
         value = wrap(value);
-        if (this.index.hasOwnProperty(key)) {
-            this.root = this.root.change(this.monoid, this.index[key], value);
+        if (this.keyToIndex.hasOwnProperty(key)) {
+            this.root = this.root.change(this.monoid, this.keyToIndex[key], value);
         } else {
-            this.index[key] = s(this.root);
+            this.keyToIndex[key] = s(this.root);
+            this.indexToKey.push(key);
             this.root = this.root==null ? Node.leaf(value) : this.root.put(monoid, value);
+            assert(s(this.root) == this.indexToKey.length);
         }
         this.tryUpdateValue();
     };
 
     this.delete = function(key) {
-        if (!this.index.hasOwnProperty(key)) return;
-        if (this.index[key]+1 !== s(this.root)) {
-            this.root = this.root.change(this.monoid, this.index[key], this.root.peek());
+        if (!this.keyToIndex.hasOwnProperty(key)) return;
+        if (this.keyToIndex[key]+1 !== this.indexToKey.length) {
+            this.root = this.root.change(this.monoid, this.keyToIndex[key], this.root.peek());
+            var lastKey = this.indexToKey.pop();
+            this.indexToKey[this.keyToIndex[key]] = lastKey;
+            this.keyToIndex[lastKey] = this.keyToIndex[key];
+        } else {
+            this.indexToKey.pop();
         }
         this.root = this.root.pop(monoid);
-        delete this.index[key];
+        delete this.keyToIndex[key];
         this.tryUpdateValue();
     };
 
