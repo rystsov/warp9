@@ -19,10 +19,6 @@ function Element(tag) {
     this.cells = {};
     this.dispose = function() {
         this.disposes.forEach(function(x) { x(); });
-        for (var i in this.cells) {
-            if (!this.cells.hasOwnProperty(i)) continue;
-            this.cells[i].removeUser(this.elementId);
-        }
 
         this.dispose = function() { throw new Error(); }
     };
@@ -68,11 +64,6 @@ function Element(tag) {
                     }
                 }.bind(this))(property, this.attributes["css"][property]);
             }
-        }
-
-        for (var i in this.cells) {
-            if (!this.cells.hasOwnProperty(i)) continue;
-            this.cells[i].addUser(this.elementId);
         }
 
         this.view = function() {
