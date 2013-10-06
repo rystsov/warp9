@@ -3,9 +3,15 @@ expose({
     parse: parse,
     render: render,
     addTag: addTag
-}, ctor);
+}, function() {
+    Cell = root.reactive.Cell;
+    List = root.reactive.List;
+    Element = root.ui.ast.Element;
+    Fragment = root.ui.ast.Fragment;
+    TextNode = root.ui.ast.TextNode;
+    jq = root.ui.jq;
+    hacks = root.ui.hacks;
 
-function ctor() {
     addTag("div", root.ui.tags.TagParserFactory("div"));
     addTag("a", root.ui.tags.TagParserFactory("a"));
     addTag("section", root.ui.tags.TagParserFactory("section"));
@@ -21,7 +27,9 @@ function ctor() {
 
     addTag("input-text", root.ui.tags.InputTextParser);
     addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
-}
+});
+
+var Cell, List, Element, Fragment, TextNode, jq, hacks;
 
 var tags = {};
 
@@ -32,14 +40,11 @@ function addTag(name, parser) {
 function h(element) { return new root.ui.tags.utils.H(element); }
 
 function parse(element) {
-    var Cell = root.reactive.Cell;
-    var List = root.reactive.List;
-
     if (typeof element==="string" || element instanceof String) {
-        return new root.ui.ast.TextNode(element);
+        return new TextNode(element);
     }
     if (typeof element==="number") {
-        return new root.ui.ast.TextNode(element);
+        return new TextNode(element);
     }
     if (element instanceof Array) {
         if (element.length==0) throw new Error();
@@ -55,12 +60,101 @@ function parse(element) {
             return element.lift(parse);
         }
     }
-
     throw new Error();
 }
 
 function render(canvas, element) {
-    var DomContainer = root.ui.dom.DomContainer;
+    var placeToCanvas = function(item) {
+        canvas.appendChild(item);
+    };
 
-    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
+    bindDomTo(placeToCanvas, parse(element));
+}
+
+function bindDomTo(place, dom) {
+    if (dom instanceof Element) {
+        return bindElementTo(place, dom);
+    } else if (dom instanceof Fragment) {
+        return bindElementTo(place, dom);
+    } else if (dom instanceof TextNode) {
+        return bindElementTo(place, dom);
+    } else if (dom instanceof Cell) {
+        return bindCellTo(place, dom);
+    }
+    throw new Error();
+}
+
+function bindElementTo(place, element) {
+    var html = element.view();
+    var appendToHtml = function(item) {
+        html.appendChild(item);
+    };
+
+    place(html);
+
+    if (element.children instanceof Array) {
+        var dispose = [];
+        element.children.forEach(function(dom){
+            dispose.push(bindDomTo(appendToHtml, dom));
+        });
+        return hacks.once(function() {
+            dispose.forEach(function(f){ f(); });
+            jq.remove(html);
+        });
+    } else if (element.children instanceof List) {
+        var keyDispose = {};
+        var stopChildren = function() {
+            for (var key in keyDispose) {
+                if (!keyDispose.hasOwnProperty(key)) continue;
+                keyDispose[key]();
+            }
+            keyDispose = {};
+        };
+        var unsubscribe = element.children.subscribe(List.handler({
+            data: function(items) {
+                stopChildren();
+                items.forEach(this.add);
+            },
+            add: function(item) {
+                keyDispose[item.key] = bindDomTo(appendToHtml, item.value);
+            },
+            remove: function(key) {
+                if (!(key in keyDispose)) throw new Error();
+                keyDispose[key]();
+                delete keyDispose[key];
+            }
+        }));
+        return hacks.once(function() {
+            unsubscribe();
+            stopChildren();
+            jq.remove(html);
+        });
+    }
+    throw new Error();
+}
+
+function bindCellTo(place, cell) {
+    var mark = document.createElement("script");
+    var placeAfterMark = function(item) {
+        jq.after(mark, item);
+    };
+    place(mark);
+
+    var clean = function() {};
+
+    var unsubscribe = cell.onEvent([], Cell.handler({
+        set: function(value) {
+            clean();
+            clean = bindDomTo(placeAfterMark, value);
+        },
+        unset: function() {
+            clean();
+            clean = function() {};
+        }
+    }));
+
+    return hacks.once(function() {
+        unsubscribe();
+        clean()
+    });
 }

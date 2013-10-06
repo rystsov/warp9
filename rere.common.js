@@ -998,275 +998,12 @@ var rere = (function(){
             }
         },
         {
-            path: ["ui", "dom", "Dom"],
-            content: function(root, expose) {
-                expose({wrap: wrap});
-                
-                function wrap(element) {
-                    var Cell = root.reactive.Cell;
-                    var Element = root.ui.ast.Element;
-                    var DomElement = root.ui.dom.DomElement;
-                    var DomArray = root.ui.dom.DomArray;
-                    var DomList = root.ui.dom.DomList;
-                    var DomCell = root.ui.dom.DomCell;
-                    var TextNode = root.ui.ast.TextNode;
-                    var Fragment = root.ui.ast.Fragment;
-                
-                    if (element instanceof Array) {
-                        return new DomArray(element.map(wrap));
-                    }
-                    if (typeof element==="object") {
-                        if (element.type==Element) {
-                            return new DomElement(element);
-                        }
-                        if (element.type==TextNode) {
-                            return new DomElement(element);
-                        }
-                        if (element.type==Fragment) {
-                            return new DomElement(element);
-                        }
-                        if (element.type==Cell) {
-                            return new DomCell(element.lift(wrap));
-                        }
-                        if (element.type==root.reactive.List) {
-                            return new DomList(element.lift(wrap));
-                        }
-                    }
-                
-                
-                    throw new Error();
-                }
-                
-            }
-        },
-        {
-            path: ["ui", "dom", "DomArray"],
-            content: function(root, expose) {
-                expose(DomArray);
-                
-                function DomArray(elements) {
-                    this.last = null;
-                    this.head = null;
-                    this.bindto = function(element) {
-                        this.head = element;
-                        var previous = element;
-                        for (var i=0;i<elements.length;i++) {
-                            elements[i].bindto(previous);
-                            previous = elements[i];
-                            this.last = previous;
-                        }
-                    };
-                    this.place = function(html) {
-                        if (this.last != null) {
-                            this.last.place(html);
-                        } else {
-                            this.head.place(html);
-                        }
-                    };
-                    this.remove = function() {
-                        for (var i=0;i<elements.length;i++) {
-                            elements[i].remove();
-                        }
-                    };
-                }
-                
-            }
-        },
-        {
-            path: ["ui", "dom", "DomCell"],
-            content: function(root, expose) {
-                expose(DomCell);
-                
-                var id = 0;
-                
-                function DomCell(rv) {
-                    var Cell = root.reactive.Cell;
-                
-                    this.last = null;
-                    this.head = null;
-                    this.cellId = "rere/ui/dom/cell/" + (id++);
-                    this.dispose = function() {};
-                    this.bindto = function(element) {
-                        var self = this;
-                
-                        this.head = element;
-                        this.dispose = rv.onEvent([], Cell.handler({
-                            set: function(e) {
-                                if (self.last!=null) {
-                                    self.last.remove();
-                                }
-                                self.last = e;
-                                self.last.bindto(element);
-                            },
-                            unset: function() {
-                                if (self.last!=null) {
-                                    self.last.remove();
-                                    self.last = null;
-                                }
-                            }
-                        }));
-                        var block = {
-                            id: this.cellId,
-                            cells: {}
-                        };
-                        block.cells[rv.id] = rv;
-                    };
-                    this.place = function(html) {
-                        if (this.last==null) {
-                            this.head.place(html);
-                        } else {
-                            this.last.place(html);
-                        }
-                    };
-                    this.remove = function() {
-                        this.dispose();
-                        if (this.last!=null) {
-                            this.last.remove();
-                            this.last = null;
-                        }
-                    };
-                }
-                
-            }
-        },
-        {
-            path: ["ui", "dom", "DomContainer"],
-            content: function(root, expose) {
-                expose(DomContainer);
-                
-                function DomContainer(container) {
-                    this.bindto = function(element) {
-                        throw new Error();
-                    };
-                    this.place = function(html) {
-                        if (container.childNodes.length==0) {
-                            container.appendChild(html);
-                        } else {
-                            container.insertBefore(html, container.childNodes.item(0));
-                        }
-                    };
-                }
-                
-            }
-        },
-        {
-            path: ["ui", "dom", "DomElement"],
-            content: function(root, expose) {
-                expose(DomElement);
-                
-                var id = 0;
-                
-                function DomElement(element) {
-                    var jq = root.ui.jq;
-                    var DomContainer = root.ui.dom.DomContainer;
-                    var Dom = root.ui.dom.Dom;
-                
-                    this.elementId = "rere/ui/dom/element/" + (id++);
-                
-                    this.bindto = function(preceding) {
-                        if ("preceding" in this) throw new Error();
-                        this.preceding = preceding;
-                        this.view = element.view();
-                        preceding.place(this.view);
-                
-                        if (element.children instanceof Array) {
-                            if (element.children.length!=0) {
-                                Dom.wrap(element.children).bindto(new DomContainer(this.view));
-                            }
-                        } else {
-                            throw new Error();
-                        }
-                
-                        if ("control:draw" in element.events) {
-                            element.events["control:draw"](element, this.view);
-                        }
-                    };
-                    this.place = function(follower) {
-                        if (!("preceding" in this)) throw new Error();
-                        jq.after(this.view, follower);
-                    };
-                    this.remove = function() {
-                        if (!("preceding" in this)) throw new Error();
-                        jq.remove(this.view);
-                        element.dispose();
-                        this.place = function(follower) { this.preceding.place(follower); };
-                        this.remove = function() { throw new Error(); }
-                    };
-                }
-                
-            }
-        },
-        {
-            path: ["ui", "dom", "DomList"],
-            content: function(root, expose) {
-                expose(DomList);
-                
-                function DomList(list) {
-                    var Fragment = root.ui.ast.Fragment;
-                    var Dom = root.ui.dom.Dom;
-                
-                    this.last = Dom.wrap(new Fragment(document.createElement("script")));
-                    this.head = null;
-                    this.elements = null;
-                    this.hash = {};
-                
-                    this.bindto = function(element) {
-                        var self = this;
-                        this.head = element;
-                        this.last.bindto(this.head);
-                        list.subscribe(function(event){
-                            if (event[0]=="data") {
-                                if (self.elements!=null) {
-                                    for (var i=0;i<self.elements.length;i++) {
-                                        self.elements[i].value.remove();
-                                    }
-                                }
-                                var previous = self.head;
-                                for (var i=0;i<event[1].length;i++) {
-                                    self.hash[event[1][i].key] = event[1][i];
-                                    event[1][i].value.bindto(previous);
-                                    previous = event[1][i].value;
-                                }
-                                self.elements = event[1]
-                            } else if (event[0]=="add") {
-                                if (self.elements.length==0) {
-                                    event[1].value.bindto(self.head);
-                                } else {
-                                    event[1].value.bindto(self.elements[self.elements.length-1].value);
-                                }
-                                self.elements.push(event[1]);
-                                self.hash[event[1].key] = event[1]
-                            } else if (event[0]=="remove") {
-                                if (event[1] in self.hash) {
-                                    self.hash[event[1]].value.remove();
-                                    delete self.hash[event[1]];
-                                } else {
-                                    console.log("Dirty behaviour, find dirty behaviour like this isolated at ~/issues/ObservableListElement/doubleDelete.html");
-                                }
-                            } else {
-                                throw new Error();
-                            }
-                        })
-                    };
-                
-                    this.place = function(html) {
-                        this.last.place(html);
-                    };
-                
-                    this.remove = function() {
-                        this.last.remove();
-                        this.place = function(html) {
-                            this.head.place(html);
-                        };
-                    };
-                }
-                
-            }
-        },
-        {
             path: ["ui", "hacks"],
             content: function(root, expose) {
-                expose({unrecursion: unrecursion});
+                expose({
+                    unrecursion: unrecursion,
+                    once: once
+                });
                 
                 // https://gist.github.com/rystsov/5898584
                 // https://code.google.com/p/chromium/issues/detail?id=117307
@@ -1280,6 +1017,14 @@ var rere = (function(){
                     };
                 }
                 
+                function once(f) {
+                    var called = false;
+                    return function() {
+                        if (called) return;
+                        called = true;
+                        f();
+                    };
+                }
             }
         },
         {
@@ -1289,7 +1034,8 @@ var rere = (function(){
                     css: css,
                     removeClass: removeClass,
                     after: after,
-                    remove: remove
+                    remove: remove,
+                    removeChildren: removeChildren
                 });
                 
                 function css(self, property, value) {
@@ -1327,6 +1073,12 @@ var rere = (function(){
                     }
                 }
                 
+                function removeChildren(self) {
+                    while (self.firstChild) {
+                        self.removeChild(self.firstChild);
+                    }
+                }
+                
                 
                 function camelize(str){ 
                     return str.replace(/-+(.)?/g, function(match, chr){ return chr ? chr.toUpperCase() : '' });
@@ -1350,9 +1102,15 @@ var rere = (function(){
                     parse: parse,
                     render: render,
                     addTag: addTag
-                }, ctor);
+                }, function() {
+                    Cell = root.reactive.Cell;
+                    List = root.reactive.List;
+                    Element = root.ui.ast.Element;
+                    Fragment = root.ui.ast.Fragment;
+                    TextNode = root.ui.ast.TextNode;
+                    jq = root.ui.jq;
+                    hacks = root.ui.hacks;
                 
-                function ctor() {
                     addTag("div", root.ui.tags.TagParserFactory("div"));
                     addTag("a", root.ui.tags.TagParserFactory("a"));
                     addTag("section", root.ui.tags.TagParserFactory("section"));
@@ -1368,7 +1126,9 @@ var rere = (function(){
                 
                     addTag("input-text", root.ui.tags.InputTextParser);
                     addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
-                }
+                });
+                
+                var Cell, List, Element, Fragment, TextNode, jq, hacks;
                 
                 var tags = {};
                 
@@ -1379,14 +1139,11 @@ var rere = (function(){
                 function h(element) { return new root.ui.tags.utils.H(element); }
                 
                 function parse(element) {
-                    var Cell = root.reactive.Cell;
-                    var List = root.reactive.List;
-                
                     if (typeof element==="string" || element instanceof String) {
-                        return new root.ui.ast.TextNode(element);
+                        return new TextNode(element);
                     }
                     if (typeof element==="number") {
-                        return new root.ui.ast.TextNode(element);
+                        return new TextNode(element);
                     }
                     if (element instanceof Array) {
                         if (element.length==0) throw new Error();
@@ -1402,16 +1159,104 @@ var rere = (function(){
                             return element.lift(parse);
                         }
                     }
-                
                     throw new Error();
                 }
                 
                 function render(canvas, element) {
-                    var DomContainer = root.ui.dom.DomContainer;
+                    var placeToCanvas = function(item) {
+                        canvas.appendChild(item);
+                    };
                 
-                    root.ui.dom.Dom.wrap(parse(element)).bindto(new DomContainer(canvas));
+                    bindDomTo(placeToCanvas, parse(element));
                 }
                 
+                function bindDomTo(place, dom) {
+                    if (dom instanceof Element) {
+                        return bindElementTo(place, dom);
+                    } else if (dom instanceof Fragment) {
+                        return bindElementTo(place, dom);
+                    } else if (dom instanceof TextNode) {
+                        return bindElementTo(place, dom);
+                    } else if (dom instanceof Cell) {
+                        return bindCellTo(place, dom);
+                    }
+                    throw new Error();
+                }
+                
+                function bindElementTo(place, element) {
+                    var html = element.view();
+                    var appendToHtml = function(item) {
+                        html.appendChild(item);
+                    };
+                
+                    place(html);
+                
+                    if (element.children instanceof Array) {
+                        var dispose = [];
+                        element.children.forEach(function(dom){
+                            dispose.push(bindDomTo(appendToHtml, dom));
+                        });
+                        return hacks.once(function() {
+                            dispose.forEach(function(f){ f(); });
+                            jq.remove(html);
+                        });
+                    } else if (element.children instanceof List) {
+                        var keyDispose = {};
+                        var stopChildren = function() {
+                            for (var key in keyDispose) {
+                                if (!keyDispose.hasOwnProperty(key)) continue;
+                                keyDispose[key]();
+                            }
+                            keyDispose = {};
+                        };
+                        var unsubscribe = element.children.subscribe(List.handler({
+                            data: function(items) {
+                                stopChildren();
+                                items.forEach(this.add);
+                            },
+                            add: function(item) {
+                                keyDispose[item.key] = bindDomTo(appendToHtml, item.value);
+                            },
+                            remove: function(key) {
+                                if (!(key in keyDispose)) throw new Error();
+                                keyDispose[key]();
+                                delete keyDispose[key];
+                            }
+                        }));
+                        return hacks.once(function() {
+                            unsubscribe();
+                            stopChildren();
+                            jq.remove(html);
+                        });
+                    }
+                    throw new Error();
+                }
+                
+                function bindCellTo(place, cell) {
+                    var mark = document.createElement("script");
+                    var placeAfterMark = function(item) {
+                        jq.after(mark, item);
+                    };
+                    place(mark);
+                
+                    var clean = function() {};
+                
+                    var unsubscribe = cell.onEvent([], Cell.handler({
+                        set: function(value) {
+                            clean();
+                            clean = bindDomTo(placeAfterMark, value);
+                        },
+                        unset: function() {
+                            clean();
+                            clean = function() {};
+                        }
+                    }));
+                
+                    return hacks.once(function() {
+                        unsubscribe();
+                        clean()
+                    });
+                }
             }
         },
         {
@@ -1505,7 +1350,11 @@ var rere = (function(){
         {
             path: ["ui", "tags", "TagParserFactory"],
             content: function(root, expose) {
-                expose(TagParserFactory);
+                expose(TagParserFactory, function(){
+                    List = root.reactive.List;
+                });
+                
+                var List;
                 
                 function TagParserFactory(tagName) {
                     return function(args) {
@@ -1515,10 +1364,18 @@ var rere = (function(){
                         element.events = attr.events;
                         element.attributes = attr.attributes;
                         element.children = [];
+                        var hasCollection = false;
                         for (var i in args.children) {
                             var child = args.children[i];
                             child = root.ui.renderer.parse(child);
+                            if (child instanceof List) {
+                                hasCollection = true;
+                            }
                             element.children.push(child);
+                        }
+                        if (hasCollection) {
+                            if (element.children.length>1) throw new Error();
+                            element.children = element.children[0];
                         }
                         return element;
                     };

@@ -2,7 +2,8 @@ expose({
     css: css,
     removeClass: removeClass,
     after: after,
-    remove: remove
+    remove: remove,
+    removeChildren: removeChildren
 });
 
 function css(self, property, value) {
@@ -37,6 +38,12 @@ function remove(self) {
         self.parentNode.removeChild(self);
     } catch (e) {
         throw e;
+    }
+}
+
+function removeChildren(self) {
+    while (self.firstChild) {
+        self.removeChild(self.firstChild);
     }
 }
 
