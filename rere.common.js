@@ -509,13 +509,12 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(BaseCell, function() {
                     LiftedCell = root.reactive.cells.LiftedCell;
-                    idgenerator = root.idgenerator;
                 });
                 
-                var LiftedCell, idgenerator;
+                var LiftedCell;
                 
                 function BaseCell() {
-                    this.cellId = idgenerator();
+                    this.cellId = root.idgenerator();
                     this.dependantsId = 0;
                     this.dependants = [];
                     this.content = null;

@@ -71,3 +71,32 @@ exports.subscribeUseLeave = function(test) {
 
     test.done();
 };
+
+exports.doubleLift = function(test) {
+    test.expect(5);
+
+    var cell = new Cell(2);
+    var add2 = cell.lift(function(x){
+        return x+2;
+    });
+    var add3 = add2.lift(function(x){
+        return x+3;
+    });
+    test.equal(cell.dependants.length, 0);
+    var id = idgenerator();
+    add3.use(id);
+    test.equal(cell.dependants.length, 1);
+    var event = null;
+    add3.onEvent(Cell.handler({
+        set: function(value) { event = [value]; },
+        unset: function() { event = []; }
+    }));
+    test.equal(event[0], 7);
+    add3.leave(id);
+    test.equal(cell.dependants.length, 0);
+    event = null;
+    cell.set(2);
+    test.equal(event, null);
+
+    test.done();
+};
