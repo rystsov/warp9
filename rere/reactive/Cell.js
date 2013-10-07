@@ -1,5 +1,75 @@
-expose(Cell);
+expose(Cell, function(){
+    None = root.adt.maybe.None;
+    Some = root.adt.maybe.Some;
+    BaseCell = root.reactive.cells.BaseCell;
 
+    SetCellPrototype();
+});
+
+
+// pull by default (unwrap)
+// subscribe (onEvent) doesn't activate (switch to push) cell
+
+var Some, None, BaseCell;
+
+function Cell() {
+    BaseCell.apply(this, []);
+
+    this.content = new None();
+    if (arguments.length>0) {
+        this.set(arguments[0])
+    }
+}
+
+function SetCellPrototype() {
+    Cell.prototype = new BaseCell();
+
+    // Common
+    Cell.prototype.onEvent = function(f) {
+        if (this.content.isEmpty()) {
+            f(["unset"]);
+        } else {
+            f(["set", this.content.value()]);
+        }
+        return BaseCell.prototype.onEvent.apply(this, [f]);
+    };
+
+    Cell.prototype.unwrap = function(alt) {
+        if (arguments.length==0 && this.content.isEmpty()) throw new Error();
+        return this.content.isEmpty() ? alt : this.content.value();
+    };
+
+    // Specific
+    Cell.prototype.set = function(value) {
+        this.content = new Some(value)
+        this.raise(["set", value])
+    };
+
+    Cell.prototype.unset = function() {
+        this.content = new None();
+        this.raise(["unset"])
+    };
+
+    Cell.prototype.raise = function(e) {
+        this.dependants.forEach(function(d){ d.f(e); });
+    };
+}
+
+Cell.handler = function(handler) {
+    return function(e) {
+        if (e[0]==="set") {
+            handler.set(e[1]);
+        } else if (e[0]==="unset") {
+            handler.unset();
+        } else {
+            throw new Error("Unknown event: " + e[0]);
+        }
+    };
+};
+
+
+
+/*
 var maybe = root.adt.maybe;
 
 var id = 0;
@@ -16,72 +86,7 @@ function Cell() {
     this.content = new maybe.None();
     this.dependants   = [];
     this.dependanties = [];
-
-    // used in debug propose only
-    this.name = function() {
-        if (arguments.length==0) {
-            if (this._name) {
-                return this.id + "(" + this._name + ")";
-            }
-            return this.id;
-        }
-        this._name = arguments[0];
-        return this;
-    };
-
-    this.activate = function() {
-        if (this.isActive) return;
-        throw new Error();
-    };
-
-    this.subscribe = function(f) {
-        return this.onEvent([], function(e){
-            if (e[0]==="set") {
-                f(e[1]);
-            }
-        });
-    };
-
-    // unsubscribe is called by GC, when it wants to uncut refs to dependants (if they all are garbage)
-    // unsubscribe expects function that will remove dependant record from this.dependants
-    // unsubscribe is never called if dependants is empty
-    this.onEvent = function(dependants, f, unsubscribe) {
-        var self = this;
-        unsubscribe = unsubscribe || function(f) {
-            f();
-        };
-        var id = dependantsId++;
-        this.dependants.push({key: id, dependants: dependants, f:f, unsubscribe: unsubscribe});
-        if (this.content.isEmpty()) {
-            f(["unset"]);
-        } else {
-            f(["set", this.content.value()]);
-        }
-        return function() {
-            self.dependants = self.dependants.filter(function(dependant) {
-                return dependant.key!=id;
-            });
-        };
-    };
-
-    this.set = function(value) {
-        this.content = new maybe.Some(value)
-        Cell.raise(this, ["set", value])
-    };
-    this.unset = function() {
-        this.content = new maybe.None();
-        Cell.raise(this, ["unset"])
-    };
-
-    if (arguments.length>0) {
-        this.set(arguments[0])
-    }
 }
-
-Cell.prototype.unwrap = function(alt) {
-    if (arguments.length==0 && this.content.isEmpty()) throw new Error();
-    return this.content.isEmpty() ? alt : this.content.value();
-};
 
 Cell.prototype.when = function(condition, value) {
     var self = this;
@@ -121,59 +126,35 @@ Cell.prototype.when = function(condition, value) {
     return channel;
 };
 
-Cell.prototype.coalesce = function(value) {
-    var self = this;
+    Cell.prototype.coalesce = function(value) {
+        var self = this;
 
-    var channel = new Cell()
-    var forget = function(unsubscribe) {
+        var channel = new Cell()
+        var forget = function(unsubscribe) {
+            channel.isActive = false;
+            channel.dependanties = [];
+            unsubscribe();
+        };
         channel.isActive = false;
-        channel.dependanties = [];
-        unsubscribe();
-    };
-    channel.isActive = false;
-    channel.activate = function() {
-        if (this.isActive) return;
-        self.activate();
-        channel.isActive = true;
-        channel.dependanties = [self];
-        self.onEvent([channel], function(e){
-            if (e[0]==="set") {
-                channel.set(e[1]);
-            } else if (e[0]==="unset") {
-                channel.set(value);
-            } else {
-                throw new Error();
-            }
-        }, forget);
-    };
-    channel.activate();
+        channel.activate = function() {
+            if (this.isActive) return;
+            self.activate();
+            channel.isActive = true;
+            channel.dependanties = [self];
+            self.onEvent([channel], function(e){
+                if (e[0]==="set") {
+                    channel.set(e[1]);
+                } else if (e[0]==="unset") {
+                    channel.set(value);
+                } else {
+                    throw new Error();
+                }
+            }, forget);
+        };
+        channel.activate();
 
-    return channel;
-};
-
-Cell.prototype.lift = function(f) {
-    var self = this;
-
-    var channel = new Cell()
-    var forget = function(unsubscribe) {
-        channel.isActive = false;
-        channel.dependanties = [];
-        unsubscribe();
+        return channel;
     };
-    channel.isActive = false;
-    channel.activate = function() {
-        if (this.isActive) return;
-        self.activate();
-        channel.isActive = true;
-        channel.dependanties = [self];
-        self.onEvent([channel], function(e){
-            Cell.replay(channel, e, f);
-        }, forget);
-    };
-    channel.activate();
-
-    return channel;
-};
 
 Cell.prototype.bind = function(f) {
     var self = this;
@@ -228,15 +209,4 @@ Cell.replay = function (self, e, f) {
         throw new Error();
     }
 };
-
-Cell.handler = function(handler) {
-    return function(e) {
-        if (e[0]==="set") {
-            handler.set(e[1]);
-        } else if (e[0]==="unset") {
-            handler.unset();
-        } else {
-            throw new Error("Unknown event: " + e[0]);
-        }
-    };
-};
+*/

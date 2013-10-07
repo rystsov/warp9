@@ -2,56 +2,54 @@ var rere = require('../rere.common');
 
 var Cell = rere.reactive.Cell;
 
-exports.subscribeToInited = function(test){
+exports.ctor = function(test) {
+    test.expect(0);
+    var cell = new Cell();
+    test.done();
+};
+
+exports.unwrapValue = function(test) {
     test.expect(1);
-    var got = null;
-    var rv = new Cell(42);
-    rv.subscribe(function(value){
-        got = value;
-    });
-    test.equal(got, 42);
+    var value = {};
+    var cell = new Cell(value);
+    test.equal(cell.unwrap(), value);
     test.done();
 };
 
-exports.lift = function(test){
+exports.unwrapEmpty = function(test) {
+    test.expect(1);
+    var marker = {};
+    var cell = new Cell();
+    test.equal(cell.unwrap(marker), marker);
+    test.done();
+};
+
+exports.subscribeEmptyChange = function(test) {
     test.expect(2);
-
-    var expect = [24, 46]
-    var i=0;
-
-    var a = new Cell(12);
-    var b = a.lift(function(v) { return v*2; });
-
-    b.subscribe(function(value){
-        test.equal(expect[i++], value);
-    });
-
-    a.set(23);
-
+    var event = null;
+    var cell = new Cell();
+    cell.onEvent(Cell.handler({
+        set: function(value) { event = [value]; },
+        unset: function() { event = []; }
+    }));
+    test.equal(event.length, 0);
+    var marker = {};
+    cell.set(marker);
+    test.equal(event[0], marker);
     test.done();
 };
 
-exports.bind = function(test){
-    test.expect(3);
-
-    var expect = [4, 6, 7];
-    var i=0;
-
-    var a = new Cell(1);
-    var b = new Cell(2);
-
-    var c = a.bind(function(a){
-        return b.bind(function(b){
-            return new Cell(2*a+b);
-        })
-    });
-
-    c.subscribe(function(value){
-        test.equal(expect[i++], value);
-    });
-
-    a.set(2);
-    b.set(3);
-
+exports.subscribeValueChange = function(test) {
+    test.expect(2);
+    var event = null;
+    var cell = new Cell();
+    cell.onEvent(Cell.handler({
+        set: function(value) { event = [value]; },
+        unset: function() { event = []; }
+    }));
+    test.equal(event.length, 0);
+    var marker = {};
+    cell.set(marker);
+    test.equal(event[0], marker);
     test.done();
 };
