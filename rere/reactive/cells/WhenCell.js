@@ -1,24 +1,25 @@
-expose(LiftedCell, function(){
+expose(WhenCell, function(){
     None = root.adt.maybe.None;
     Some = root.adt.maybe.Some;
     Cell = root.reactive.Cell;
     BaseCell = root.reactive.cells.BaseCell;
 
-    SetLiftedPrototype();
+    SetWhenPrototype();
 });
 
 var None, Some, Cell, BaseCell;
 
-function LiftedCell(source, f) {
+function WhenCell(source, condition, transform) {
     this.source = source;
-    this.f = f;
+    this.condition = condition;
+    this.transform = transform;
     BaseCell.apply(this);
 }
 
-function SetLiftedPrototype() {
-    LiftedCell.prototype = new BaseCell();
+function SetWhenPrototype() {
+    WhenCell.prototype = new BaseCell();
 
-    LiftedCell.prototype.onEvent = function(f) {
+    WhenCell.prototype.onEvent = function(f) {
         if (this.usersCount>0) {
             if (this.content.isEmpty()) {
                 f(["unset"]);
@@ -29,14 +30,19 @@ function SetLiftedPrototype() {
         return BaseCell.prototype.onEvent.apply(this, [f]);
     };
 
-    LiftedCell.prototype.use = function(id) {
+    WhenCell.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {
             this.source.use(this.cellId);
             this.unsubscribe = this.source.onEvent(Cell.handler({
                 set: function(value) {
-                    this.content = new Some(this.f(value));
-                    this.raise(["set", this.content.value()]);
+                    if (this.condition(value)) {
+                        this.content = new Some(this.transform(value));
+                        this.raise(["set", this.content.value()]);
+                    } else {
+                        this.content = new None();
+                        this.raise(["unset"]);
+                    }
                 }.bind(this),
                 unset: function(){
                     this.content = new None();
@@ -46,7 +52,7 @@ function SetLiftedPrototype() {
         }
     };
 
-    LiftedCell.prototype.leave = function(id) {
+    WhenCell.prototype.leave = function(id) {
         BaseCell.prototype.leave.apply(this, [id]);
         if (this.usersCount === 0) {
             this.unsubscribe();
@@ -55,14 +61,15 @@ function SetLiftedPrototype() {
         }
     };
 
-    LiftedCell.prototype.unwrap = function() {
+    WhenCell.prototype.unwrap = function() {
         var marker = {};
         var value = this.source.unwrap(marker);
         if (value !== marker) {
-            return this.f(value);
-        } else {
-            if (arguments.length === 0) throw new Error();
-            return arguments[0];
+            if (this.condition(value)) {
+                return this.transform(value);
+            }
         }
+        if (arguments.length === 0) throw new Error();
+        return arguments[0];
     };
 }

@@ -221,70 +221,160 @@ var rere = (function(){
         {
             path: ["reactive", "algebra", "Sigma"],
             content: function(root, expose) {
-                expose(Sigma, function() {
+                expose(SigmaII, function() {
                     Cell = root.reactive.Cell;
                 });
                 
                 var Cell;
                 
-                function Sigma(group, wrap, unwrap) {
-                    var sum = group.identity();
-                    var blocks = 0;
-                
-                    this.value = new Cell(unwrap(sum));
-                
-                    this.add = function(value) {
-                        if (typeof value === "object" && value.type === Cell) {
-                            var last = null;
-                            var isBlocked = false;
-                            var unsubscribe = value.onEvent([this.value], Cell.handler({
-                                "set": function(value) {
-                                    if (isBlocked) {
-                                        blocks--;
-                                        isBlocked = false;
-                                    }
-                                    if (last!=null) {
-                                        sum = group.add(sum, group.invert(last.value));
-                                    }
-                                    last = { value: wrap(value) };
-                                    sum = group.add(sum, last.value);
-                                    if (blocks==0) {
-                                        this.value.set(unwrap(sum));
-                                    }
-                                }.bind(this),
-                                "unset": function() {
-                                    if (!isBlocked) {
-                                        isBlocked = true;
-                                        blocks++;
-                                        this.value.unset();
-                                    }
-                                }.bind(this)
-                            }));
-                
-                            return function() {
-                                unsubscribe();
-                                if (last!=null) {
-                                    sum = group.add(sum, group.invert(last.value));
-                                    last = null;
-                                }
-                                if (isBlocked) {
-                                    blocks--;
-                                    isBlocked = false;
-                                }
-                                if (blocks==0) {
-                                    this.value.set(unwrap(sum));
-                                }
-                            }.bind(this);
-                        } else {
-                            sum = group.add(sum, wrap(value));
-                            this.value.set(unwrap(sum));
-                            return function() {
-                                sum = group.add(sum, group.invert(value));
-                                this.value.set(unwrap(sum));
-                            }.bind(this);
-                        }
-                    };
+                function set(sigma) {
+                    if (sigma._ignoreSetUnset) return;
+                    sigma.set(sigma.sum);
                 }
+                
+                function unset(sigma) {
+                    if (sigma._ignoreSetUnset) return;
+                    sigma.unset();
+                }
+                
+                function SigmaII(id, group, wrap, ignoreUnset) {
+                    this.id = id;
+                    this.group = group;
+                    this.wrap = wrap;
+                    this.inited = false;
+                    this.ignoreUnset = ignoreUnset;
+                    this._ignoreSetUnset = false;
+                }
+                
+                SigmaII.prototype.set = function(value) {
+                    throw new Error("Not implemented");
+                };
+                
+                SigmaII.prototype.unset = function() {
+                    throw new Error("Not implemented");
+                };
+                
+                SigmaII.prototype.init = function(data) {
+                    if (this.inited) {
+                        throw new Error("Can't init object twice, to reset use 'dispose'")
+                    }
+                    this.inited = true;
+                    this._ignoreSetUnset = true;
+                    this.known = {};
+                    this.sum = this.group.identity();
+                    this.blocks = 0;
+                    if (data) data.forEach(function(item){
+                        this.add(item.key, item.value);
+                    }.bind(this));
+                    this._ignoreSetUnset = false;
+                    if (this.blocks===0) {
+                        set(this);
+                    }
+                };
+                
+                SigmaII.prototype.dispose = function() {
+                    if (!this.inited) return;
+                    this._ignoreSetUnset = true;
+                    for (var key in this.known) {
+                        if (!this.known.hasOwnProperty(key)) continue;
+                        this.known[key]();
+                    }
+                    this._ignoreSetUnset = false;
+                    this.inited = false;
+                    this.known = {};
+                    if (this.blocks!=0) throw new Error();
+                };
+                
+                SigmaII.prototype.remove = function(key) {
+                    if (!this.inited) {
+                        throw new Error("Sigma is not inited");
+                    }
+                    if (!this.known.hasOwnProperty(key)) {
+                        throw new Error("Trying to delete unknown key: " + key);
+                    }
+                    this.known[key]();
+                    delete this.known[key];
+                };
+                
+                SigmaII.prototype.add = function(key, value) {
+                    if (!this.inited) {
+                        throw new Error("Sigma is not inited");
+                    }
+                    if (this.known.hasOwnProperty(key)) {
+                        throw new Error("Trying to add a already known key: " + key);
+                    }
+                    if (typeof value === "object" && value.type === Cell) {
+                        this.addCell(key, value);
+                    } else {
+                        this.addValue(key, value);
+                    }
+                };
+                
+                SigmaII.prototype.addCell = function(key, value) {
+                    var last = null;
+                    var isBlocked = false;
+                    value.use(this.id);
+                    var unsubscribe = value.onEvent(Cell.handler({
+                        set: function(value) {
+                            if (isBlocked) {
+                                this.blocks--;
+                                isBlocked = false;
+                            }
+                            if (last!=null) {
+                                this.sum = this.group.add(this.sum, this.group.invert(last.value));
+                            }
+                            last = { value: this.wrap(value) };
+                            this.sum = this.group.add(this.sum, last.value);
+                            if (this.ignoreUnset || this.blocks==0) {
+                                set(this);
+                            }
+                        }.bind(this),
+                        unset: function() {
+                            if (this.ignoreUnset) {
+                                if (last==null) return;
+                                this.sum = this.group.add(this.sum, this.group.invert(last.value));
+                                last = null;
+                                set(this);
+                            } else {
+                                if (!isBlocked) {
+                                    isBlocked = true;
+                                    this.blocks++;
+                                    unset(this);
+                                }
+                            }
+                        }.bind(this)
+                    }));
+                
+                    this.known[key] = function() {
+                        unsubscribe();
+                        value.leave(this.id);
+                        if (last!=null) {
+                            this.sum = this.group.add(this.sum, this.group.invert(last.value));
+                        }
+                        if (isBlocked) {
+                            this.blocks--;
+                        }
+                        if (this.blocks==0) {
+                            set(this);
+                        }
+                    }.bind(this);
+                };
+                
+                SigmaII.prototype.addValue = function(key, value) {
+                    value = this.wrap(value);
+                    this.sum = this.group.add(this.sum, value);
+                    if (this.blocks===0) {
+                        set(this);
+                    }
+                    this.known[key] = function(){
+                        this.sum = this.group.add(this.sum, this.group.invert(value));
+                        if (this.blocks===0) {
+                            set(this);
+                        }
+                    }.bind(this);
+                };
+                
+                
             }
         },
         {
@@ -341,10 +431,6 @@ var rere = (function(){
                         this.content = new None();
                         this.raise(["unset"])
                     };
-                
-                    Cell.prototype.raise = function(e) {
-                        this.dependants.forEach(function(d){ d.f(e); });
-                    };
                 }
                 
                 Cell.handler = function(handler) {
@@ -359,149 +445,6 @@ var rere = (function(){
                     };
                 };
                 
-                
-                
-                /*
-                var maybe = root.adt.maybe;
-                
-                var id = 0;
-                
-                function Cell() {
-                    var dependantsId = 0;
-                
-                    this.id = id++;
-                
-                    // used in garbage collection
-                    this.isActive = true;
-                
-                    this.type = Cell;
-                    this.content = new maybe.None();
-                    this.dependants   = [];
-                    this.dependanties = [];
-                }
-                
-                Cell.prototype.when = function(condition, value) {
-                    var self = this;
-                
-                    var test = typeof condition === "function" ? condition : function(value) {
-                        return value === condition;
-                    };
-                
-                    var channel = new Cell()
-                    var forget = function(unsubscribe) {
-                        channel.isActive = false;
-                        channel.dependanties = [];
-                        unsubscribe();
-                    };
-                    channel.isActive = false;
-                    channel.activate = function() {
-                        if (this.isActive) return;
-                        self.activate();
-                        channel.isActive = true;
-                        channel.dependanties = [self];
-                        self.onEvent([channel], function(e){
-                            if (e[0]==="set") {
-                                if (test(e[1])) {
-                                    channel.set(value);
-                                } else {
-                                    channel.unset();
-                                }
-                            } else if (e[0]==="unset") {
-                                channel.unset();
-                            } else {
-                                throw new Error();
-                            }
-                        }, forget);
-                    };
-                    channel.activate();
-                
-                    return channel;
-                };
-                
-                    Cell.prototype.coalesce = function(value) {
-                        var self = this;
-                
-                        var channel = new Cell()
-                        var forget = function(unsubscribe) {
-                            channel.isActive = false;
-                            channel.dependanties = [];
-                            unsubscribe();
-                        };
-                        channel.isActive = false;
-                        channel.activate = function() {
-                            if (this.isActive) return;
-                            self.activate();
-                            channel.isActive = true;
-                            channel.dependanties = [self];
-                            self.onEvent([channel], function(e){
-                                if (e[0]==="set") {
-                                    channel.set(e[1]);
-                                } else if (e[0]==="unset") {
-                                    channel.set(value);
-                                } else {
-                                    throw new Error();
-                                }
-                            }, forget);
-                        };
-                        channel.activate();
-                
-                        return channel;
-                    };
-                
-                Cell.prototype.bind = function(f) {
-                    var self = this;
-                
-                    var result = new Cell();
-                    var dispose = function() {};
-                    var forget = function(unsubscribe) {
-                        dispose();
-                        result.isActive = false;
-                        result.dependanties = [];
-                        unsubscribe();
-                    };
-                    result.isActive = false;
-                    result.activate = function() {
-                        if (this.isActive) return;
-                        self.activate();
-                        result.isActive = true;
-                        result.dependanties = [self];
-                        self.onEvent([result], Cell.handler({
-                            set: function(e) {
-                                dispose();
-                                var leader = f(e);
-                                leader.activate();
-                                result.dependanties = [self, leader];
-                                dispose = leader.onEvent([result], Cell.handler(result));
-                            },
-                            unset: function(){
-                                dispose();
-                                result.dependanties = [self];
-                                dispose = function() {};
-                                result.unset();
-                            }
-                        }), forget);
-                    };
-                    result.activate();
-                    return result;
-                };
-                
-                Cell.raise = function(self, e) {
-                    for (var i in self.dependants) {
-                        var f = self.dependants[i].f;
-                        f(e);
-                    }
-                };
-                
-                Cell.replay = function (self, e, f) {
-                    if (e[0]==="set") {
-                        self.set(f(e[1]));
-                    } else if (e[0]==="unset") {
-                        self.unset()
-                    } else {
-                        throw new Error();
-                    }
-                };
-                */
             }
         },
         {
@@ -509,12 +452,17 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(BaseCell, function() {
                     LiftedCell = root.reactive.cells.LiftedCell;
+                    CoalesceCell = root.reactive.cells.CoalesceCell;
+                    WhenCell = root.reactive.cells.WhenCell;
+                    BindedCell = root.reactive.cells.BindedCell;
+                    Cell = root.reactive.Cell;
                 });
                 
-                var LiftedCell;
+                var LiftedCell, CoalesceCell, WhenCell, BindedCell, Cell;
                 
                 function BaseCell() {
                     this.cellId = root.idgenerator();
+                    this.type = Cell;
                     this.dependantsId = 0;
                     this.dependants = [];
                     this.content = null;
@@ -562,6 +510,196 @@ var rere = (function(){
                 BaseCell.prototype.lift = function(f) {
                     return new LiftedCell(this, f);
                 };
+                
+                BaseCell.prototype.coalesce = function(replace) {
+                    return new CoalesceCell(this, replace);
+                };
+                
+                BaseCell.prototype.when = function(condition, transform) {
+                    var test = typeof condition === "function" ? condition : function(value) {
+                        return value === condition;
+                    };
+                
+                    var map = typeof transform === "function" ? transform : function() { return transform; };
+                
+                    return new WhenCell(test, map);
+                };
+                
+                BaseCell.prototype.bind = function(f) {
+                    return new BindedCell(this, f);
+                };
+                
+                BaseCell.prototype.raise = function(e) {
+                    this.dependants.forEach(function(d){ d.f(e); });
+                };
+            }
+        },
+        {
+            path: ["reactive", "cells", "BindedCell"],
+            content: function(root, expose) {
+                expose(BindedCell, function(){
+                    None = root.adt.maybe.None;
+                    Some = root.adt.maybe.Some;
+                    Cell = root.reactive.Cell;
+                    BaseCell = root.reactive.cells.BaseCell;
+                
+                    SetBindedPrototype();
+                });
+                
+                var None, Some, Cell, BaseCell;
+                
+                function empty() {}
+                
+                function BindedCell(source, f) {
+                    this.source = source;
+                    this.f = f;
+                    this.mapped = null;
+                    this.unmap = empty;
+                    BaseCell.apply(this);
+                }
+                
+                function SetBindedPrototype() {
+                    BindedCell.prototype = new BaseCell();
+                
+                    BindedCell.prototype.onEvent = function(f) {
+                        if (this.usersCount>0) {
+                            if (this.content.isEmpty()) {
+                                f(["unset"]);
+                            } else {
+                                f(["set", this.content.value()]);
+                            }
+                        }
+                        return BaseCell.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    BindedCell.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.source.use(this.cellId);
+                            this.unsource = this.source.onEvent(Cell.handler({
+                                set: function(value) {
+                                    this.unmap();
+                                    this.mapped = this.f(value);
+                                    if (this.source == this.mapped) {
+                                        throw new Error();
+                                    }
+                                    this.mapped.use(this.cellId);
+                                    var dispose = this.mapped.onEvent(Cell.handler({
+                                        set: function(value) {
+                                            this.content = new Some(value);
+                                            this.raise(["set", this.content.value()]);
+                                        }.bind(this),
+                                        unset: function() {
+                                            this.content = new None();
+                                            this.raise(["unset"]);
+                                        }.bind(this)
+                                    }));
+                                    this.unmap = function(){
+                                        dispose();
+                                        this.mapped.leave(this.cellId);
+                                        this.mapped = null;
+                                        this.unmap = empty;
+                                    }.bind(this);
+                                }.bind(this),
+                                unset: function(){
+                                    this.unmap();
+                                    this.content = new None();
+                                    this.raise(["unset"]);
+                                }.bind(this)
+                            }));
+                        }
+                    };
+                
+                    BindedCell.prototype.leave = function(id) {
+                        BaseCell.prototype.leave.apply(this, [id]);
+                        if (this.usersCount === 0) {
+                            this.unsource();
+                            this.unmap();
+                            this.unsource = null;
+                            this.source.leave(this.cellId);
+                        }
+                    };
+                
+                    BindedCell.prototype.unwrap = function() {
+                        var marker = {};
+                        var value = this.source.unwrap(marker);
+                        if (value !== marker) {
+                            var mapped = this.f(value);
+                            value = mapped.unwrap(marker);
+                            if (value !== marker) {
+                                return value;
+                            }
+                        }
+                        if (arguments.length === 0) throw new Error();
+                        return arguments[0];
+                    };
+                }
+            }
+        },
+        {
+            path: ["reactive", "cells", "CoalesceCell"],
+            content: function(root, expose) {
+                expose(CoalesceCell, function(){
+                    None = root.adt.maybe.None;
+                    Some = root.adt.maybe.Some;
+                    Cell = root.reactive.Cell;
+                    BaseCell = root.reactive.cells.BaseCell;
+                
+                    SetCoalescePrototype();
+                });
+                
+                var None, Some, Cell, BaseCell;
+                
+                function CoalesceCell(source, replace) {
+                    this.source = source;
+                    this.replace = replace;
+                    BaseCell.apply(this);
+                }
+                
+                function SetCoalescePrototype() {
+                    CoalesceCell.prototype = new BaseCell();
+                
+                    CoalesceCell.prototype.onEvent = function(f) {
+                        if (this.usersCount>0) {
+                            if (this.content.isEmpty()) {
+                                f(["set", this.replace]);
+                            } else {
+                                f(["set", this.content.value()]);
+                            }
+                        }
+                        return BaseCell.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    CoalesceCell.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.source.use(this.cellId);
+                            this.unsubscribe = this.source.onEvent(Cell.handler({
+                                set: function(value) {
+                                    this.content = new Some(value);
+                                    this.raise(["set", this.content.value()]);
+                                }.bind(this),
+                                unset: function(){
+                                    this.content = new Some(this.replace);
+                                    this.raise(["set", this.content.value()]);
+                                }.bind(this)
+                            }))
+                        }
+                    };
+                
+                    CoalesceCell.prototype.leave = function(id) {
+                        BaseCell.prototype.leave.apply(this, [id]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                            this.source.leave(this.cellId);
+                        }
+                    };
+                
+                    CoalesceCell.prototype.unwrap = function() {
+                        return this.source.unwrap(this.replace);
+                    };
+                }
             }
         },
         {
@@ -634,10 +772,85 @@ var rere = (function(){
                             return arguments[0];
                         }
                     };
+                }
+            }
+        },
+        {
+            path: ["reactive", "cells", "WhenCell"],
+            content: function(root, expose) {
+                expose(WhenCell, function(){
+                    None = root.adt.maybe.None;
+                    Some = root.adt.maybe.Some;
+                    Cell = root.reactive.Cell;
+                    BaseCell = root.reactive.cells.BaseCell;
                 
-                    // Specific
-                    LiftedCell.prototype.raise = function(e) {
-                        this.dependants.forEach(function(d){ d.f(e); });
+                    SetWhenPrototype();
+                });
+                
+                var None, Some, Cell, BaseCell;
+                
+                function WhenCell(source, condition, transform) {
+                    this.source = source;
+                    this.condition = condition;
+                    this.transform = transform;
+                    BaseCell.apply(this);
+                }
+                
+                function SetWhenPrototype() {
+                    WhenCell.prototype = new BaseCell();
+                
+                    WhenCell.prototype.onEvent = function(f) {
+                        if (this.usersCount>0) {
+                            if (this.content.isEmpty()) {
+                                f(["unset"]);
+                            } else {
+                                f(["set", this.content.value()]);
+                            }
+                        }
+                        return BaseCell.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    WhenCell.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.source.use(this.cellId);
+                            this.unsubscribe = this.source.onEvent(Cell.handler({
+                                set: function(value) {
+                                    if (this.condition(value)) {
+                                        this.content = new Some(this.transform(value));
+                                        this.raise(["set", this.content.value()]);
+                                    } else {
+                                        this.content = new None();
+                                        this.raise(["unset"]);
+                                    }
+                                }.bind(this),
+                                unset: function(){
+                                    this.content = new None();
+                                    this.raise(["unset"]);
+                                }.bind(this)
+                            }))
+                        }
+                    };
+                
+                    WhenCell.prototype.leave = function(id) {
+                        BaseCell.prototype.leave.apply(this, [id]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                            this.source.leave(this.cellId);
+                        }
+                    };
+                
+                    WhenCell.prototype.unwrap = function() {
+                        var marker = {};
+                        var value = this.source.unwrap(marker);
+                        if (value !== marker) {
+                            if (this.condition(value)) {
+                                return this.transform(value);
+                            }
+                        }
+                        if (arguments.length === 0) throw new Error();
+                        return arguments[0];
                     };
                 }
             }
@@ -645,197 +858,21 @@ var rere = (function(){
         {
             path: ["reactive", "List"],
             content: function(root, expose) {
-                expose(List);
+                expose(List, function(){
+                    BaseList = root.reactive.lists.BaseList;
+                    Cell = root.reactive.Cell;
                 
-                var listId = 0;
+                    SetListPrototype();
+                });
+                
+                var BaseList, Cell;
                 
                 function List(data) {
-                    var self = this;
-                    var elementId = 0;
+                    this._elementId = 0;
+                    this._count = new Cell(0);
+                    BaseList.apply(this);
                 
-                    this.type = List;
-                
-                    this.handlers   = [];
-                    this.handlersId = 0;
-                    this.data = [];
-                    this.id = listId++;
-                    var count = new root.reactive.Cell(0);
-                
-                
-                    this.initReducer = function(reducer) {
-                        var subscribes = {};
-                        this.subscribe(List.handler({
-                            data: function(e) {
-                                for (var i=0;i < e.length;i++) {
-                                    subscribes[e[i].key] = reducer.add(e[i].value);
-                                }
-                            },
-                            add: function(e) {
-                                subscribes[e.key] = reducer.add(e.value);
-                            },
-                            remove: function(e) {
-                                if (e in subscribes) {
-                                    subscribes[e]();
-                                    delete subscribes[e];
-                                }
-                            }
-                        }));
-                    };
-                
-                    this.reduceGroup = function(group, opt) {
-                        if (!opt) opt = {};
-                        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                
-                        var counter = new root.reactive.algebra.Sigma(group, opt.wrap, opt.unwrap);
-                        this.initReducer(counter);
-                        return counter.value;
-                    };
-                
-                    this.reduceMonoid = function(monoid, opt) {
-                        if (!opt) opt = {};
-                        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                        if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                
-                        var counter = new root.reactive.algebra.ReduceTree(monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                        this.initReducer(counter);
-                        return counter.value;
-                    };
-                
-                    this.reduce = function(identity, add, opt) {
-                        return this.reduceMonoid({
-                            identity: function() {return identity; },
-                            add: add
-                        }, opt);
-                    };
-                
-                    this.count = function() {
-                        if (arguments.length===0) return count;
-                
-                        var predicate = arguments[0];
-                
-                        return this.lift(function(x){
-                            x = predicate(x);
-                            if (typeof x === "object" && x.type === Cell) {
-                                return x.lift(function(x) { return bool_to(x, 1, 0); });
-                            }
-                            return bool_to(x, 1, 0);
-                        }).reduceGroup({
-                            identity: function() { return 0; },
-                            add: function(x,y) { return x+y; },
-                            invert: function(x) { return -x; }
-                        });
-                    };
-                
-                    this.all = function(predicate) {
-                        return this.lift(predicate).reduceGroup({
-                            identity: function() { return [0,0]; },
-                            add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
-                            invert: function(x) { return [-x[0],-x[1]]; }
-                        },{
-                            wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
-                            unwrap: function(x) { return x[0]==x[1]; }
-                        });
-                    };
-                
-                    this.forEach = function(callback) {
-                        for(var i=0;i<this.data.length;i++) {
-                            callback(this.data[i].value);
-                        }
-                    };
-                
-                    function bool_to(x, t, f) {
-                        if (x === true) return t;
-                        if (x === false) return f;
-                        throw new Error();
-                    }
-                
-                    this.setData = function(data) {
-                        var length = this.data.length;
-                        this.data = data.map(function(item){
-                            return {
-                                key: elementId++,
-                                value: item
-                            }
-                        });
-                        if (length!=this.data.length) {
-                            count.set(this.data.length);
-                        }
-                        for (var i=0; i<this.handlers.length; i++) {
-                            this.handlers[i].f([
-                                "data",
-                                this.data.slice()
-                            ]);
-                        }
-                    };
-                
-                    this.remove = function(key) {
-                        var removed = false;
-                        var length = this.data.length;
-                        this.data = this.data.filter(function(item){
-                            return item.key != key;
-                        });
-                        if (length!=this.data.length) {
-                            count.set(this.data.length);
-                            removed = true;
-                        }
-                        for (var i=0;i<this.handlers.length;i++) {
-                            this.handlers[i].f(["remove", key]);
-                        }
-                        return removed;
-                    };
-                
-                    this.removeWhich = function(f) {
-                        this.data.filter(function(item) {
-                            return f(item.value);
-                        }).forEach(function(item){
-                            this.remove(item.key);
-                        }.bind(this));
-                    };
-                
-                    this.add = function(f) {
-                        if (typeof(f) != "function") throw new Error();
-                        var key = elementId++;
-                        var e = {key: key, value: f(key)};
-                        this.data.push(e);
-                        count.set(this.data.length);
-                        for (var i=0;i<this.handlers.length;i++) {
-                            this.handlers[i].f(["add", e]);
-                        }
-                    };
-                
-                    this.addKeyValue = function(key, value) {
-                        var e = {key: key, value: value};
-                        this.data.push(e);
-                        count.set(this.data.length);
-                        for (var i=0;i<this.handlers.length;i++) {
-                            this.handlers[i].f(["add", e]);
-                        }
-                    };
-                
-                    this.lift = function(f) {
-                        var nova = new List([]);
-                        this.subscribe(List.handler({
-                            data: function(e) { nova.setData(e.map(function(i){ return f(i.value); })); },
-                            add: function(e) { nova.addKeyValue(e.key, f(e.value)); },
-                            remove: function(e) { nova.remove(e); }
-                        }));
-                        return nova;
-                    };
-                
-                    this.subscribe = function(f) {
-                        var id = this.handlersId++;
-                        this.handlers.push({key: id, f:f});
-                        f(["data", this.data.slice()]);
-                        return function() {
-                            self.handlers = self.handlers.filter(function(handler) {
-                                return handler.key!=id;
-                            });
-                        }
-                    };
-                
-                    this.setData(data);
+                    this.setData(data ? data : []);
                 }
                 
                 List.handler = function(handlers) {
@@ -849,6 +886,424 @@ var rere = (function(){
                         handlers[e[0]].call(handlers, e[1]);
                     };
                 };
+                
+                function SetListPrototype() {
+                    List.prototype = new BaseList();
+                
+                    List.prototype.setData = function(data) {
+                        var length = this.data.length;
+                        this.data = data.map(function(item){
+                            return {
+                                key: this._elementId++,
+                                value: item
+                            }
+                        }.bind(this));
+                        if (length!=this.data.length) {
+                            this._count.set(this.data.length);
+                        }
+                        this.raise(["data", this.data.slice()]);
+                    };
+                
+                    List.prototype.onEvent = function(f) {
+                        f(["data", this.data.slice()]);
+                        return BaseList.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    List.prototype.unwrap = function() {
+                        return this.data.map(function(item){
+                            return item.value;
+                        });
+                    };
+                
+                    List.prototype.add = function(f) {
+                        if (typeof(f) != "function") {
+                            var item = f;
+                            f = function(id) { return item; };
+                        }
+                        var key = this._elementId++;
+                        var e = {key: key, value: f(key)};
+                        this.data.push(e);
+                        this._count.set(this.data.length);
+                        this.raise(["add", e]);
+                        return key;
+                    };
+                
+                    List.prototype.remove = function(key) {
+                        var removed = false;
+                        var length = this.data.length;
+                        this.data = this.data.filter(function(item){
+                            return item.key != key;
+                        });
+                        if (length!=this.data.length) {
+                            this._count.set(this.data.length);
+                            removed = true;
+                        }
+                        this.raise(["remove", key]);
+                        return removed;
+                    };
+                
+                    List.prototype.removeWhich = function(f) {
+                        this.data.filter(function(item) {
+                            return f(item.value);
+                        }).forEach(function(item){
+                            this.remove(item.key);
+                        }.bind(this));
+                    };
+                
+                    List.prototype.forEach = function(callback) {
+                        for(var i=0;i<this.data.length;i++) {
+                            callback(this.data[i].value);
+                        }
+                    };
+                
+                    List.prototype.count = function() {
+                        if (arguments.length===0) return this._count;
+                        return BaseList.prototype.count(arguments[0]);
+                    };
+                }
+                
+            }
+        },
+        {
+            path: ["reactive", "lists", "BaseList"],
+            content: function(root, expose) {
+                expose(BaseList, function() {
+                    List = root.reactive.List;
+                    Sigma = root.reactive.algebra.Sigma;
+                    ReduceTree = root.reactive.algebra.ReduceTree;
+                    GroupReducedList = root.reactive.lists.GroupReducedList;
+                    LiftedList = root.reactive.lists.LiftedList;
+                });
+                
+                var List, Sigma, ReduceTree, LiftedList, GroupReducedList;
+                
+                function BaseList() {
+                    this.listId = root.idgenerator();
+                    this.type = List;
+                    this.dependantsId = 0;
+                    this.dependants = [];
+                    this.users = {};
+                    this.usersCount = 0;
+                    this.data = [];
+                }
+                
+                BaseList.prototype.onEvent = function(f) {
+                    var id = this.dependantsId++;
+                    this.dependants.push({key: id, f:f});
+                    return function() {
+                        this.dependants = this.dependants.filter(function(dependant) {
+                            return dependant.key!=id;
+                        });
+                    }.bind(this);
+                };
+                
+                BaseList.prototype.raise = function(e) {
+                    this.dependants.forEach(function(d){ d.f(e); });
+                };
+                
+                BaseList.prototype.use = function(id) {
+                    if (!this.users.hasOwnProperty(id)) {
+                        this.users[id] = 0;
+                    }
+                    this.users[id]++;
+                    this.usersCount++;
+                };
+                
+                BaseList.prototype.leave = function(id) {
+                    if (!this.users.hasOwnProperty(id)) {
+                        throw new Error();
+                    }
+                    if (this.users[id]===0) {
+                        throw new Error();
+                    }
+                    this.users[id]--;
+                    this.usersCount--;
+                    if (this.users[id]===0) {
+                        delete this.users[id];
+                    }
+                };
+                
+                BaseList.prototype.unwrap = function(f) {
+                    throw new Error("Not implemented");
+                };
+                
+                BaseList.prototype.lift = function(f) {
+                    return new LiftedList(this, f);
+                };
+                
+                
+                
+                
+                BaseList.prototype.reduceGroup = function(group, opt) {
+                    if (!opt) opt = {};
+                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                
+                    return new GroupReducedList(this, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                };
+                
+                BaseList.prototype.reduceMonoid = function(monoid, opt) {
+                    if (!opt) opt = {};
+                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                
+                    var counter = new ReduceTree(monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                    initReducer(this, counter);
+                    return counter.value;
+                };
+                
+                BaseList.prototype.reduce = function(identity, add, opt) {
+                    return this.reduceMonoid({
+                        identity: function() {return identity; },
+                        add: add
+                    }, opt);
+                };
+                
+                BaseList.prototype.all = function(predicate) {
+                    return this.lift(predicate).reduceGroup({
+                        identity: function() { return [0,0]; },
+                        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+                        invert: function(x) { return [-x[0],-x[1]]; }
+                    },{
+                        wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
+                        unwrap: function(x) { return x[0]==x[1]; }
+                    });
+                };
+                
+                BaseList.prototype.count = function() {
+                    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+                
+                    return this.lift(function(x){
+                        x = predicate(x);
+                        if (typeof x === "object" && x.type === Cell) {
+                            return x.lift(function(x) { return bool_to(x, 1, 0); });
+                        }
+                        return bool_to(x, 1, 0);
+                    }).reduceGroup({
+                        identity: function() { return 0; },
+                        add: function(x,y) { return x+y; },
+                        invert: function(x) { return -x; }
+                    });
+                };
+                
+                
+                function initReducer(list, reducer) {
+                    var subscribes = {};
+                    list.onEvent(List.handler({
+                        data: function(e) {
+                            for (var i=0;i < e.length;i++) {
+                                subscribes[e[i].key] = reducer.add(e[i].value);
+                            }
+                        },
+                        add: function(e) {
+                            subscribes[e.key] = reducer.add(e.value);
+                        },
+                        remove: function(e) {
+                            if (e in subscribes) {
+                                subscribes[e]();
+                                delete subscribes[e];
+                            }
+                        }
+                    }));
+                }
+                
+                function bool_to(x, t, f) {
+                    if (x === true) return t;
+                    if (x === false) return f;
+                    throw new Error();
+                }
+                
+                
+            }
+        },
+        {
+            path: ["reactive", "lists", "GroupReducedList"],
+            content: function(root, expose) {
+                expose(GroupReducedList, function(){
+                    None = root.adt.maybe.None;
+                    Some = root.adt.maybe.Some;
+                    Cell = root.reactive.Cell;
+                    List = root.reactive.List;
+                    BaseCell = root.reactive.cells.BaseCell;
+                    Sigma = root.reactive.algebra.Sigma;
+                
+                
+                    SetPrototype();
+                });
+                
+                var None, Some, Cell, BaseCell, Sigma, List;
+                
+                function GroupReducedList(list, group, wrap, unwrap, ignoreUnset) {
+                    BaseCell.apply(this);
+                    this.list = list;
+                    this.sigma = new Sigma(this.cellId, group, wrap, ignoreUnset);
+                    this.sigma.set = function(value) {
+                        if (this.usersCount===0) throw new Error();
+                        this.content = new Some(this._unwrap(value));
+                        this._raise();
+                    }.bind(this);
+                    this.sigma.unset = function() {
+                        if (this.usersCount===0) throw new Error();
+                        this.content = new None();
+                        this._raise();
+                    }.bind(this);
+                    this._group = group;
+                    this._unwrap = unwrap;
+                    this._wrap = wrap;
+                    this._ignoreUnset = ignoreUnset;
+                }
+                
+                function SetPrototype() {
+                    GroupReducedList.prototype = new BaseCell();
+                
+                    GroupReducedList.prototype._raise = function() {
+                        if (this.content.isEmpty()) {
+                            this.raise(["unset"]);
+                        } else {
+                            this.raise(["set", this.content.value()]);
+                        }
+                    };
+                
+                    GroupReducedList.prototype.onEvent = function(f) {
+                        if (this.usersCount>0) {
+                            if (this.content.isEmpty()) {
+                                f(["unset"]);
+                            } else {
+                                f(["set", this.content.value()]);
+                            }
+                        }
+                        return BaseCell.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    GroupReducedList.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.list.use(this.cellId);
+                            this.unsubscribe = this.list.onEvent(List.handler({
+                                data: function(data) {
+                                    this.sigma.dispose();
+                                    this.sigma.init(data);
+                                }.bind(this),
+                                add: function(item) {
+                                    this.sigma.add(item.key, item.value);
+                                }.bind(this),
+                                remove: function(key) {
+                                    this.sigma.remove(key);
+                                }.bind(this)
+                            }))
+                        }
+                    };
+                
+                    GroupReducedList.prototype.leave = function(id) {
+                        BaseCell.prototype.leave.apply(this, [id]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                            this.sigma.dispose();
+                            this.list.leave(this.cellId);
+                        }
+                    };
+                
+                    GroupReducedList.prototype.unwrap = function() {
+                        var blocked = false;
+                        var data = this.list.unwrap().map(function(value){
+                            if (typeof value === "object" && value.type === Cell) {
+                                var marker = {};
+                                value = value.unwrap(marker);
+                                if (marker===value) {
+                                    blocked = true;
+                                    return this._group.identity();
+                                }
+                                return value;
+                            }
+                            return value;
+                        }.bind(this));
+                        if (!this._ignoreUnset && blocked) {
+                            if (arguments.length === 0) throw new Error();
+                            return arguments[0];
+                        }
+                        
+                        var sum = this._group.identity();
+                        data.forEach(function(item){
+                            sum = this._group.add(sum, this._wrap(item));
+                        }.bind(this));
+                        return this._unwrap(sum);
+                    };
+                }
+                
+            }
+        },
+        {
+            path: ["reactive", "lists", "LiftedList"],
+            content: function(root, expose) {
+                expose(LiftedList, function(){
+                    BaseList = root.reactive.lists.BaseList;
+                    List = root.reactive.List;
+                
+                    SetLiftedPrototype();
+                });
+                
+                var BaseList, List;
+                
+                function LiftedList(source, f) {
+                    this.source = source;
+                    this.f = f;
+                    BaseList.apply(this);
+                }
+                
+                function SetLiftedPrototype() {
+                    LiftedList.prototype = new BaseList();
+                
+                    LiftedList.prototype.onEvent = function(f) {
+                        if (this.usersCount>0) {
+                            f(["data", this.data.slice()])
+                        }
+                        return BaseList.prototype.onEvent.apply(this, [f]);
+                    };
+                
+                    LiftedList.prototype.use = function(id) {
+                        BaseList.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.source.use(this.listId);
+                            this.unsubscribe = this.source.onEvent(List.handler({
+                                data: function(data) {
+                                    this.data = data.map(function(item){
+                                        return {key: item.key, value: this.f(item.value)};
+                                    }.bind(this));
+                                    this.raise(["data", this.data.slice()]);
+                                }.bind(this),
+                                add: function(item) {
+                                    item = {key: item.key, value: this.f(item.value)};
+                                    this.data.push(item);
+                                    this.raise(["add", item]);
+                                }.bind(this),
+                                remove: function(key){
+                                    this.data = this.data.filter(function(item){
+                                        return item.key != key;
+                                    });
+                                    this.raise(["remove", key]);
+                                }.bind(this)
+                            }))
+                        }
+                    };
+                
+                    LiftedList.prototype.leave = function(id) {
+                        BaseList.prototype.leave.apply(this, [id]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                            this.source.leave(this.listId);
+                        }
+                    };
+                
+                    LiftedList.prototype.unwrap = function() {
+                        return this.source.unwrap().map(function(item){
+                            return this.f(item);
+                        }.bind(this));
+                    };
+                }
             }
         },
         {

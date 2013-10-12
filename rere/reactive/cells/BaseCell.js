@@ -1,11 +1,16 @@
 expose(BaseCell, function() {
     LiftedCell = root.reactive.cells.LiftedCell;
+    CoalesceCell = root.reactive.cells.CoalesceCell;
+    WhenCell = root.reactive.cells.WhenCell;
+    BindedCell = root.reactive.cells.BindedCell;
+    Cell = root.reactive.Cell;
 });
 
-var LiftedCell;
+var LiftedCell, CoalesceCell, WhenCell, BindedCell, Cell;
 
 function BaseCell() {
     this.cellId = root.idgenerator();
+    this.type = Cell;
     this.dependantsId = 0;
     this.dependants = [];
     this.content = null;
@@ -52,4 +57,26 @@ BaseCell.prototype.unwrap = function() {
 
 BaseCell.prototype.lift = function(f) {
     return new LiftedCell(this, f);
+};
+
+BaseCell.prototype.coalesce = function(replace) {
+    return new CoalesceCell(this, replace);
+};
+
+BaseCell.prototype.when = function(condition, transform) {
+    var test = typeof condition === "function" ? condition : function(value) {
+        return value === condition;
+    };
+
+    var map = typeof transform === "function" ? transform : function() { return transform; };
+
+    return new WhenCell(test, map);
+};
+
+BaseCell.prototype.bind = function(f) {
+    return new BindedCell(this, f);
+};
+
+BaseCell.prototype.raise = function(e) {
+    this.dependants.forEach(function(d){ d.f(e); });
 };

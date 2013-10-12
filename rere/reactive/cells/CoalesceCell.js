@@ -1,27 +1,27 @@
-expose(LiftedCell, function(){
+expose(CoalesceCell, function(){
     None = root.adt.maybe.None;
     Some = root.adt.maybe.Some;
     Cell = root.reactive.Cell;
     BaseCell = root.reactive.cells.BaseCell;
 
-    SetLiftedPrototype();
+    SetCoalescePrototype();
 });
 
 var None, Some, Cell, BaseCell;
 
-function LiftedCell(source, f) {
+function CoalesceCell(source, replace) {
     this.source = source;
-    this.f = f;
+    this.replace = replace;
     BaseCell.apply(this);
 }
 
-function SetLiftedPrototype() {
-    LiftedCell.prototype = new BaseCell();
+function SetCoalescePrototype() {
+    CoalesceCell.prototype = new BaseCell();
 
-    LiftedCell.prototype.onEvent = function(f) {
+    CoalesceCell.prototype.onEvent = function(f) {
         if (this.usersCount>0) {
             if (this.content.isEmpty()) {
-                f(["unset"]);
+                f(["set", this.replace]);
             } else {
                 f(["set", this.content.value()]);
             }
@@ -29,24 +29,24 @@ function SetLiftedPrototype() {
         return BaseCell.prototype.onEvent.apply(this, [f]);
     };
 
-    LiftedCell.prototype.use = function(id) {
+    CoalesceCell.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {
             this.source.use(this.cellId);
             this.unsubscribe = this.source.onEvent(Cell.handler({
                 set: function(value) {
-                    this.content = new Some(this.f(value));
+                    this.content = new Some(value);
                     this.raise(["set", this.content.value()]);
                 }.bind(this),
                 unset: function(){
-                    this.content = new None();
-                    this.raise(["unset"]);
+                    this.content = new Some(this.replace);
+                    this.raise(["set", this.content.value()]);
                 }.bind(this)
             }))
         }
     };
 
-    LiftedCell.prototype.leave = function(id) {
+    CoalesceCell.prototype.leave = function(id) {
         BaseCell.prototype.leave.apply(this, [id]);
         if (this.usersCount === 0) {
             this.unsubscribe();
@@ -55,14 +55,7 @@ function SetLiftedPrototype() {
         }
     };
 
-    LiftedCell.prototype.unwrap = function() {
-        var marker = {};
-        var value = this.source.unwrap(marker);
-        if (value !== marker) {
-            return this.f(value);
-        } else {
-            if (arguments.length === 0) throw new Error();
-            return arguments[0];
-        }
+    CoalesceCell.prototype.unwrap = function() {
+        return this.source.unwrap(this.replace);
     };
 }
