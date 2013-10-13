@@ -128,8 +128,77 @@ function ReducerTests(reduce) {
         test.equal(sink.unwrap(-1), 1);
         test.done();
     };
-    
-    this.blickUnsetUnwrap = function(test){
+
+    this.reduceImperfectDataCheckUnset = function(test) {
+        test.expect(3);
+
+        var cell1 = new Cell(1);
+        var cell2 = new Cell();
+        var list = new List([cell1, cell2]);
+        var sum = reduce(list);
+        var sink = new EventSink(sum);
+        test.equal(sink.changes, 0);
+
+        sum.use(idgenerator());
+        test.equal(sink.changes, 1);
+        test.equal(sink.unwrap(-1), -1);
+
+        test.done();
+    };
+
+    this.doubleUnsetEvent = function(test){
+        test.expect(7);
+        var cell1 = new Cell(1);
+        var cell2 = new Cell(2);
+        var list = new List([cell1, cell2]);
+        var sum = reduce(list);
+        var sink = new EventSink(sum);
+        test.equal(sink.changes, 0);
+
+        sum.use(idgenerator());
+        test.equal(sink.unwrap(-1), 3);
+        test.equal(sink.changes, 1);
+
+        cell1.unset();
+        test.equal(sink.unwrap(-1), -1);
+        test.equal(sink.changes, 2);
+
+        cell2.unset();
+        test.equal(sink.unwrap(-1), -1);
+        test.equal(sink.changes, 2);
+
+        test.done();
+    };
+
+    this.reverseBlinkUnsetUnwrap = function(test){
+        test.expect(2);
+        var cell = new Cell(2);
+        var list = new List([new Cell(1), cell]);
+        var sum = reduce(list, {ignoreUnset: true});
+        test.equal(sum.unwrap(-1), 3);
+        cell.unset();
+        test.equal(sum.unwrap(-1), 1);
+        test.done();
+    };
+
+    this.reverseBlinkUnsetEvent = function(test){
+        test.expect(3);
+        var cell = new Cell(2);
+        var list = new List([new Cell(1), cell]);
+        var sum = reduce(list, {ignoreUnset: true});
+        var sink = new EventSink(sum);
+        test.equal(sink.changes, 0);
+
+        sum.use(idgenerator());
+        test.equal(sink.unwrap(-1), 3);
+
+        cell.unset();
+        test.equal(sink.unwrap(-1), 1);
+
+        test.done();
+    };
+
+    this.blinkUnsetUnwrap = function(test){
         test.expect(2);
         var cell = new Cell();
         var list = new List([new Cell(1), cell]);
@@ -140,7 +209,7 @@ function ReducerTests(reduce) {
         test.done();
     };
     
-    this.blickUnsetEvent = function(test){
+    this.blinkUnsetEvent = function(test){
         test.expect(3);
         var cell = new Cell();
         var list = new List([new Cell(1), cell]);
@@ -156,7 +225,7 @@ function ReducerTests(reduce) {
         test.done();
     };
     
-    this.blickUnwrap = function(test){
+    this.blinkUnwrap = function(test){
         test.expect(2);
         var cell = new Cell(2);
         var list = new List([new Cell(1), cell]);
@@ -167,7 +236,7 @@ function ReducerTests(reduce) {
         test.done();
     };
     
-    this.blickEvent = function(test){
+    this.blinkEvent = function(test){
         test.expect(3);
         var cell = new Cell(2);
         var list = new List([new Cell(1), cell]);

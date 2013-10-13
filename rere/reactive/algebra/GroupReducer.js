@@ -40,8 +40,9 @@ Sigma.prototype.addCell = function(key, value) {
                 if (!isBlocked) {
                     isBlocked = true;
                     this.blocks++;
-                    // TODO: double unset
-                    this._unset();
+                    if (this.blocks===1) {
+                        this._unset();
+                    }
                 }
             }
         }.bind(this)

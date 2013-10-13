@@ -32,10 +32,11 @@ ReduceTree.prototype.addCell = function(key, value) {
                 tryUpdateValue(this);
             } else {
                 if (!isBlocked) {
-                    // TODO: double unset
                     isBlocked = true;
                     this.blocks++;
-                    this._unset();
+                    if (this.blocks===1) {
+                        this._unset();
+                    }
                 }
             }
         }.bind(this)

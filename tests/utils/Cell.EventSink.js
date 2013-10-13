@@ -11,9 +11,11 @@ function EventSink(cell) {
     cell.onEvent(Cell.handler({
         set: function(value) {
             this.event = [value];
+            this.changes++;
         }.bind(this),
         unset: function() {
             this.event = [];
+            this.changes++;
         }.bind(this)
     }));
 }

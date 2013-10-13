@@ -31,9 +31,10 @@ function init(data) {
         this.add(item.key, item.value);
     }.bind(this));
     this._ignoreSetUnset = false;
-    // TODO: call unset
     if (this.blocks===0) {
-        this._set(this);
+        this._set();
+    } else {
+        this._unset()
     }
 }
 

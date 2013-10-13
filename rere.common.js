@@ -91,8 +91,9 @@ var rere = (function(){
                                 if (!isBlocked) {
                                     isBlocked = true;
                                     this.blocks++;
-                                    // TODO: double unset
-                                    this._unset();
+                                    if (this.blocks===1) {
+                                        this._unset();
+                                    }
                                 }
                             }
                         }.bind(this)
@@ -180,10 +181,11 @@ var rere = (function(){
                                 tryUpdateValue(this);
                             } else {
                                 if (!isBlocked) {
-                                    // TODO: double unset
                                     isBlocked = true;
                                     this.blocks++;
-                                    this._unset();
+                                    if (this.blocks===1) {
+                                        this._unset();
+                                    }
                                 }
                             }
                         }.bind(this)
@@ -370,9 +372,10 @@ var rere = (function(){
                         this.add(item.key, item.value);
                     }.bind(this));
                     this._ignoreSetUnset = false;
-                    // TODO: call unset
                     if (this.blocks===0) {
-                        this._set(this);
+                        this._set();
+                    } else {
+                        this._unset()
                     }
                 }
                 
