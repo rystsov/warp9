@@ -11,6 +11,7 @@ expose({
     TextNode = root.ui.ast.TextNode;
     jq = root.ui.jq;
     hacks = root.ui.hacks;
+    idgenerator = root.idgenerator;
 
     addTag("div", root.ui.tags.TagParserFactory("div"));
     addTag("a", root.ui.tags.TagParserFactory("a"));
@@ -29,7 +30,7 @@ expose({
     addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
 });
 
-var Cell, List, Element, Fragment, TextNode, jq, hacks;
+var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;
 
 var tags = {};
 
@@ -78,7 +79,7 @@ function bindDomTo(place, dom) {
         return bindElementTo(place, dom);
     } else if (dom instanceof TextNode) {
         return bindElementTo(place, dom);
-    } else if (dom instanceof Cell) {
+    } else if (typeof dom==="object" && dom.type == Cell) {
         return bindCellTo(place, dom);
     }
     throw new Error();
@@ -100,8 +101,9 @@ function bindElementTo(place, element) {
         return hacks.once(function() {
             dispose.forEach(function(f){ f(); });
             jq.remove(html);
+            element.dispose();
         });
-    } else if (element.children instanceof List) {
+    } else if (typeof element.children==="object" && element.children.type == List) {
         var keyDispose = {};
         var stopChildren = function() {
             for (var key in keyDispose) {
@@ -110,7 +112,7 @@ function bindElementTo(place, element) {
             }
             keyDispose = {};
         };
-        var unsubscribe = element.children.subscribe(List.handler({
+        var unsubscribe = element.children.onEvent(List.handler({
             data: function(items) {
                 stopChildren();
                 items.forEach(this.add);
@@ -124,10 +126,14 @@ function bindElementTo(place, element) {
                 delete keyDispose[key];
             }
         }));
+        var id = idgenerator();
+        element.children.use(id);
         return hacks.once(function() {
             unsubscribe();
             stopChildren();
             jq.remove(html);
+            element.dispose();
+            element.children.leave(id);
         });
     }
     throw new Error();
@@ -141,7 +147,6 @@ function bindCellTo(place, cell) {
     place(mark);
 
     var clean = function() {};
-
     var unsubscribe = cell.onEvent([], Cell.handler({
         set: function(value) {
             clean();
@@ -152,9 +157,11 @@ function bindCellTo(place, cell) {
             clean = function() {};
         }
     }));
-
+    var id = idgenerator();
+    cell.use(id);
     return hacks.once(function() {
         unsubscribe();
-        clean()
+        clean();
+        cell.leave(id);
     });
 }

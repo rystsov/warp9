@@ -54,11 +54,16 @@ function Element(tag) {
                 if (property.indexOf("rere:")==0) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
-                        this.cells[value.id] = value;
-                        this.disposes.push(value.onEvent([], Cell.handler({
+                        this.cells[value.cellId] = value;
+                        var unsubscribe = value.onEvent([], Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
-                        })));
+                        }));
+                        value.use(this.elementId);
+                        this.disposes.push(function(){
+                            unsubscribe();
+                            value.leave(this.elementId);
+                        }.bind(this));
                     } else {
                         jq.css(view, property, value);
                     }
@@ -93,11 +98,16 @@ function Element(tag) {
 
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
-                self.cells[value.id] = value;
-                self.disposes.push(value.onEvent([], Cell.handler({
+                self.cells[value.cellId] = value;
+                var unsubscribe = value.onEvent([], Cell.handler({
                     set: template.set,
                     unset: template.unset
-                })));
+                }));
+                value.use(self.elementId);
+                self.disposes.push(function(){
+                    unsubscribe();
+                    value.leave(self.elementId);
+                }.bind(this));
             } else {
                 template.set(value);
             }
