@@ -4,29 +4,27 @@ expose(GroupReducedList, function(){
     Cell = root.reactive.Cell;
     List = root.reactive.List;
     BaseCell = root.reactive.cells.BaseCell;
-    Sigma = root.reactive.algebra.Sigma;
-
 
     SetPrototype();
 });
 
-var None, Some, Cell, BaseCell, Sigma, List;
+var None, Some, Cell, BaseCell, List;
 
-function GroupReducedList(list, group, wrap, unwrap, ignoreUnset) {
+function GroupReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
     BaseCell.apply(this);
     this.list = list;
-    this.sigma = new Sigma(this.cellId, group, wrap, ignoreUnset);
-    this.sigma.set = function(value) {
+    this.reducer = new Reducer(this.cellId, algebraicStructure, wrap, ignoreUnset);
+    this.reducer.set = function(value) {
         if (this.usersCount===0) throw new Error();
         this.content = new Some(this._unwrap(value));
         this.raise();
     }.bind(this);
-    this.sigma.unset = function() {
+    this.reducer.unset = function() {
         if (this.usersCount===0) throw new Error();
         this.content = new None();
         this.raise();
     }.bind(this);
-    this._group = group;
+    this._monoid = algebraicStructure;
     this._unwrap = unwrap;
     this._wrap = wrap;
     this._ignoreUnset = ignoreUnset;
@@ -41,14 +39,14 @@ function SetPrototype() {
             this.list.use(this.cellId);
             this.unsubscribe = this.list.onEvent(List.handler({
                 data: function(data) {
-                    this.sigma.dispose();
-                    this.sigma.init(data);
+                    this.reducer.dispose();
+                    this.reducer.init(data);
                 }.bind(this),
                 add: function(item) {
-                    this.sigma.add(item.key, item.value);
+                    this.reducer.add(item.key, item.value);
                 }.bind(this),
                 remove: function(key) {
-                    this.sigma.remove(key);
+                    this.reducer.remove(key);
                 }.bind(this)
             }))
         }
@@ -59,7 +57,7 @@ function SetPrototype() {
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
-            this.sigma.dispose();
+            this.reducer.dispose();
             this.list.leave(this.cellId);
         }
     };
@@ -72,7 +70,7 @@ function SetPrototype() {
                 value = value.unwrap(marker);
                 if (marker===value) {
                     blocked = true;
-                    return this._group.identity();
+                    return this._monoid.identity();
                 }
                 return value;
             }
@@ -83,9 +81,9 @@ function SetPrototype() {
             return arguments[0];
         }
         
-        var sum = this._group.identity();
+        var sum = this._monoid.identity();
         data.forEach(function(item){
-            sum = this._group.add(sum, this._wrap(item));
+            sum = this._monoid.add(sum, this._wrap(item));
         }.bind(this));
         return this._unwrap(sum);
     };

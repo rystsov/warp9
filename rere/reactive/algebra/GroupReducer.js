@@ -1,20 +1,10 @@
-expose(SigmaII, function() {
+expose(Sigma, function() {
     Cell = root.reactive.Cell;
 });
 
 var Cell;
 
-function set(sigma) {
-    if (sigma._ignoreSetUnset) return;
-    sigma.set(sigma.sum);
-}
-
-function unset(sigma) {
-    if (sigma._ignoreSetUnset) return;
-    sigma.unset();
-}
-
-function SigmaII(id, group, wrap, ignoreUnset) {
+function Sigma(id, group, wrap, ignoreUnset) {
     this.id = id;
     this.group = group;
     this.wrap = wrap;
@@ -23,15 +13,15 @@ function SigmaII(id, group, wrap, ignoreUnset) {
     this._ignoreSetUnset = false;
 }
 
-SigmaII.prototype.set = function(value) {
+Sigma.prototype.set = function(value) {
     throw new Error("Not implemented");
 };
 
-SigmaII.prototype.unset = function() {
+Sigma.prototype.unset = function() {
     throw new Error("Not implemented");
 };
 
-SigmaII.prototype.init = function(data) {
+Sigma.prototype.init = function(data) {
     if (this.inited) {
         throw new Error("Can't init object twice, to reset use 'dispose'")
     }
@@ -44,12 +34,13 @@ SigmaII.prototype.init = function(data) {
         this.add(item.key, item.value);
     }.bind(this));
     this._ignoreSetUnset = false;
+    // TODO: call unset
     if (this.blocks===0) {
         set(this);
     }
 };
 
-SigmaII.prototype.dispose = function() {
+Sigma.prototype.dispose = function() {
     if (!this.inited) return;
     this._ignoreSetUnset = true;
     for (var key in this.known) {
@@ -62,7 +53,7 @@ SigmaII.prototype.dispose = function() {
     if (this.blocks!=0) throw new Error();
 };
 
-SigmaII.prototype.remove = function(key) {
+Sigma.prototype.remove = function(key) {
     if (!this.inited) {
         throw new Error("Sigma is not inited");
     }
@@ -73,7 +64,7 @@ SigmaII.prototype.remove = function(key) {
     delete this.known[key];
 };
 
-SigmaII.prototype.add = function(key, value) {
+Sigma.prototype.add = function(key, value) {
     if (!this.inited) {
         throw new Error("Sigma is not inited");
     }
@@ -87,7 +78,7 @@ SigmaII.prototype.add = function(key, value) {
     }
 };
 
-SigmaII.prototype.addCell = function(key, value) {
+Sigma.prototype.addCell = function(key, value) {
     var last = null;
     var isBlocked = false;
     value.use(this.id);
@@ -116,6 +107,7 @@ SigmaII.prototype.addCell = function(key, value) {
                 if (!isBlocked) {
                     isBlocked = true;
                     this.blocks++;
+                    // TODO: double unset
                     unset(this);
                 }
             }
@@ -137,7 +129,7 @@ SigmaII.prototype.addCell = function(key, value) {
     }.bind(this);
 };
 
-SigmaII.prototype.addValue = function(key, value) {
+Sigma.prototype.addValue = function(key, value) {
     value = this.wrap(value);
     this.sum = this.group.add(this.sum, value);
     if (this.blocks===0) {
@@ -151,3 +143,12 @@ SigmaII.prototype.addValue = function(key, value) {
     }.bind(this);
 };
 
+function set(sigma) {
+    if (sigma._ignoreSetUnset) return;
+    sigma.set(sigma.sum);
+}
+
+function unset(sigma) {
+    if (sigma._ignoreSetUnset) return;
+    sigma.unset();
+}
