@@ -22,17 +22,6 @@ function BindedCell(source, f) {
 function SetBindedPrototype() {
     BindedCell.prototype = new BaseCell();
 
-    BindedCell.prototype.onEvent = function(f) {
-        if (this.usersCount>0) {
-            if (this.content.isEmpty()) {
-                f(["unset"]);
-            } else {
-                f(["set", this.content.value()]);
-            }
-        }
-        return BaseCell.prototype.onEvent.apply(this, [f]);
-    };
-
     BindedCell.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {

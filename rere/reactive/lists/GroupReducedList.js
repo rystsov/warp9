@@ -19,12 +19,12 @@ function GroupReducedList(list, group, wrap, unwrap, ignoreUnset) {
     this.sigma.set = function(value) {
         if (this.usersCount===0) throw new Error();
         this.content = new Some(this._unwrap(value));
-        this._raise();
+        this.raise();
     }.bind(this);
     this.sigma.unset = function() {
         if (this.usersCount===0) throw new Error();
         this.content = new None();
-        this._raise();
+        this.raise();
     }.bind(this);
     this._group = group;
     this._unwrap = unwrap;
@@ -34,25 +34,6 @@ function GroupReducedList(list, group, wrap, unwrap, ignoreUnset) {
 
 function SetPrototype() {
     GroupReducedList.prototype = new BaseCell();
-
-    GroupReducedList.prototype._raise = function() {
-        if (this.content.isEmpty()) {
-            this.raise(["unset"]);
-        } else {
-            this.raise(["set", this.content.value()]);
-        }
-    };
-
-    GroupReducedList.prototype.onEvent = function(f) {
-        if (this.usersCount>0) {
-            if (this.content.isEmpty()) {
-                f(["unset"]);
-            } else {
-                f(["set", this.content.value()]);
-            }
-        }
-        return BaseCell.prototype.onEvent.apply(this, [f]);
-    };
 
     GroupReducedList.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);

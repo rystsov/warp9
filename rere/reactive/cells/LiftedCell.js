@@ -18,17 +18,6 @@ function LiftedCell(source, f) {
 function SetLiftedPrototype() {
     LiftedCell.prototype = new BaseCell();
 
-    LiftedCell.prototype.onEvent = function(f) {
-        if (this.usersCount>0) {
-            if (this.content.isEmpty()) {
-                f(["unset"]);
-            } else {
-                f(["set", this.content.value()]);
-            }
-        }
-        return BaseCell.prototype.onEvent.apply(this, [f]);
-    };
-
     LiftedCell.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {

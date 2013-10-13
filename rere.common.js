@@ -472,6 +472,13 @@ var rere = (function(){
                 }
                 
                 BaseCell.prototype.onEvent = function(f) {
+                    if (this.usersCount>0) {
+                        if (this.content.isEmpty()) {
+                            f(["unset"]);
+                        } else {
+                            f(["set", this.content.value()]);
+                        }
+                    }
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
                     return function() {
@@ -530,6 +537,14 @@ var rere = (function(){
                 };
                 
                 BaseCell.prototype.raise = function(e) {
+                    if (arguments.length===0) {
+                        if (this.content.isEmpty()) {
+                            this.raise(["unset"]);
+                        } else {
+                            this.raise(["set", this.content.value()]);
+                        }
+                        return;
+                    }
                     this.dependants.forEach(function(d){ d.f(e); });
                 };
             }
@@ -560,17 +575,6 @@ var rere = (function(){
                 
                 function SetBindedPrototype() {
                     BindedCell.prototype = new BaseCell();
-                
-                    BindedCell.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            if (this.content.isEmpty()) {
-                                f(["unset"]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
                 
                     BindedCell.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
@@ -659,17 +663,6 @@ var rere = (function(){
                 function SetCoalescePrototype() {
                     CoalesceCell.prototype = new BaseCell();
                 
-                    CoalesceCell.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            if (this.content.isEmpty()) {
-                                f(["set", this.replace]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
-                
                     CoalesceCell.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
                         if (this.usersCount === 1) {
@@ -724,17 +717,6 @@ var rere = (function(){
                 
                 function SetLiftedPrototype() {
                     LiftedCell.prototype = new BaseCell();
-                
-                    LiftedCell.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            if (this.content.isEmpty()) {
-                                f(["unset"]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
                 
                     LiftedCell.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
@@ -798,17 +780,6 @@ var rere = (function(){
                 
                 function SetWhenPrototype() {
                     WhenCell.prototype = new BaseCell();
-                
-                    WhenCell.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            if (this.content.isEmpty()) {
-                                f(["unset"]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
                 
                     WhenCell.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
@@ -1142,12 +1113,12 @@ var rere = (function(){
                     this.sigma.set = function(value) {
                         if (this.usersCount===0) throw new Error();
                         this.content = new Some(this._unwrap(value));
-                        this._raise();
+                        this.raise();
                     }.bind(this);
                     this.sigma.unset = function() {
                         if (this.usersCount===0) throw new Error();
                         this.content = new None();
-                        this._raise();
+                        this.raise();
                     }.bind(this);
                     this._group = group;
                     this._unwrap = unwrap;
@@ -1158,24 +1129,13 @@ var rere = (function(){
                 function SetPrototype() {
                     GroupReducedList.prototype = new BaseCell();
                 
-                    GroupReducedList.prototype._raise = function() {
+                    /*GroupReducedList.prototype._raise = function() {
                         if (this.content.isEmpty()) {
                             this.raise(["unset"]);
                         } else {
                             this.raise(["set", this.content.value()]);
                         }
-                    };
-                
-                    GroupReducedList.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            if (this.content.isEmpty()) {
-                                f(["unset"]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
+                    };*/
                 
                     GroupReducedList.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);

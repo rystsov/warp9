@@ -20,6 +20,13 @@ function BaseCell() {
 }
 
 BaseCell.prototype.onEvent = function(f) {
+    if (this.usersCount>0) {
+        if (this.content.isEmpty()) {
+            f(["unset"]);
+        } else {
+            f(["set", this.content.value()]);
+        }
+    }
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
     return function() {
@@ -78,5 +85,13 @@ BaseCell.prototype.bind = function(f) {
 };
 
 BaseCell.prototype.raise = function(e) {
+    if (arguments.length===0) {
+        if (this.content.isEmpty()) {
+            this.raise(["unset"]);
+        } else {
+            this.raise(["set", this.content.value()]);
+        }
+        return;
+    }
     this.dependants.forEach(function(d){ d.f(e); });
 };
