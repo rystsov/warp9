@@ -51,83 +51,16 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(Sigma, function() {
                     Cell = root.reactive.Cell;
+                    Reducer = root.reactive.algebra.Reducer;
                 });
                 
-                var Cell;
+                var Cell, Reducer;
                 
                 function Sigma(id, group, wrap, ignoreUnset) {
-                    this.id = id;
+                    Reducer.apply(this, [id, wrap, ignoreUnset]);
+                
                     this.group = group;
-                    this.wrap = wrap;
-                    this.inited = false;
-                    this.ignoreUnset = ignoreUnset;
-                    this._ignoreSetUnset = false;
                 }
-                
-                Sigma.prototype.set = function(value) {
-                    throw new Error("Not implemented");
-                };
-                
-                Sigma.prototype.unset = function() {
-                    throw new Error("Not implemented");
-                };
-                
-                Sigma.prototype.init = function(data) {
-                    if (this.inited) {
-                        throw new Error("Can't init object twice, to reset use 'dispose'")
-                    }
-                    this.inited = true;
-                    this._ignoreSetUnset = true;
-                    this.known = {};
-                    this.sum = this.group.identity();
-                    this.blocks = 0;
-                    if (data) data.forEach(function(item){
-                        this.add(item.key, item.value);
-                    }.bind(this));
-                    this._ignoreSetUnset = false;
-                    // TODO: call unset
-                    if (this.blocks===0) {
-                        set(this);
-                    }
-                };
-                
-                Sigma.prototype.dispose = function() {
-                    if (!this.inited) return;
-                    this._ignoreSetUnset = true;
-                    for (var key in this.known) {
-                        if (!this.known.hasOwnProperty(key)) continue;
-                        this.known[key]();
-                    }
-                    this._ignoreSetUnset = false;
-                    this.inited = false;
-                    this.known = {};
-                    if (this.blocks!=0) throw new Error();
-                };
-                
-                Sigma.prototype.remove = function(key) {
-                    if (!this.inited) {
-                        throw new Error("Sigma is not inited");
-                    }
-                    if (!this.known.hasOwnProperty(key)) {
-                        throw new Error("Trying to delete unknown key: " + key);
-                    }
-                    this.known[key]();
-                    delete this.known[key];
-                };
-                
-                Sigma.prototype.add = function(key, value) {
-                    if (!this.inited) {
-                        throw new Error("Sigma is not inited");
-                    }
-                    if (this.known.hasOwnProperty(key)) {
-                        throw new Error("Trying to add a already known key: " + key);
-                    }
-                    if (typeof value === "object" && value.type === Cell) {
-                        this.addCell(key, value);
-                    } else {
-                        this.addValue(key, value);
-                    }
-                };
                 
                 Sigma.prototype.addCell = function(key, value) {
                     var last = null;
@@ -145,7 +78,7 @@ var rere = (function(){
                             last = { value: this.wrap(value) };
                             this.sum = this.group.add(this.sum, last.value);
                             if (this.ignoreUnset || this.blocks==0) {
-                                set(this);
+                                this._set();
                             }
                         }.bind(this),
                         unset: function() {
@@ -153,13 +86,13 @@ var rere = (function(){
                                 if (last==null) return;
                                 this.sum = this.group.add(this.sum, this.group.invert(last.value));
                                 last = null;
-                                set(this);
+                                this._set();
                             } else {
                                 if (!isBlocked) {
                                     isBlocked = true;
                                     this.blocks++;
                                     // TODO: double unset
-                                    unset(this);
+                                    this._unset();
                                 }
                             }
                         }.bind(this)
@@ -175,7 +108,7 @@ var rere = (function(){
                             this.blocks--;
                         }
                         if (this.blocks==0) {
-                            set(this);
+                            this._set();
                         }
                     }.bind(this);
                 };
@@ -184,25 +117,30 @@ var rere = (function(){
                     value = this.wrap(value);
                     this.sum = this.group.add(this.sum, value);
                     if (this.blocks===0) {
-                        set(this);
+                        this._set();
                     }
                     this.known[key] = function(){
                         this.sum = this.group.add(this.sum, this.group.invert(value));
                         if (this.blocks===0) {
-                            set(this);
+                            this._set();
                         }
                     }.bind(this);
                 };
                 
-                function set(sigma) {
-                    if (sigma._ignoreSetUnset) return;
-                    sigma.set(sigma.sum);
-                }
                 
-                function unset(sigma) {
-                    if (sigma._ignoreSetUnset) return;
-                    sigma.unset();
-                }
+                Sigma.prototype._set = function() {
+                    if (this._ignoreSetUnset) return;
+                    this.set(this.sum);
+                };
+                
+                Sigma.prototype._unset = function() {
+                    if (this._ignoreSetUnset) return;
+                    this.unset();
+                };
+                
+                Sigma.prototype._setIdentity = function() {
+                    this.sum = this.group.identity();
+                };
             }
         },
         {
@@ -212,7 +150,6 @@ var rere = (function(){
                     Cell = root.reactive.Cell;
                     MonoidTree = root.reactive.algebra.MonoidTree;
                     Reducer = root.reactive.algebra.Reducer;
-                    SetPrototype();
                 });
                 
                 var Cell, MonoidTree, Reducer;
@@ -225,122 +162,69 @@ var rere = (function(){
                     this.monoid = monoid;
                 }
                 
-                function SetPrototype() {
-                    ReduceTree.prototype.set = function(value) {
-                        throw new Error("Not implemented");
-                    };
-                
-                    ReduceTree.prototype.unset = function() {
-                        throw new Error("Not implemented");
-                    };
-                
-                    ReduceTree.prototype.init = function(data) {
-                        if (this.inited) {
-                            throw new Error("Can't init object twice, to reset use 'dispose'")
-                        }
-                        this.inited = true;
-                        this._ignoreSetUnset = true;
-                        this.known = {};
-                        this.root = null;
-                        this.blocks = 0;
-                        if (data) data.forEach(function(item){
-                            this.add(item.key, item.value);
-                        }.bind(this));
-                        this._ignoreSetUnset = false;
-                        // TODO: call unset
-                        if (this.blocks===0) {
-                            set(this);
-                        }
-                    };
-                
-                    ReduceTree.prototype.dispose = function() {
-                        if (!this.inited) return;
-                        this._ignoreSetUnset = true;
-                        for (var key in this.known) {
-                            if (!this.known.hasOwnProperty(key)) continue;
-                            this.known[key]();
-                        }
-                        this._ignoreSetUnset = false;
-                        this.inited = false;
-                        this.known = {};
-                        if (this.blocks!=0) throw new Error();
-                    };
-                
-                    ReduceTree.prototype.remove = function(key) {
-                        if (!this.inited) {
-                            throw new Error("ReduceTree is not inited");
-                        }
-                        if (!this.known.hasOwnProperty(key)) {
-                            throw new Error("Trying to delete unknown key: " + key);
-                        }
-                        this.known[key]();
-                        delete this.known[key];
-                    };
-                
-                    ReduceTree.prototype.add = function(key, value) {
-                        if (!this.inited) {
-                            throw new Error("ReduceTree is not inited");
-                        }
-                        if (this.known.hasOwnProperty(key)) {
-                            throw new Error("Trying to add a already known key: " + key);
-                        }
-                        if (typeof value === "object" && value.type === Cell) {
-                            this.addCell(key, value);
-                        } else {
-                            this.addValue(key, value);
-                        }
-                    };
-                
-                    // Internals
-                
-                    ReduceTree.prototype.addValue = function(key, value) {
-                        upsertNode(this, key, value);
-                        tryUpdateValue(this);
-                
-                        this.known[key] = function() {
-                            removeNode(this, key);
-                            tryUpdateValue(this);
-                        }.bind(this);
-                    };
-                
-                    ReduceTree.prototype.addCell = function(key, value) {
-                        var isBlocked = false;
-                        value.use(this.id);
-                        var unsubscribe = value.onEvent(Cell.handler({
-                            set: function(value) {
-                                if (isBlocked) {
-                                    this.blocks--;
-                                    isBlocked = false;
-                                }
-                                upsertNode(this, key, value);
-                                tryUpdateValue(this);
-                            }.bind(this),
-                            unset: function() {
-                                if (this.ignoreUnset) {
-                                    upsertNode(this, key, this.monoid.identity());
-                                    tryUpdateValue(this);
-                                } else {
-                                    if (!isBlocked) {
-                                        // TODO: double unset
-                                        isBlocked = true;
-                                        this.blocks++;
-                                        unset(this);
-                                    }
-                                }
-                            }.bind(this)
-                        }));
-                
-                        this.known[key] = function() {
-                            unsubscribe();
-                            value.leave(this.id);
-                            removeNode(this, key);
+                ReduceTree.prototype.addCell = function(key, value) {
+                    var isBlocked = false;
+                    value.use(this.id);
+                    var unsubscribe = value.onEvent(Cell.handler({
+                        set: function(value) {
                             if (isBlocked) {
                                 this.blocks--;
+                                isBlocked = false;
                             }
+                            upsertNode(this, key, value);
                             tryUpdateValue(this);
-                        }.bind(this);
-                    };
-                }
+                        }.bind(this),
+                        unset: function() {
+                            if (this.ignoreUnset) {
+                                upsertNode(this, key, this.monoid.identity());
+                                tryUpdateValue(this);
+                            } else {
+                                if (!isBlocked) {
+                                    // TODO: double unset
+                                    isBlocked = true;
+                                    this.blocks++;
+                                    this._unset();
+                                }
+                            }
+                        }.bind(this)
+                    }));
+                
+                    this.known[key] = function() {
+                        unsubscribe();
+                        value.leave(this.id);
+                        removeNode(this, key);
+                        if (isBlocked) {
+                            this.blocks--;
+                        }
+                        tryUpdateValue(this);
+                    }.bind(this);
+                };
+                
+                ReduceTree.prototype.addValue = function(key, value) {
+                    upsertNode(this, key, value);
+                    tryUpdateValue(this);
+                
+                    this.known[key] = function() {
+                        removeNode(this, key);
+                        tryUpdateValue(this);
+                    }.bind(this);
+                };
+                
+                
+                ReduceTree.prototype._set = function() {
+                    if (this._ignoreSetUnset) return;
+                    this.set(this.root==null ? this.monoid.identity() : this.root.value);
+                };
+                
+                ReduceTree.prototype._unset = function() {
+                    if (this._ignoreSetUnset) return;
+                    this.unset();
+                };
+                
+                ReduceTree.prototype._setIdentity = function() {
+                    this.root = null;
+                };
+                
                 
                 function upsertNode(tree, key, value) {
                     value = tree.wrap(value);
@@ -370,18 +254,8 @@ var rere = (function(){
                 
                 function tryUpdateValue(tree) {
                     if (tree.ignoreUnset || tree.blocks === 0) {
-                        set(tree);
+                        tree._set();
                     }
-                }
-                
-                function set(tree) {
-                    if (tree._ignoreSetUnset) return;
-                    tree.set(tree.root==null ? tree.monoid.identity() : tree.root.value);
-                }
-                
-                function unset(tree) {
-                    if (tree._ignoreSetUnset) return;
-                    tree.unset();
                 }
                 
                 function s(node) {
@@ -476,27 +350,69 @@ var rere = (function(){
                     this.wrap = wrap;
                     this.ignoreUnset = ignoreUnset;
                     this._ignoreSetUnset = false;
+                
+                    this.init = init;
+                    this.dispose = dispose;
+                    this.remove = remove;
+                    this.add = add;
                 }
                 
-                function ReduceTree(id, monoid, wrap, ignoreUnset) {
-                
-                
-                    this.keyToIndex = {};
-                    this.indexToKey = [];
-                    this.monoid = monoid;
+                function init(data) {
+                    if (this.inited) {
+                        throw new Error("Can't init object twice, to reset use 'dispose'")
+                    }
+                    this.inited = true;
+                    this._ignoreSetUnset = true;
+                    this.known = {};
+                    this._setIdentity();
+                    this.blocks = 0;
+                    if (data) data.forEach(function(item){
+                        this.add(item.key, item.value);
+                    }.bind(this));
+                    this._ignoreSetUnset = false;
+                    // TODO: call unset
+                    if (this.blocks===0) {
+                        this._set(this);
+                    }
                 }
                 
-                function Sigma(id, group, wrap, ignoreUnset) {
-                    this.id = id;
+                function dispose() {
+                    if (!this.inited) return;
+                    this._ignoreSetUnset = true;
+                    for (var key in this.known) {
+                        if (!this.known.hasOwnProperty(key)) continue;
+                        this.known[key]();
+                    }
+                    this._ignoreSetUnset = false;
                     this.inited = false;
                     this.known = {};
-                    this.wrap = wrap;
-                    this.ignoreUnset = ignoreUnset;
-                    this._ignoreSetUnset = false;
-                
-                    this.group = group;
+                    if (this.blocks!=0) throw new Error();
                 }
                 
+                function remove(key) {
+                    if (!this.inited) {
+                        throw new Error("Reducer is not inited");
+                    }
+                    if (!this.known.hasOwnProperty(key)) {
+                        throw new Error("Trying to delete unknown key: " + key);
+                    }
+                    this.known[key]();
+                    delete this.known[key];
+                }
+                
+                function add(key, value) {
+                    if (!this.inited) {
+                        throw new Error("Reducer is not inited");
+                    }
+                    if (this.known.hasOwnProperty(key)) {
+                        throw new Error("Trying to add a already known key: " + key);
+                    }
+                    if (typeof value === "object" && value.type === Cell) {
+                        this.addCell(key, value);
+                    } else {
+                        this.addValue(key, value);
+                    }
+                };
             }
         },
         {

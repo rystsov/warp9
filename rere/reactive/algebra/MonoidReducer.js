@@ -2,7 +2,6 @@ expose(ReduceTree, function(){
     Cell = root.reactive.Cell;
     MonoidTree = root.reactive.algebra.MonoidTree;
     Reducer = root.reactive.algebra.Reducer;
-    SetPrototype();
 });
 
 var Cell, MonoidTree, Reducer;
@@ -15,122 +14,69 @@ function ReduceTree(id, monoid, wrap, ignoreUnset) {
     this.monoid = monoid;
 }
 
-function SetPrototype() {
-    ReduceTree.prototype.set = function(value) {
-        throw new Error("Not implemented");
-    };
-
-    ReduceTree.prototype.unset = function() {
-        throw new Error("Not implemented");
-    };
-
-    ReduceTree.prototype.init = function(data) {
-        if (this.inited) {
-            throw new Error("Can't init object twice, to reset use 'dispose'")
-        }
-        this.inited = true;
-        this._ignoreSetUnset = true;
-        this.known = {};
-        this.root = null;
-        this.blocks = 0;
-        if (data) data.forEach(function(item){
-            this.add(item.key, item.value);
-        }.bind(this));
-        this._ignoreSetUnset = false;
-        // TODO: call unset
-        if (this.blocks===0) {
-            set(this);
-        }
-    };
-
-    ReduceTree.prototype.dispose = function() {
-        if (!this.inited) return;
-        this._ignoreSetUnset = true;
-        for (var key in this.known) {
-            if (!this.known.hasOwnProperty(key)) continue;
-            this.known[key]();
-        }
-        this._ignoreSetUnset = false;
-        this.inited = false;
-        this.known = {};
-        if (this.blocks!=0) throw new Error();
-    };
-
-    ReduceTree.prototype.remove = function(key) {
-        if (!this.inited) {
-            throw new Error("ReduceTree is not inited");
-        }
-        if (!this.known.hasOwnProperty(key)) {
-            throw new Error("Trying to delete unknown key: " + key);
-        }
-        this.known[key]();
-        delete this.known[key];
-    };
-
-    ReduceTree.prototype.add = function(key, value) {
-        if (!this.inited) {
-            throw new Error("ReduceTree is not inited");
-        }
-        if (this.known.hasOwnProperty(key)) {
-            throw new Error("Trying to add a already known key: " + key);
-        }
-        if (typeof value === "object" && value.type === Cell) {
-            this.addCell(key, value);
-        } else {
-            this.addValue(key, value);
-        }
-    };
-
-    // Internals
-
-    ReduceTree.prototype.addValue = function(key, value) {
-        upsertNode(this, key, value);
-        tryUpdateValue(this);
-
-        this.known[key] = function() {
-            removeNode(this, key);
-            tryUpdateValue(this);
-        }.bind(this);
-    };
-
-    ReduceTree.prototype.addCell = function(key, value) {
-        var isBlocked = false;
-        value.use(this.id);
-        var unsubscribe = value.onEvent(Cell.handler({
-            set: function(value) {
-                if (isBlocked) {
-                    this.blocks--;
-                    isBlocked = false;
-                }
-                upsertNode(this, key, value);
-                tryUpdateValue(this);
-            }.bind(this),
-            unset: function() {
-                if (this.ignoreUnset) {
-                    upsertNode(this, key, this.monoid.identity());
-                    tryUpdateValue(this);
-                } else {
-                    if (!isBlocked) {
-                        // TODO: double unset
-                        isBlocked = true;
-                        this.blocks++;
-                        unset(this);
-                    }
-                }
-            }.bind(this)
-        }));
-
-        this.known[key] = function() {
-            unsubscribe();
-            value.leave(this.id);
-            removeNode(this, key);
+ReduceTree.prototype.addCell = function(key, value) {
+    var isBlocked = false;
+    value.use(this.id);
+    var unsubscribe = value.onEvent(Cell.handler({
+        set: function(value) {
             if (isBlocked) {
                 this.blocks--;
+                isBlocked = false;
             }
+            upsertNode(this, key, value);
             tryUpdateValue(this);
-        }.bind(this);
-    };
-}
+        }.bind(this),
+        unset: function() {
+            if (this.ignoreUnset) {
+                upsertNode(this, key, this.monoid.identity());
+                tryUpdateValue(this);
+            } else {
+                if (!isBlocked) {
+                    // TODO: double unset
+                    isBlocked = true;
+                    this.blocks++;
+                    this._unset();
+                }
+            }
+        }.bind(this)
+    }));
+
+    this.known[key] = function() {
+        unsubscribe();
+        value.leave(this.id);
+        removeNode(this, key);
+        if (isBlocked) {
+            this.blocks--;
+        }
+        tryUpdateValue(this);
+    }.bind(this);
+};
+
+ReduceTree.prototype.addValue = function(key, value) {
+    upsertNode(this, key, value);
+    tryUpdateValue(this);
+
+    this.known[key] = function() {
+        removeNode(this, key);
+        tryUpdateValue(this);
+    }.bind(this);
+};
+
+
+ReduceTree.prototype._set = function() {
+    if (this._ignoreSetUnset) return;
+    this.set(this.root==null ? this.monoid.identity() : this.root.value);
+};
+
+ReduceTree.prototype._unset = function() {
+    if (this._ignoreSetUnset) return;
+    this.unset();
+};
+
+ReduceTree.prototype._setIdentity = function() {
+    this.root = null;
+};
+
 
 function upsertNode(tree, key, value) {
     value = tree.wrap(value);
@@ -160,18 +106,8 @@ function removeNode(tree, key) {
 
 function tryUpdateValue(tree) {
     if (tree.ignoreUnset || tree.blocks === 0) {
-        set(tree);
+        tree._set();
     }
-}
-
-function set(tree) {
-    if (tree._ignoreSetUnset) return;
-    tree.set(tree.root==null ? tree.monoid.identity() : tree.root.value);
-}
-
-function unset(tree) {
-    if (tree._ignoreSetUnset) return;
-    tree.unset();
 }
 
 function s(node) {
