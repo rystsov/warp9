@@ -1,7 +1,33 @@
-/**
- * Created with IntelliJ IDEA.
- * User: drystsov
- * Date: 10/13/13
- * Time: 4:45 PM
- * To change this template use File | Settings | File Templates.
- */
+expose(Reducer, function(){
+    Cell = root.reactive.Cell;
+});
+
+var Cell;
+
+function Reducer(id, wrap, ignoreUnset) {
+    this.id = id;
+    this.inited = false;
+    this.known = {};
+    this.wrap = wrap;
+    this.ignoreUnset = ignoreUnset;
+    this._ignoreSetUnset = false;
+}
+
+function ReduceTree(id, monoid, wrap, ignoreUnset) {
+
+
+    this.keyToIndex = {};
+    this.indexToKey = [];
+    this.monoid = monoid;
+}
+
+function Sigma(id, group, wrap, ignoreUnset) {
+    this.id = id;
+    this.inited = false;
+    this.known = {};
+    this.wrap = wrap;
+    this.ignoreUnset = ignoreUnset;
+    this._ignoreSetUnset = false;
+
+    this.group = group;
+}

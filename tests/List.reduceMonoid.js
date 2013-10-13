@@ -11,6 +11,4 @@ var tests = new ReduceTests(function(list, opt){
     return list.reduceMonoid(new Summer());
 });
 
-module.exports = {
-    subscribeUnused: tests.subscribeUnused
-};
+module.exports = tests;

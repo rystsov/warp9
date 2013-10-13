@@ -1,12 +1,12 @@
 expose(BaseList, function() {
     List = root.reactive.List;
-    Sigma = root.reactive.algebra.Sigma;
-    ReduceTree = root.reactive.algebra.ReduceTree;
-    GroupReducedList = root.reactive.lists.GroupReducedList;
+    GroupReducer = root.reactive.algebra.GroupReducer;
+    MonoidReducer = root.reactive.algebra.MonoidReducer;
+    ReducedList = root.reactive.lists.ReducedList;
     LiftedList = root.reactive.lists.LiftedList;
 });
 
-var List, Sigma, ReduceTree, LiftedList, GroupReducedList;
+var List, Sigma, ReduceTree, LiftedList, ReducedList;
 
 function BaseList() {
     this.listId = root.idgenerator();
@@ -71,7 +71,7 @@ BaseList.prototype.reduceGroup = function(group, opt) {
     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
-    return new GroupReducedList(this, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
 
 BaseList.prototype.reduceMonoid = function(monoid, opt) {
@@ -80,9 +80,7 @@ BaseList.prototype.reduceMonoid = function(monoid, opt) {
     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
-    var counter = new ReduceTree(monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-    initReducer(this, counter);
-    return counter.value;
+    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
 
 BaseList.prototype.reduce = function(identity, add, opt) {

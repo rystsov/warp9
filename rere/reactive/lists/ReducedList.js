@@ -1,4 +1,4 @@
-expose(GroupReducedList, function(){
+expose(ReducedList, function(){
     None = root.adt.maybe.None;
     Some = root.adt.maybe.Some;
     Cell = root.reactive.Cell;
@@ -10,7 +10,7 @@ expose(GroupReducedList, function(){
 
 var None, Some, Cell, BaseCell, List;
 
-function GroupReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
+function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
     BaseCell.apply(this);
     this.list = list;
     this.reducer = new Reducer(this.cellId, algebraicStructure, wrap, ignoreUnset);
@@ -31,9 +31,9 @@ function GroupReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignor
 }
 
 function SetPrototype() {
-    GroupReducedList.prototype = new BaseCell();
+    ReducedList.prototype = new BaseCell();
 
-    GroupReducedList.prototype.use = function(id) {
+    ReducedList.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {
             this.list.use(this.cellId);
@@ -52,7 +52,7 @@ function SetPrototype() {
         }
     };
 
-    GroupReducedList.prototype.leave = function(id) {
+    ReducedList.prototype.leave = function(id) {
         BaseCell.prototype.leave.apply(this, [id]);
         if (this.usersCount === 0) {
             this.unsubscribe();
@@ -62,7 +62,7 @@ function SetPrototype() {
         }
     };
 
-    GroupReducedList.prototype.unwrap = function() {
+    ReducedList.prototype.unwrap = function() {
         var blocked = false;
         var data = this.list.unwrap().map(function(value){
             if (typeof value === "object" && value.type === Cell) {
