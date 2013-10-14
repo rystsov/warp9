@@ -9,10 +9,11 @@ expose(WhenCell, function(){
 
 var None, Some, Cell, BaseCell;
 
-function WhenCell(source, condition, transform) {
+function WhenCell(source, opt) {
     this.source = source;
-    this.condition = condition;
-    this.transform = transform;
+    this.condition = opt.condition;
+    this.transform = opt.transform;
+    this.alternative = opt.hasOwnProperty("alternative") ? new Some(opt.alternative) : new None();
     BaseCell.apply(this);
 }
 
@@ -28,6 +29,8 @@ function SetWhenPrototype() {
                     if (this.condition(value)) {
                         this.content = new Some(this.transform(value));
                         this.raise(["set", this.content.value()]);
+                    } else if (!this.alternative.isEmpty()) {
+                        this.raise(["set", this.alternative.value()]);
                     } else {
                         this.content = new None();
                         this.raise(["unset"]);

@@ -4,9 +4,10 @@ expose(BaseList, function() {
     MonoidReducer = root.reactive.algebra.MonoidReducer;
     ReducedList = root.reactive.lists.ReducedList;
     LiftedList = root.reactive.lists.LiftedList;
+    Cell = root.reactive.Cell;
 });
 
-var List, Sigma, ReduceTree, LiftedList, ReducedList;
+var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
 
 function BaseList() {
     this.listId = root.idgenerator();

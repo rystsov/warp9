@@ -7,9 +7,10 @@ expose(List, function(){
 
 var BaseList, Cell;
 
+// TODO: subscribe during add consistency
+
 function List(data) {
     this._elementId = 0;
-    this._count = new Cell(0);
     BaseList.apply(this);
 
     this.setData(data ? data : []);
@@ -31,16 +32,12 @@ function SetListPrototype() {
     List.prototype = new BaseList();
 
     List.prototype.setData = function(data) {
-        var length = this.data.length;
         this.data = data.map(function(item){
             return {
                 key: this._elementId++,
                 value: item
             }
         }.bind(this));
-        if (length!=this.data.length) {
-            this._count.set(this.data.length);
-        }
         this.raise(["data", this.data.slice()]);
     };
 
@@ -62,9 +59,8 @@ function SetListPrototype() {
         }
         var key = this._elementId++;
         var e = {key: key, value: f(key)};
-        this.data.push(e);
-        this._count.set(this.data.length);
         this.raise(["add", e]);
+        this.data.push(e);
         return key;
     };
 
@@ -75,7 +71,6 @@ function SetListPrototype() {
             return item.key != key;
         });
         if (length!=this.data.length) {
-            this._count.set(this.data.length);
             removed = true;
         }
         this.raise(["remove", key]);
@@ -94,10 +89,5 @@ function SetListPrototype() {
         for(var i=0;i<this.data.length;i++) {
             callback(this.data[i].value);
         }
-    };
-
-    List.prototype.count = function() {
-        if (arguments.length===0) return this._count;
-        return BaseList.prototype.count(arguments[0]);
     };
 }

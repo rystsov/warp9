@@ -19,6 +19,16 @@ function BaseCell() {
     this.usersCount = 0;
 }
 
+BaseCell.prototype.fix = function() {
+    this.use(this.cellId);
+    return this;
+};
+
+BaseCell.prototype.unfix = function() {
+    this.leave(this.cellId);
+    return this;
+};
+
 BaseCell.prototype.onEvent = function(f) {
     if (this.usersCount>0) {
         if (this.content.isEmpty()) {
@@ -34,6 +44,13 @@ BaseCell.prototype.onEvent = function(f) {
             return dependant.key!=id;
         });
     }.bind(this);
+};
+
+BaseCell.prototype.onSet = function(f) {
+    return this.onEvent(Cell.handler({
+        set: f,
+        unset:  function() {}
+    }));
 };
 
 BaseCell.prototype.use = function(id) {
@@ -77,7 +94,16 @@ BaseCell.prototype.when = function(condition, transform) {
 
     var map = typeof transform === "function" ? transform : function() { return transform; };
 
-    return new WhenCell(test, map);
+    var opt = {
+        condition: test,
+        transform: map
+    };
+
+    if (arguments.length==3) {
+        opt.alternative = arguments[2];
+    }
+
+    return new WhenCell(this, opt);
 };
 
 BaseCell.prototype.bind = function(f) {

@@ -24,7 +24,7 @@
         }.bind(todos);
 
         JSON.parse(localStorage.getItem(STORAGE_ID) || '[]').forEach(todos.addTodo);
-        rere.reactive.utils.unwrapObject(todos).subscribe(function(todos){
+        rere.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
             localStorage.setItem(STORAGE_ID, JSON.stringify(todos));
         });
 

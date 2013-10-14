@@ -512,6 +512,16 @@ var rere = (function(){
                     this.usersCount = 0;
                 }
                 
+                BaseCell.prototype.fix = function() {
+                    this.use(this.cellId);
+                    return this;
+                };
+                
+                BaseCell.prototype.unfix = function() {
+                    this.leave(this.cellId);
+                    return this;
+                };
+                
                 BaseCell.prototype.onEvent = function(f) {
                     if (this.usersCount>0) {
                         if (this.content.isEmpty()) {
@@ -527,6 +537,13 @@ var rere = (function(){
                             return dependant.key!=id;
                         });
                     }.bind(this);
+                };
+                
+                BaseCell.prototype.onSet = function(f) {
+                    return this.onEvent(Cell.handler({
+                        set: f,
+                        unset:  function() {}
+                    }));
                 };
                 
                 BaseCell.prototype.use = function(id) {
@@ -570,7 +587,16 @@ var rere = (function(){
                 
                     var map = typeof transform === "function" ? transform : function() { return transform; };
                 
-                    return new WhenCell(test, map);
+                    var opt = {
+                        condition: test,
+                        transform: map
+                    };
+                
+                    if (arguments.length==3) {
+                        opt.alternative = arguments[2];
+                    }
+                
+                    return new WhenCell(this, opt);
                 };
                 
                 BaseCell.prototype.bind = function(f) {
@@ -812,10 +838,11 @@ var rere = (function(){
                 
                 var None, Some, Cell, BaseCell;
                 
-                function WhenCell(source, condition, transform) {
+                function WhenCell(source, opt) {
                     this.source = source;
-                    this.condition = condition;
-                    this.transform = transform;
+                    this.condition = opt.condition;
+                    this.transform = opt.transform;
+                    this.alternative = opt.hasOwnProperty("alternative") ? new Some(opt.alternative) : new None();
                     BaseCell.apply(this);
                 }
                 
@@ -831,6 +858,8 @@ var rere = (function(){
                                     if (this.condition(value)) {
                                         this.content = new Some(this.transform(value));
                                         this.raise(["set", this.content.value()]);
+                                    } else if (!this.alternative.isEmpty()) {
+                                        this.raise(["set", this.alternative.value()]);
                                     } else {
                                         this.content = new None();
                                         this.raise(["unset"]);
@@ -879,9 +908,10 @@ var rere = (function(){
                 
                 var BaseList, Cell;
                 
+                // TODO: subscribe during add consistency
+                
                 function List(data) {
                     this._elementId = 0;
-                    this._count = new Cell(0);
                     BaseList.apply(this);
                 
                     this.setData(data ? data : []);
@@ -903,16 +933,12 @@ var rere = (function(){
                     List.prototype = new BaseList();
                 
                     List.prototype.setData = function(data) {
-                        var length = this.data.length;
                         this.data = data.map(function(item){
                             return {
                                 key: this._elementId++,
                                 value: item
                             }
                         }.bind(this));
-                        if (length!=this.data.length) {
-                            this._count.set(this.data.length);
-                        }
                         this.raise(["data", this.data.slice()]);
                     };
                 
@@ -934,9 +960,8 @@ var rere = (function(){
                         }
                         var key = this._elementId++;
                         var e = {key: key, value: f(key)};
-                        this.data.push(e);
-                        this._count.set(this.data.length);
                         this.raise(["add", e]);
+                        this.data.push(e);
                         return key;
                     };
                 
@@ -947,7 +972,6 @@ var rere = (function(){
                             return item.key != key;
                         });
                         if (length!=this.data.length) {
-                            this._count.set(this.data.length);
                             removed = true;
                         }
                         this.raise(["remove", key]);
@@ -967,11 +991,6 @@ var rere = (function(){
                             callback(this.data[i].value);
                         }
                     };
-                
-                    List.prototype.count = function() {
-                        if (arguments.length===0) return this._count;
-                        return BaseList.prototype.count(arguments[0]);
-                    };
                 }
                 
             }
@@ -985,9 +1004,10 @@ var rere = (function(){
                     MonoidReducer = root.reactive.algebra.MonoidReducer;
                     ReducedList = root.reactive.lists.ReducedList;
                     LiftedList = root.reactive.lists.LiftedList;
+                    Cell = root.reactive.Cell;
                 });
                 
-                var List, Sigma, ReduceTree, LiftedList, ReducedList;
+                var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
                 
                 function BaseList() {
                     this.listId = root.idgenerator();
@@ -1235,6 +1255,8 @@ var rere = (function(){
                 }
                 
                 function SetPrototype() {
+                    var useCall = 0;
+                
                     ReducedList.prototype = new BaseCell();
                 
                     ReducedList.prototype.use = function(id) {
@@ -1413,11 +1435,16 @@ var rere = (function(){
                                 if (property.indexOf("rere:")==0) continue;
                                 (function(property, value){
                                     if (typeof value==="object" && value.type == Cell) {
-                                        this.cells[value.id] = value;
-                                        this.disposes.push(value.onEvent([], Cell.handler({
+                                        this.cells[value.cellId] = value;
+                                        var unsubscribe = value.onEvent(Cell.handler({
                                             set: function(e) { jq.css(view, property, e); },
                                             unset: function() { jq.css(view, property, null); }
-                                        })));
+                                        }));
+                                        value.use(this.elementId);
+                                        this.disposes.push(function(){
+                                            unsubscribe();
+                                            value.leave(this.elementId);
+                                        }.bind(this));
                                     } else {
                                         jq.css(view, property, value);
                                     }
@@ -1452,11 +1479,16 @@ var rere = (function(){
                 
                         function wrapRv(value, template) {
                             if (typeof value==="object" && value.type == Cell) {
-                                self.cells[value.id] = value;
-                                self.disposes.push(value.onEvent([], Cell.handler({
+                                self.cells[value.cellId] = value;
+                                var unsubscribe = value.onEvent(Cell.handler({
                                     set: template.set,
                                     unset: template.unset
-                                })));
+                                }));
+                                value.use(self.elementId);
+                                self.disposes.push(function(){
+                                    unsubscribe();
+                                    value.leave(self.elementId);
+                                }.bind(this));
                             } else {
                                 template.set(value);
                             }
@@ -1673,6 +1705,7 @@ var rere = (function(){
                     TextNode = root.ui.ast.TextNode;
                     jq = root.ui.jq;
                     hacks = root.ui.hacks;
+                    idgenerator = root.idgenerator;
                 
                     addTag("div", root.ui.tags.TagParserFactory("div"));
                     addTag("a", root.ui.tags.TagParserFactory("a"));
@@ -1691,7 +1724,7 @@ var rere = (function(){
                     addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
                 });
                 
-                var Cell, List, Element, Fragment, TextNode, jq, hacks;
+                var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;
                 
                 var tags = {};
                 
@@ -1740,7 +1773,7 @@ var rere = (function(){
                         return bindElementTo(place, dom);
                     } else if (dom instanceof TextNode) {
                         return bindElementTo(place, dom);
-                    } else if (dom instanceof Cell) {
+                    } else if (typeof dom==="object" && dom.type == Cell) {
                         return bindCellTo(place, dom);
                     }
                     throw new Error();
@@ -1762,8 +1795,9 @@ var rere = (function(){
                         return hacks.once(function() {
                             dispose.forEach(function(f){ f(); });
                             jq.remove(html);
+                            element.dispose();
                         });
-                    } else if (element.children instanceof List) {
+                    } else if (typeof element.children==="object" && element.children.type == List) {
                         var keyDispose = {};
                         var stopChildren = function() {
                             for (var key in keyDispose) {
@@ -1772,7 +1806,7 @@ var rere = (function(){
                             }
                             keyDispose = {};
                         };
-                        var unsubscribe = element.children.subscribe(List.handler({
+                        var unsubscribe = element.children.onEvent(List.handler({
                             data: function(items) {
                                 stopChildren();
                                 items.forEach(this.add);
@@ -1786,10 +1820,14 @@ var rere = (function(){
                                 delete keyDispose[key];
                             }
                         }));
+                        var id = idgenerator();
+                        element.children.use(id);
                         return hacks.once(function() {
                             unsubscribe();
                             stopChildren();
                             jq.remove(html);
+                            element.dispose();
+                            element.children.leave(id);
                         });
                     }
                     throw new Error();
@@ -1803,8 +1841,7 @@ var rere = (function(){
                     place(mark);
                 
                     var clean = function() {};
-                
-                    var unsubscribe = cell.onEvent([], Cell.handler({
+                    var unsubscribe = cell.onEvent(Cell.handler({
                         set: function(value) {
                             clean();
                             clean = bindDomTo(placeAfterMark, value);
@@ -1814,10 +1851,12 @@ var rere = (function(){
                             clean = function() {};
                         }
                     }));
-                
+                    var id = idgenerator();
+                    cell.use(id);
                     return hacks.once(function() {
                         unsubscribe();
-                        clean()
+                        clean();
+                        cell.leave(id);
                     });
                 }
             }
@@ -1931,7 +1970,7 @@ var rere = (function(){
                         for (var i in args.children) {
                             var child = args.children[i];
                             child = root.ui.renderer.parse(child);
-                            if (child instanceof List) {
+                            if (typeof child==="object" && child.type == List) {
                                 hasCollection = true;
                             }
                             element.children.push(child);

@@ -31,6 +31,8 @@ function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnse
 }
 
 function SetPrototype() {
+    var useCall = 0;
+
     ReducedList.prototype = new BaseCell();
 
     ReducedList.prototype.use = function(id) {

@@ -147,7 +147,7 @@ function bindCellTo(place, cell) {
     place(mark);
 
     var clean = function() {};
-    var unsubscribe = cell.onEvent([], Cell.handler({
+    var unsubscribe = cell.onEvent(Cell.handler({
         set: function(value) {
             clean();
             clean = bindDomTo(placeAfterMark, value);

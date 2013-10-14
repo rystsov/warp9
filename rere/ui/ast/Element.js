@@ -55,7 +55,7 @@ function Element(tag) {
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
                         this.cells[value.cellId] = value;
-                        var unsubscribe = value.onEvent([], Cell.handler({
+                        var unsubscribe = value.onEvent(Cell.handler({
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
                         }));
@@ -99,7 +99,7 @@ function Element(tag) {
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
                 self.cells[value.cellId] = value;
-                var unsubscribe = value.onEvent([], Cell.handler({
+                var unsubscribe = value.onEvent(Cell.handler({
                     set: template.set,
                     unset: template.unset
                 }));

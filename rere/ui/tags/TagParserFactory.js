@@ -16,7 +16,7 @@ function TagParserFactory(tagName) {
         for (var i in args.children) {
             var child = args.children[i];
             child = root.ui.renderer.parse(child);
-            if (child instanceof List) {
+            if (typeof child==="object" && child.type == List) {
                 hasCollection = true;
             }
             element.children.push(child);
