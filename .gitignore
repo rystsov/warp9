@@ -3,3 +3,5 @@ rerejs.iml
 rerejs.ipr
 rerejs.iws
 secret/
+*.DS_Store
+site/
