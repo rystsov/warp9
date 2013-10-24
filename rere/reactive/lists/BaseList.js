@@ -30,7 +30,12 @@ BaseList.prototype.onEvent = function(f) {
 };
 
 BaseList.prototype.raise = function(e) {
-    this.dependants.forEach(function(d){ d.f(e); });
+    this.dependants.forEach(function(d){
+        root.reactive.lazy_run.postpone(function(){
+            d.f(e);
+        });
+    });
+    root.reactive.lazy_run.run();
 };
 
 BaseList.prototype.use = function(id) {

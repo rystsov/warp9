@@ -24,16 +24,6 @@ function Cell() {
 function SetCellPrototype() {
     Cell.prototype = new BaseCell();
 
-    // Common
-    Cell.prototype.onEvent = function(f) {
-        if (this.content.isEmpty()) {
-            f(["unset"]);
-        } else {
-            f(["set", this.content.value()]);
-        }
-        return BaseCell.prototype.onEvent.apply(this, [f]);
-    };
-
     Cell.prototype.unwrap = function(alt) {
         if (arguments.length==0 && this.content.isEmpty()) throw new Error();
         return this.content.isEmpty() ? alt : this.content.value();
@@ -41,8 +31,8 @@ function SetCellPrototype() {
 
     // Specific
     Cell.prototype.set = function(value) {
-        this.content = new Some(value)
-        this.raise(["set", value])
+        this.content = new Some(value);
+        this.raise(["set", value]);
     };
 
     Cell.prototype.unset = function() {

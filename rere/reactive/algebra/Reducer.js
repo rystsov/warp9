@@ -40,6 +40,7 @@ function init(data) {
 
 function dispose() {
     if (!this.inited) return;
+    //console.info("dispose " + this.id);
     this._ignoreSetUnset = true;
     for (var key in this.known) {
         if (!this.known.hasOwnProperty(key)) continue;
@@ -52,6 +53,7 @@ function dispose() {
 }
 
 function remove(key) {
+    //console.info("remove from " + this.id + " with key=" + key);
     if (!this.inited) {
         throw new Error("Reducer is not inited");
     }
@@ -63,6 +65,7 @@ function remove(key) {
 }
 
 function add(key, value) {
+    //console.info("add to " + this.id + " with key=" + key);
     if (!this.inited) {
         throw new Error("Reducer is not inited");
     }

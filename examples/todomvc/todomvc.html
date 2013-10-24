@@ -48,6 +48,7 @@
                             if (newTaskName.unwrap()==="") return;
                             todos.addTodo({mark: false, name: newTaskName.unwrap()});
                             newTaskName.set("");
+                            console.info(left.unwrap());
                         }
                     }, newTaskName]],
                 ["section", {id:"main"},
@@ -108,7 +109,11 @@
                             "!dblclick": textbox,
                             "css/text-decoration": todo.mark.when(true, "line-through", "none")
                         }, todo.name],
-                        ["button", {"class": "destroy", "!click": todo.remove}]
+                        ["button", {"class": "destroy", "!click": function() {
+                            console.info("");
+                            console.info("CLICK");
+                            todo.remove();
+                        }}]
                     ]);
                     if (todo.name.unwrap("").trim()=="") todo.remove();
                 });

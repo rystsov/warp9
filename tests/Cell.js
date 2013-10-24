@@ -32,7 +32,7 @@ exports.subscribeEmptyChange = function(test) {
         set: function(value) { event = [value]; },
         unset: function() { event = []; }
     }));
-    test.equal(event.length, 0);
+    test.equal(event, null);
     var marker = {};
     cell.set(marker);
     test.equal(event[0], marker);
@@ -47,7 +47,7 @@ exports.subscribeValueChange = function(test) {
         set: function(value) { event = [value]; },
         unset: function() { event = []; }
     }));
-    test.equal(event.length, 0);
+    test.equal(event, null);
     var marker = {};
     cell.set(marker);
     test.equal(event[0], marker);

@@ -381,6 +381,7 @@ var rere = (function(){
                 
                 function dispose() {
                     if (!this.inited) return;
+                    //console.info("dispose " + this.id);
                     this._ignoreSetUnset = true;
                     for (var key in this.known) {
                         if (!this.known.hasOwnProperty(key)) continue;
@@ -393,6 +394,7 @@ var rere = (function(){
                 }
                 
                 function remove(key) {
+                    //console.info("remove from " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -404,6 +406,7 @@ var rere = (function(){
                 }
                 
                 function add(key, value) {
+                    //console.info("add to " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -447,16 +450,6 @@ var rere = (function(){
                 function SetCellPrototype() {
                     Cell.prototype = new BaseCell();
                 
-                    // Common
-                    Cell.prototype.onEvent = function(f) {
-                        if (this.content.isEmpty()) {
-                            f(["unset"]);
-                        } else {
-                            f(["set", this.content.value()]);
-                        }
-                        return BaseCell.prototype.onEvent.apply(this, [f]);
-                    };
-                
                     Cell.prototype.unwrap = function(alt) {
                         if (arguments.length==0 && this.content.isEmpty()) throw new Error();
                         return this.content.isEmpty() ? alt : this.content.value();
@@ -464,8 +457,8 @@ var rere = (function(){
                 
                     // Specific
                     Cell.prototype.set = function(value) {
-                        this.content = new Some(value)
-                        this.raise(["set", value])
+                        this.content = new Some(value);
+                        this.raise(["set", value]);
                     };
                 
                     Cell.prototype.unset = function() {
@@ -523,13 +516,16 @@ var rere = (function(){
                 };
                 
                 BaseCell.prototype.onEvent = function(f) {
-                    if (this.usersCount>0) {
-                        if (this.content.isEmpty()) {
-                            f(["unset"]);
-                        } else {
-                            f(["set", this.content.value()]);
+                    //root.reactive.lazy_run.postpone(function(){
+                        if (this.usersCount>0) {
+                            if (this.content.isEmpty()) {
+                                f(["unset"]);
+                            } else {
+                                f(["set", this.content.value()]);
+                            }
                         }
-                    }
+                    //}.bind(this));
+                    //root.reactive.lazy_run.run();
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
                     return function() {
@@ -576,6 +572,10 @@ var rere = (function(){
                     return new LiftedCell(this, f);
                 };
                 
+                BaseCell.prototype.isSet = function() {
+                    return this.lift(function(){ return true }).coalesce(false);
+                };
+                
                 BaseCell.prototype.coalesce = function(replace) {
                     return new CoalesceCell(this, replace);
                 };
@@ -612,7 +612,12 @@ var rere = (function(){
                         }
                         return;
                     }
-                    this.dependants.forEach(function(d){ d.f(e); });
+                    this.dependants.forEach(function(d){
+                        root.reactive.lazy_run.postpone(function(){
+                            d.f(e);
+                        });
+                    });
+                    root.reactive.lazy_run.run();
                 };
             }
         },
@@ -897,6 +902,32 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "lazy_run"],
+            content: function(root, expose) {
+                expose(new LazyRun());
+                
+                function LazyRun() {
+                    this.functions = [];
+                    this.isActive = false;
+                
+                    this.postpone = function(f) {
+                        this.functions.push(f);
+                    };
+                
+                    this.run = function() {
+                        if (this.isActive) return;
+                        this.isActive = true;
+                        while(this.functions.length!=0) {
+                            var f = this.functions.shift();
+                            f();
+                        }
+                        this.isActive = false;
+                    };
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "List"],
             content: function(root, expose) {
                 expose(List, function(){
@@ -1030,7 +1061,12 @@ var rere = (function(){
                 };
                 
                 BaseList.prototype.raise = function(e) {
-                    this.dependants.forEach(function(d){ d.f(e); });
+                    this.dependants.forEach(function(d){
+                        root.reactive.lazy_run.postpone(function(){
+                            d.f(e);
+                        });
+                    });
+                    root.reactive.lazy_run.run();
                 };
                 
                 BaseList.prototype.use = function(id) {

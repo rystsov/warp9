@@ -30,13 +30,16 @@ BaseCell.prototype.unfix = function() {
 };
 
 BaseCell.prototype.onEvent = function(f) {
-    if (this.usersCount>0) {
-        if (this.content.isEmpty()) {
-            f(["unset"]);
-        } else {
-            f(["set", this.content.value()]);
+    //root.reactive.lazy_run.postpone(function(){
+        if (this.usersCount>0) {
+            if (this.content.isEmpty()) {
+                f(["unset"]);
+            } else {
+                f(["set", this.content.value()]);
+            }
         }
-    }
+    //}.bind(this));
+    //root.reactive.lazy_run.run();
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
     return function() {
@@ -123,5 +126,10 @@ BaseCell.prototype.raise = function(e) {
         }
         return;
     }
-    this.dependants.forEach(function(d){ d.f(e); });
+    this.dependants.forEach(function(d){
+        root.reactive.lazy_run.postpone(function(){
+            d.f(e);
+        });
+    });
+    root.reactive.lazy_run.run();
 };
