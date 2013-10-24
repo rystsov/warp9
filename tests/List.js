@@ -69,3 +69,17 @@ exports.count = function(test) {
 
     test.done();
 };
+
+exports.subscribeUse = function(test) {
+    test.expect(2);
+    var event = null;
+    var list = new List([42]);
+    var store = new EventStore();
+    list.onEvent(List.handler(store));
+    test.equal(store.changes, 0);
+
+    list.fix();
+    test.ok(store.play().has(42));
+
+    test.done();
+};

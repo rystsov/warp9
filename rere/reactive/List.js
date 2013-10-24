@@ -31,6 +31,13 @@ List.handler = function(handlers) {
 function SetListPrototype() {
     List.prototype = new BaseList();
 
+    List.prototype.use = function(id) {
+        BaseList.prototype.use.apply(this, [id]);
+        if (this.usersCount === 1) {
+            this.raise(["data", this.data.slice()]);
+        }
+    };
+
     List.prototype.setData = function(data) {
         this.data = data.map(function(item){
             return {
@@ -39,11 +46,6 @@ function SetListPrototype() {
             }
         }.bind(this));
         this.raise(["data", this.data.slice()]);
-    };
-
-    List.prototype.onEvent = function(f) {
-        f(["data", this.data.slice()]);
-        return BaseList.prototype.onEvent.apply(this, [f]);
     };
 
     List.prototype.unwrap = function() {

@@ -16,13 +16,6 @@ function LiftedList(source, f) {
 function SetLiftedPrototype() {
     LiftedList.prototype = new BaseList();
 
-    LiftedList.prototype.onEvent = function(f) {
-        if (this.usersCount>0) {
-            f(["data", this.data.slice()])
-        }
-        return BaseList.prototype.onEvent.apply(this, [f]);
-    };
-
     LiftedList.prototype.use = function(id) {
         BaseList.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {

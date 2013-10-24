@@ -5,7 +5,7 @@ var List = rere.reactive.List;
 var idgenerator = rere.idgenerator;
 
 
-exports.dag1 = function(test) {
+/*exports.dag1 = function(test) {
     test.expect(2);
 
     var list = new List();
@@ -43,7 +43,7 @@ exports.dag1 = function(test) {
     test.equal(event[0], 1);
 
     test.done();
-}
+};*/
 
 
 exports.unary = function(test) {

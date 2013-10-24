@@ -20,6 +20,9 @@ function BaseList() {
 }
 
 BaseList.prototype.onEvent = function(f) {
+    if (this.usersCount>0) {
+        f(["data", this.data.slice()])
+    }
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
     return function() {
@@ -59,6 +62,17 @@ BaseList.prototype.leave = function(id) {
         delete this.users[id];
     }
 };
+
+BaseList.prototype.fix = function() {
+    this.use(this.listId);
+    return this;
+};
+
+BaseList.prototype.unfix = function() {
+    this.leave(this.listId);
+    return this;
+};
+
 
 BaseList.prototype.unwrap = function(f) {
     throw new Error("Not implemented");
