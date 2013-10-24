@@ -25,7 +25,7 @@ exports.unwrapEmpty = function(test) {
 };
 
 exports.subscribeEmptyChange = function(test) {
-    test.expect(2);
+    test.expect(3);
     var event = null;
     var cell = new Cell();
     cell.onEvent(Cell.handler({
@@ -33,9 +33,14 @@ exports.subscribeEmptyChange = function(test) {
         unset: function() { event = []; }
     }));
     test.equal(event, null);
+
     var marker = {};
     cell.set(marker);
+    test.equal(event, null);
+
+    cell.fix();
     test.equal(event[0], marker);
+
     test.done();
 };
 
@@ -43,11 +48,13 @@ exports.subscribeValueChange = function(test) {
     test.expect(2);
     var event = null;
     var cell = new Cell();
+    cell.fix();
     cell.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
         unset: function() { event = []; }
     }));
-    test.equal(event, null);
+    test.equal(event.length, 0);
+
     var marker = {};
     cell.set(marker);
     test.equal(event[0], marker);

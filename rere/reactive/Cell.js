@@ -32,12 +32,16 @@ function SetCellPrototype() {
     // Specific
     Cell.prototype.set = function(value) {
         this.content = new Some(value);
-        this.raise(["set", value]);
+        if (this.usersCount>0) {
+            this.raise(["set", value]);
+        }
     };
 
     Cell.prototype.unset = function() {
         this.content = new None();
-        this.raise(["unset"])
+        if (this.usersCount>0) {
+            this.raise(["unset"])
+        }
     };
 
     Cell.prototype.use = function(id) {

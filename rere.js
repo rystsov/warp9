@@ -465,6 +465,13 @@ var rere = (function(){
                         this.content = new None();
                         this.raise(["unset"])
                     };
+                
+                    Cell.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.raise();
+                        }
+                    };
                 }
                 
                 Cell.handler = function(handler) {
@@ -516,7 +523,9 @@ var rere = (function(){
                 };
                 
                 BaseCell.prototype.onEvent = function(f) {
+                    //var disposed = false;
                     //root.reactive.lazy_run.postpone(function(){
+                    //    if (disposed) return;
                         if (this.usersCount>0) {
                             if (this.content.isEmpty()) {
                                 f(["unset"]);
@@ -526,9 +535,11 @@ var rere = (function(){
                         }
                     //}.bind(this));
                     //root.reactive.lazy_run.run();
+                
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
                     return function() {
+                        disposed = true;
                         this.dependants = this.dependants.filter(function(dependant) {
                             return dependant.key!=id;
                         });
@@ -963,6 +974,13 @@ var rere = (function(){
                 function SetListPrototype() {
                     List.prototype = new BaseList();
                 
+                    List.prototype.use = function(id) {
+                        BaseList.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.raise(["data", this.data.slice()]);
+                        }
+                    };
+                
                     List.prototype.setData = function(data) {
                         this.data = data.map(function(item){
                             return {
@@ -971,11 +989,6 @@ var rere = (function(){
                             }
                         }.bind(this));
                         this.raise(["data", this.data.slice()]);
-                    };
-                
-                    List.prototype.onEvent = function(f) {
-                        f(["data", this.data.slice()]);
-                        return BaseList.prototype.onEvent.apply(this, [f]);
                     };
                 
                     List.prototype.unwrap = function() {
@@ -1051,9 +1064,19 @@ var rere = (function(){
                 }
                 
                 BaseList.prototype.onEvent = function(f) {
+                    //var disposed = false;
+                    //root.reactive.lazy_run.postpone(function(){
+                    //    if (disposed) return;
+                        if (this.usersCount>0) {
+                            f(["data", this.data.slice()])
+                        }
+                    //}.bind(this));
+                    //root.reactive.lazy_run.run();
+                
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
                     return function() {
+                        disposed = true;
                         this.dependants = this.dependants.filter(function(dependant) {
                             return dependant.key!=id;
                         });
@@ -1090,6 +1113,17 @@ var rere = (function(){
                         delete this.users[id];
                     }
                 };
+                
+                BaseList.prototype.fix = function() {
+                    this.use(this.listId);
+                    return this;
+                };
+                
+                BaseList.prototype.unfix = function() {
+                    this.leave(this.listId);
+                    return this;
+                };
+                
                 
                 BaseList.prototype.unwrap = function(f) {
                     throw new Error("Not implemented");
@@ -1204,13 +1238,6 @@ var rere = (function(){
                 
                 function SetLiftedPrototype() {
                     LiftedList.prototype = new BaseList();
-                
-                    LiftedList.prototype.onEvent = function(f) {
-                        if (this.usersCount>0) {
-                            f(["data", this.data.slice()])
-                        }
-                        return BaseList.prototype.onEvent.apply(this, [f]);
-                    };
                 
                     LiftedList.prototype.use = function(id) {
                         BaseList.prototype.use.apply(this, [id]);

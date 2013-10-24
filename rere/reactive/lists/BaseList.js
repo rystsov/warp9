@@ -20,12 +20,19 @@ function BaseList() {
 }
 
 BaseList.prototype.onEvent = function(f) {
-    if (this.usersCount>0) {
-        f(["data", this.data.slice()])
-    }
+    //var disposed = false;
+    //root.reactive.lazy_run.postpone(function(){
+    //    if (disposed) return;
+        if (this.usersCount>0) {
+            f(["data", this.data.slice()])
+        }
+    //}.bind(this));
+    //root.reactive.lazy_run.run();
+
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
     return function() {
+        disposed = true;
         this.dependants = this.dependants.filter(function(dependant) {
             return dependant.key!=id;
         });

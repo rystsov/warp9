@@ -30,7 +30,9 @@ BaseCell.prototype.unfix = function() {
 };
 
 BaseCell.prototype.onEvent = function(f) {
+    //var disposed = false;
     //root.reactive.lazy_run.postpone(function(){
+    //    if (disposed) return;
         if (this.usersCount>0) {
             if (this.content.isEmpty()) {
                 f(["unset"]);
@@ -40,9 +42,11 @@ BaseCell.prototype.onEvent = function(f) {
         }
     //}.bind(this));
     //root.reactive.lazy_run.run();
+
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
     return function() {
+        disposed = true;
         this.dependants = this.dependants.filter(function(dependant) {
             return dependant.key!=id;
         });
