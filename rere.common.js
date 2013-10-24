@@ -465,6 +465,13 @@ var rere = (function(){
                         this.content = new None();
                         this.raise(["unset"])
                     };
+                
+                    Cell.prototype.use = function(id) {
+                        BaseCell.prototype.use.apply(this, [id]);
+                        if (this.usersCount === 1) {
+                            this.raise();
+                        }
+                    };
                 }
                 
                 Cell.handler = function(handler) {

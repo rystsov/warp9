@@ -53,3 +53,19 @@ exports.subscribeValueChange = function(test) {
     test.equal(event[0], marker);
     test.done();
 };
+
+exports.subscribeUse = function(test) {
+    test.expect(2);
+    var event = null;
+    var cell = new Cell(42);
+    cell.onEvent(Cell.handler({
+        set: function(value) { event = [value]; },
+        unset: function() { event = []; }
+    }));
+    test.equal(event, null);
+
+    cell.fix();
+    test.equal(event[0], 42);
+
+    test.done();
+};
