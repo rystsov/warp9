@@ -67,6 +67,7 @@ function SetBindedPrototype() {
             this.unmap();
             this.unsource = null;
             this.source.leave(this.cellId);
+            this.content = null;
         }
     };
 

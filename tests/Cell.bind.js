@@ -5,7 +5,7 @@ var List = rere.reactive.List;
 var idgenerator = rere.idgenerator;
 
 
-/*exports.dag1 = function(test) {
+exports.dag1 = function(test) {
     test.expect(2);
 
     var list = new List();
@@ -35,7 +35,7 @@ var idgenerator = rere.idgenerator;
     var event = null;
     dag.onEvent(Cell.handler({
         set: function(x) { event = [x]; },
-        unset: function(x) { event = []; }
+        unset: function() { event = []; }
     }));
     test.equal(event.length, 0);
 
@@ -43,7 +43,7 @@ var idgenerator = rere.idgenerator;
     test.equal(event[0], 1);
 
     test.done();
-};*/
+};
 
 
 exports.unary = function(test) {

@@ -9,6 +9,10 @@ function LazyRun() {
     };
 
     this.run = function() {
+        if (arguments.length==1) {
+            this.postpone(arguments[0]);
+        }
+
         if (this.isActive) return;
         this.isActive = true;
         while(this.functions.length!=0) {

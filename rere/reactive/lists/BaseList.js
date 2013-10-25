@@ -1,13 +1,13 @@
 expose(BaseList, function() {
     List = root.reactive.List;
-    GroupReducer = root.reactive.algebra.GroupReducer;
-    MonoidReducer = root.reactive.algebra.MonoidReducer;
+    GroupReducer2 = root.reactive.algebra.GroupReducer2;
+    MonoidReducer2 = root.reactive.algebra.MonoidReducer2;
     ReducedList = root.reactive.lists.ReducedList;
     LiftedList = root.reactive.lists.LiftedList;
     Cell = root.reactive.Cell;
 });
 
-var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
+var Cell, List, GroupReducer2, MonoidReducer2, LiftedList, ReducedList;
 
 function BaseList() {
     this.listId = root.idgenerator();
@@ -20,17 +20,17 @@ function BaseList() {
 }
 
 BaseList.prototype.onEvent = function(f) {
-    //var disposed = false;
-    //root.reactive.lazy_run.postpone(function(){
-    //    if (disposed) return;
+    var disposed = false;
+    root.reactive.lazy_run.run(function(){
+        if (disposed) return;
         if (this.usersCount>0) {
             f(["data", this.data.slice()])
         }
-    //}.bind(this));
-    //root.reactive.lazy_run.run();
+    }.bind(this));
 
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
+
     return function() {
         disposed = true;
         this.dependants = this.dependants.filter(function(dependant) {
@@ -98,7 +98,7 @@ BaseList.prototype.reduceGroup = function(group, opt) {
     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
-    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+    return new ReducedList(this, GroupReducer2, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
 
 BaseList.prototype.reduceMonoid = function(monoid, opt) {
@@ -107,7 +107,7 @@ BaseList.prototype.reduceMonoid = function(monoid, opt) {
     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
-    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+    return new ReducedList(this, MonoidReducer2, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
 
 BaseList.prototype.reduce = function(identity, add, opt) {

@@ -61,8 +61,8 @@ function SetListPrototype() {
         }
         var key = this._elementId++;
         var e = {key: key, value: f(key)};
-        this.raise(["add", e]);
         this.data.push(e);
+        this.raise(["add", e]);
         return key;
     };
 

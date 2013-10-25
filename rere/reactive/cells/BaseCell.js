@@ -30,18 +30,17 @@ BaseCell.prototype.unfix = function() {
 };
 
 BaseCell.prototype.onEvent = function(f) {
-    //var disposed = false;
-    //root.reactive.lazy_run.postpone(function(){
-    //    if (disposed) return;
-        if (this.usersCount>0) {
+    var disposed = false;
+    root.reactive.lazy_run.run(function(){
+        if (disposed) return;
+        if (this.usersCount>0 && this.content!=null) {
             if (this.content.isEmpty()) {
                 f(["unset"]);
             } else {
                 f(["set", this.content.value()]);
             }
         }
-    //}.bind(this));
-    //root.reactive.lazy_run.run();
+    }.bind(this));
 
     var id = this.dependantsId++;
     this.dependants.push({key: id, f:f});
@@ -130,6 +129,7 @@ BaseCell.prototype.raise = function(e) {
         }
         return;
     }
+    if (this.usersCount==0) return;
     this.dependants.forEach(function(d){
         root.reactive.lazy_run.postpone(function(){
             d.f(e);

@@ -145,6 +145,146 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "algebra", "GroupReducer2"],
+            content: function(root, expose) {
+                expose(Sigma, function() {
+                    Cell = root.reactive.Cell;
+                });
+                
+                var Cell;
+                
+                function Sigma(id, group, wrap, ignoreUnset, callback) {
+                    this.id = id;
+                    this.wrap = wrap;
+                    this.ignoreUnset = ignoreUnset;
+                    this.group = group;
+                    this.callback = callback;
+                
+                    this.sum = group.identity();
+                    this.isActive = true;
+                    this.known = {};
+                    this.inited = false;
+                    this.blocks = 0;
+                    this.reports = 0;
+                    this.count = 0;
+                }
+                
+                Sigma.prototype.init = function(data) {
+                    if (this.inited) throw new Error();
+                    this.inited = true;
+                    this.count = data.length;
+                    data.forEach(function(item){
+                        this._add(item.key, item.value);
+                    }.bind(this));
+                    if (data.length==0) {
+                        this.callback(["set", this.sum]);
+                    }
+                };
+                
+                Sigma.prototype.add = function(key, value) {
+                    this.count++;
+                    this._add(key, value);
+                };
+                
+                Sigma.prototype._add = function(key, value) {
+                    var self = this;
+                
+                    if (!(typeof value === "object" && value.type === Cell)) {
+                        value = new Cell(value);
+                    }
+                    var isActive = true;
+                    var isBlocked = false;
+                    var isReported = false;
+                    var last = null;
+                
+                    value.use(self.id);
+                    var dispose = value.onEvent(function(e) {
+                        if (!isActive || !self.isActive) return;
+                        if (!isReported) {
+                            self.reports++;
+                            isReported = true;
+                        }
+                        if (e[0] === "set") {
+                            set(e[1]);
+                        } else if (e[0] === "unset") {
+                            unset();
+                        } else {
+                            throw new Error();
+                        }
+                    });
+                
+                    self.known[key] = function() {
+                        isActive = false;
+                        dispose();
+                        value.leave(self.id);
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        self.count--;
+                        self.reports--;
+                    };
+                
+                    function set(x) {
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        if (last != null) {
+                            self.sum = self.group.add(self.sum, self.group.invert(last.value));
+                        }
+                        last = {
+                            value: x
+                        };
+                        self.sum = self.group.add(self.sum, self.wrap(x));
+                        self.raise();
+                    }
+                
+                    function unset() {
+                        if (isBlocked) return;
+                        isBlocked = true;
+                        self.blocks++;
+                        if (last != null) {
+                            self.sum = self.group.add(self.sum, self.group.invert(last.value));
+                        }
+                        last = null;
+                        if (self.blocks==1) {
+                            self.raise();
+                        }
+                    }
+                };
+                
+                Sigma.prototype.raise = function() {
+                    if (this.count != this.reports) return;
+                    // TODO: call unset once
+                    if (!this.ignoreUnset && this.blocks>0) {
+                        this.callback(["unset"]);
+                        return;
+                    }
+                    this.callback(["set", this.sum]);
+                };
+                
+                Sigma.prototype.remove = function(key) {
+                    if (!this.known.hasOwnProperty(key)) {
+                        throw new Error("Unknown key: " + key);
+                    }
+                    this.known[key]();
+                    delete this.known[key];
+                };
+                
+                Sigma.prototype.dispose = function() {
+                    this.isActive = false;
+                    var keys = [];
+                    for (var key in this.known) {
+                        if (!this.known.hasOwnProperty(key)) continue;
+                        this.known[key]();
+                        keys.push(key);
+                    }
+                    keys.forEach(function(key) { delete this.known[key] }.bind(this));
+                };
+            }
+        },
+        {
             path: ["reactive", "algebra", "MonoidReducer"],
             content: function(root, expose) {
                 expose(ReduceTree, function(){
@@ -381,7 +521,6 @@ var rere = (function(){
                 
                 function dispose() {
                     if (!this.inited) return;
-                    //console.info("dispose " + this.id);
                     this._ignoreSetUnset = true;
                     for (var key in this.known) {
                         if (!this.known.hasOwnProperty(key)) continue;
@@ -394,7 +533,6 @@ var rere = (function(){
                 }
                 
                 function remove(key) {
-                    //console.info("remove from " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -406,7 +544,6 @@ var rere = (function(){
                 }
                 
                 function add(key, value) {
-                    //console.info("add to " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -458,12 +595,16 @@ var rere = (function(){
                     // Specific
                     Cell.prototype.set = function(value) {
                         this.content = new Some(value);
-                        this.raise(["set", value]);
+                        if (this.usersCount>0) {
+                            this.raise(["set", value]);
+                        }
                     };
                 
                     Cell.prototype.unset = function() {
                         this.content = new None();
-                        this.raise(["unset"])
+                        if (this.usersCount>0) {
+                            this.raise(["unset"])
+                        }
                     };
                 
                     Cell.prototype.use = function(id) {
@@ -523,18 +664,17 @@ var rere = (function(){
                 };
                 
                 BaseCell.prototype.onEvent = function(f) {
-                    //var disposed = false;
-                    //root.reactive.lazy_run.postpone(function(){
-                    //    if (disposed) return;
-                        if (this.usersCount>0) {
+                    var disposed = false;
+                    root.reactive.lazy_run.run(function(){
+                        if (disposed) return;
+                        if (this.usersCount>0 && this.content!=null) {
                             if (this.content.isEmpty()) {
                                 f(["unset"]);
                             } else {
                                 f(["set", this.content.value()]);
                             }
                         }
-                    //}.bind(this));
-                    //root.reactive.lazy_run.run();
+                    }.bind(this));
                 
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
@@ -623,6 +763,7 @@ var rere = (function(){
                         }
                         return;
                     }
+                    if (this.usersCount==0) return;
                     this.dependants.forEach(function(d){
                         root.reactive.lazy_run.postpone(function(){
                             d.f(e);
@@ -704,6 +845,7 @@ var rere = (function(){
                             this.unmap();
                             this.unsource = null;
                             this.source.leave(this.cellId);
+                            this.content = null;
                         }
                     };
                 
@@ -926,6 +1068,9 @@ var rere = (function(){
                     };
                 
                     this.run = function() {
+                        if (arguments.length==1) {
+                            this.postpone(arguments[0]);
+                        }
                         if (this.isActive) return;
                         this.isActive = true;
                         while(this.functions.length!=0) {
@@ -1044,14 +1189,14 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(BaseList, function() {
                     List = root.reactive.List;
-                    GroupReducer = root.reactive.algebra.GroupReducer;
+                    GroupReducer2 = root.reactive.algebra.GroupReducer2;
                     MonoidReducer = root.reactive.algebra.MonoidReducer;
                     ReducedList = root.reactive.lists.ReducedList;
                     LiftedList = root.reactive.lists.LiftedList;
                     Cell = root.reactive.Cell;
                 });
                 
-                var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
+                var Cell, List, GroupReducer2, MonoidReducer, LiftedList, ReducedList;
                 
                 function BaseList() {
                     this.listId = root.idgenerator();
@@ -1064,14 +1209,13 @@ var rere = (function(){
                 }
                 
                 BaseList.prototype.onEvent = function(f) {
-                    //var disposed = false;
-                    //root.reactive.lazy_run.postpone(function(){
-                    //    if (disposed) return;
+                    var disposed = false;
+                    root.reactive.lazy_run.run(function(){
+                        if (disposed) return;
                         if (this.usersCount>0) {
                             f(["data", this.data.slice()])
                         }
-                    //}.bind(this));
-                    //root.reactive.lazy_run.run();
+                    }.bind(this));
                 
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
@@ -1142,7 +1286,7 @@ var rere = (function(){
                     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
                     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
                 
-                    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                    return new ReducedList(this, GroupReducer2, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
                 };
                 
                 BaseList.prototype.reduceMonoid = function(monoid, opt) {
@@ -1299,36 +1443,40 @@ var rere = (function(){
                 
                 function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
                     BaseCell.apply(this);
+                    this.handler = null;
                     this.list = list;
-                    this.reducer = new Reducer(this.cellId, algebraicStructure, wrap, ignoreUnset);
-                    this.reducer.set = function(value) {
-                        if (this.usersCount===0) throw new Error();
-                        this.content = new Some(this._unwrap(value));
-                        this.raise();
-                    }.bind(this);
-                    this.reducer.unset = function() {
-                        if (this.usersCount===0) throw new Error();
-                        this.content = new None();
-                        this.raise();
-                    }.bind(this);
+                    this.Reducer = Reducer;
+                
                     this._monoid = algebraicStructure;
                     this._unwrap = unwrap;
                     this._wrap = wrap;
                     this._ignoreUnset = ignoreUnset;
                 }
                 
-                function SetPrototype() {
-                    var useCall = 0;
                 
+                function SetPrototype() {
                     ReducedList.prototype = new BaseCell();
                 
                     ReducedList.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
                         if (this.usersCount === 1) {
                             this.list.use(this.cellId);
-                            this.unsubscribe = this.list.onEvent(List.handler({
+                            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
                                 data: function(data) {
-                                    this.reducer.dispose();
+                                    if (this.reducer!=null) {
+                                        this.reducer.dispose();
+                                        this.reducer = null;
+                                    }
+                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                                        if (e[0]=="set") {
+                                            this.content = new Some(this._unwrap(e[1]));
+                                        } else if (e[0]=="unset") {
+                                            this.content = new None();
+                                        } else {
+                                            throw new Error();
+                                        }
+                                        this.raise();
+                                    }.bind(this));
                                     this.reducer.init(data);
                                 }.bind(this),
                                 add: function(item) {
@@ -1337,7 +1485,7 @@ var rere = (function(){
                                 remove: function(key) {
                                     this.reducer.remove(key);
                                 }.bind(this)
-                            }))
+                            }));
                         }
                     };
                 
@@ -1346,7 +1494,10 @@ var rere = (function(){
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
+                
                             this.reducer.dispose();
+                            this.reducer = null;
+                
                             this.list.leave(this.cellId);
                         }
                     };
@@ -1378,6 +1529,21 @@ var rere = (function(){
                     };
                 }
                 
+                
+                function ImmediatelyDisposableSubscribe(subscribable) {
+                    var self = this;
+                    this.isActive = true;
+                    this.onEvent = function(f) {
+                        var dispose = subscribable.onEvent(function(e){
+                            if (!self.isActive) return;
+                            f(e);
+                        });
+                        return function() {
+                            self.isActive = false;
+                            dispose();
+                        }
+                    };
+                }
             }
         },
         {

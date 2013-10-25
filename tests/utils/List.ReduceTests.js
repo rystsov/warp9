@@ -9,6 +9,28 @@ var idgenerator = rere.idgenerator;
 module.exports = ReducerTests;
 
 function ReducerTests(reduce) {
+    this.remove = function(test) {
+        test.expect(4);
+
+        var list = new List();
+        var sum = reduce(list);
+        sum.use(idgenerator());
+
+        var sink = new EventSink(sum);
+        test.equal(sink.unwrap(), 0);
+
+        var key13 = list.add(13);
+        test.equal(sink.unwrap(), 13);
+
+        var key42 = list.add(42);
+        test.equal(sink.unwrap(), 55);
+
+        list.remove(key13);
+        test.equal(sink.unwrap(), 42);
+
+        test.done();
+    };
+
     this.subscribeUnused = function(test) {
         test.expect(5);
     

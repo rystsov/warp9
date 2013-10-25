@@ -145,6 +145,157 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "algebra", "GroupReducer2"],
+            content: function(root, expose) {
+                expose(Sigma, function() {
+                    Cell = root.reactive.Cell;
+                });
+                
+                var Cell;
+                
+                function Sigma(id, group, wrap, ignoreUnset, callback) {
+                    this.id = id;
+                    this.wrap = wrap;
+                    this.ignoreUnset = ignoreUnset;
+                    this.group = group;
+                    this.callback = callback;
+                
+                    this.sum = group.identity();
+                    this.isActive = true;
+                    this.known = {};
+                    this.inited = false;
+                    this.blocks = 0;
+                    this.reports = 0;
+                    this.count = 0;
+                }
+                
+                Sigma.prototype.init = function(data) {
+                    if (this.inited) throw new Error();
+                    this.inited = true;
+                    this.count = data.length;
+                    data.forEach(function(item){
+                        this._add(item.key, item.value);
+                    }.bind(this));
+                    if (data.length==0) {
+                        this.callback(["set", this.sum]);
+                    }
+                };
+                
+                Sigma.prototype.add = function(key, value) {
+                    this.count++;
+                    this._add(key, value);
+                };
+                
+                Sigma.prototype._add = function(key, value) {
+                    var self = this;
+                
+                    if (!(typeof value === "object" && value.type === Cell)) {
+                        value = new Cell(value);
+                    }
+                    var isActive = true;
+                    var isBlocked = false;
+                    var isReported = false;
+                    var last = null;
+                
+                    value.use(self.id);
+                    var dispose = value.onEvent(function(e) {
+                        if (!isActive || !self.isActive) return;
+                        if (!isReported) {
+                            self.reports++;
+                            isReported = true;
+                        }
+                        if (e[0] === "set") {
+                            set(e[1]);
+                        } else if (e[0] === "unset") {
+                            unset();
+                        } else {
+                            throw new Error();
+                        }
+                    });
+                
+                    self.known[key] = function() {
+                        if (!isActive) return;
+                        // TODO: remove (key, last)
+                        if (last != null) {
+                            self.sum = self.group.add(self.sum, self.group.invert(last.value));
+                            last = null;
+                        }
+                        //////////////////////
+                        isActive = false;
+                        dispose();
+                        value.leave(self.id);
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        self.count--;
+                        self.reports--;
+                    };
+                
+                    function set(x) {
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        // TODO: upsert (key, x)
+                        if (last != null) {
+                            self.sum = self.group.add(self.sum, self.group.invert(last.value));
+                        }
+                        last = {
+                            value: x
+                        };
+                        self.sum = self.group.add(self.sum, self.wrap(x));
+                        ///////////////////////
+                        self.raise();
+                    }
+                
+                    function unset() {
+                        if (isBlocked) return;
+                        isBlocked = true;
+                        self.blocks++;
+                        // TODO: upsert (key, last, identity)
+                        if (last != null) {
+                            self.sum = self.group.add(self.sum, self.group.invert(last.value));
+                        }
+                        last = null;
+                        ///////////////////////
+                        if (self.blocks==1) {
+                            self.raise();
+                        }
+                    }
+                };
+                
+                Sigma.prototype.raise = function() {
+                    if (this.count != this.reports) return;
+                    if (!this.ignoreUnset && this.blocks>0) {
+                        this.callback(["unset"]);
+                        return;
+                    }
+                    this.callback(["set", this.sum]);
+                };
+                
+                Sigma.prototype.remove = function(key) {
+                    if (!this.known.hasOwnProperty(key)) {
+                        throw new Error("Unknown key: " + key);
+                    }
+                    this.known[key]();
+                    delete this.known[key];
+                    this.raise();
+                };
+                
+                Sigma.prototype.dispose = function() {
+                    this.isActive = false;
+                    var keys = [];
+                    for (var key in this.known) {
+                        if (!this.known.hasOwnProperty(key)) continue;
+                        this.known[key]();
+                        keys.push(key);
+                    }
+                    keys.forEach(function(key) { delete this.known[key] }.bind(this));
+                };
+            }
+        },
+        {
             path: ["reactive", "algebra", "MonoidReducer"],
             content: function(root, expose) {
                 expose(ReduceTree, function(){
@@ -270,6 +421,179 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "algebra", "MonoidReducer2"],
+            content: function(root, expose) {
+                expose(ReduceTree, function(){
+                    Cell = root.reactive.Cell;
+                    MonoidTree = root.reactive.algebra.MonoidTree;
+                });
+                
+                var Cell, MonoidTree, Reducer;
+                
+                function ReduceTree(id, monoid, wrap, ignoreUnset, callback) {
+                    this.id = id;
+                    this.wrap = wrap;
+                    this.ignoreUnset = ignoreUnset;
+                    this.monoid = monoid;
+                    this.callback = callback;
+                
+                    this.root = null;
+                    this.keyToIndex = {};
+                    this.indexToKey = [];
+                    this.isActive = true;
+                    this.known = {};
+                    this.inited = false;
+                    this.blocks = 0;
+                    this.reports = 0;
+                    this.count = 0;
+                }
+                
+                ReduceTree.prototype.init = function(data) {
+                    if (this.inited) throw new Error();
+                    this.inited = true;
+                    this.count = data.length;
+                    data.forEach(function(item){
+                        this._add(item.key, item.value);
+                    }.bind(this));
+                    if (data.length==0) {
+                        this.callback(["set", this.monoid.identity()]);
+                    }
+                };
+                
+                ReduceTree.prototype.add = function(key, value) {
+                    this.count++;
+                    this._add(key, value);
+                };
+                
+                ReduceTree.prototype._add = function(key, value) {
+                    var self = this;
+                
+                    if (!(typeof value === "object" && value.type === Cell)) {
+                        value = new Cell(value);
+                    }
+                    var isActive = true;
+                    var isBlocked = false;
+                    var isReported = false;
+                    //var last = null;
+                
+                    value.use(self.id);
+                    var dispose = value.onEvent(function(e) {
+                        if (!isActive || !self.isActive) return;
+                        if (!isReported) {
+                            self.reports++;
+                            isReported = true;
+                        }
+                        if (e[0] === "set") {
+                            set(e[1]);
+                        } else if (e[0] === "unset") {
+                            unset();
+                        } else {
+                            throw new Error();
+                        }
+                    });
+                
+                    self.known[key] = function() {
+                        if (!isActive) return;
+                        removeNode(self, key);
+                        isActive = false;
+                        dispose();
+                        value.leave(self.id);
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        self.count--;
+                        self.reports--;
+                    };
+                
+                    function set(x) {
+                        if (isBlocked) {
+                            isBlocked = false;
+                            self.blocks--;
+                        }
+                        upsertNode(self, key, self.wrap(x));
+                        self.raise();
+                    }
+                
+                    function unset() {
+                        if (isBlocked) return;
+                        isBlocked = true;
+                        self.blocks++;
+                        upsertNode(self, key, self.monoid.identity());
+                        if (self.blocks==1) {
+                            self.raise();
+                        }
+                    }
+                };
+                
+                ReduceTree.prototype.raise = function() {
+                    if (this.count != this.reports) return;
+                    if (!this.ignoreUnset && this.blocks>0) {
+                        this.callback(["unset"]);
+                        return;
+                    }
+                    this.callback(["set", this.root == null ? this.monoid.identity() : this.root.value]);
+                };
+                
+                ReduceTree.prototype.remove = function(key) {
+                    if (!this.known.hasOwnProperty(key)) {
+                        throw new Error("Unknown key: " + key);
+                    }
+                    this.known[key]();
+                    delete this.known[key];
+                    this.raise();
+                };
+                
+                ReduceTree.prototype.dispose = function() {
+                    this.isActive = false;
+                    var keys = [];
+                    for (var key in this.known) {
+                        if (!this.known.hasOwnProperty(key)) continue;
+                        this.known[key]();
+                        keys.push(key);
+                    }
+                    keys.forEach(function(key) { delete this.known[key] }.bind(this));
+                };
+                
+                
+                
+                
+                function upsertNode(tree, key, value) {
+                    if (tree.keyToIndex.hasOwnProperty(key)) {
+                        tree.root = tree.root.change(tree.monoid, tree.keyToIndex[key], value);
+                    } else {
+                        tree.keyToIndex[key] = s(tree.root);
+                        tree.indexToKey.push(key);
+                        tree.root = tree.root==null ? MonoidTree.leaf(value) : tree.root.put(tree.monoid, value);
+                        assert(s(tree.root) == tree.indexToKey.length);
+                    }
+                }
+                
+                function removeNode(tree, key) {
+                    if (!tree.keyToIndex.hasOwnProperty(key)) return;
+                    if (tree.keyToIndex[key]+1 !== tree.indexToKey.length) {
+                        tree.root = tree.root.change(tree.monoid, tree.keyToIndex[key], tree.root.peek());
+                        var lastKey = tree.indexToKey.pop();
+                        tree.indexToKey[tree.keyToIndex[key]] = lastKey;
+                        tree.keyToIndex[lastKey] = tree.keyToIndex[key];
+                    } else {
+                        tree.indexToKey.pop();
+                    }
+                    tree.root = tree.root.pop(tree.monoid);
+                    delete tree.keyToIndex[key];
+                }
+                
+                function s(node) {
+                    return node==null ? 0 : node.size;
+                }
+                
+                function assert(value) {
+                    if (!value) throw new Error();
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "algebra", "MonoidTree"],
             content: function(root, expose) {
                 expose(MonoidTree);
@@ -381,7 +705,6 @@ var rere = (function(){
                 
                 function dispose() {
                     if (!this.inited) return;
-                    //console.info("dispose " + this.id);
                     this._ignoreSetUnset = true;
                     for (var key in this.known) {
                         if (!this.known.hasOwnProperty(key)) continue;
@@ -394,7 +717,6 @@ var rere = (function(){
                 }
                 
                 function remove(key) {
-                    //console.info("remove from " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -406,7 +728,6 @@ var rere = (function(){
                 }
                 
                 function add(key, value) {
-                    //console.info("add to " + this.id + " with key=" + key);
                     if (!this.inited) {
                         throw new Error("Reducer is not inited");
                     }
@@ -527,18 +848,17 @@ var rere = (function(){
                 };
                 
                 BaseCell.prototype.onEvent = function(f) {
-                    //var disposed = false;
-                    //root.reactive.lazy_run.postpone(function(){
-                    //    if (disposed) return;
-                        if (this.usersCount>0) {
+                    var disposed = false;
+                    root.reactive.lazy_run.run(function(){
+                        if (disposed) return;
+                        if (this.usersCount>0 && this.content!=null) {
                             if (this.content.isEmpty()) {
                                 f(["unset"]);
                             } else {
                                 f(["set", this.content.value()]);
                             }
                         }
-                    //}.bind(this));
-                    //root.reactive.lazy_run.run();
+                    }.bind(this));
                 
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
@@ -627,6 +947,7 @@ var rere = (function(){
                         }
                         return;
                     }
+                    if (this.usersCount==0) return;
                     this.dependants.forEach(function(d){
                         root.reactive.lazy_run.postpone(function(){
                             d.f(e);
@@ -708,6 +1029,7 @@ var rere = (function(){
                             this.unmap();
                             this.unsource = null;
                             this.source.leave(this.cellId);
+                            this.content = null;
                         }
                     };
                 
@@ -930,6 +1252,10 @@ var rere = (function(){
                     };
                 
                     this.run = function() {
+                        if (arguments.length==1) {
+                            this.postpone(arguments[0]);
+                        }
+                
                         if (this.isActive) return;
                         this.isActive = true;
                         while(this.functions.length!=0) {
@@ -1008,8 +1334,8 @@ var rere = (function(){
                         }
                         var key = this._elementId++;
                         var e = {key: key, value: f(key)};
-                        this.raise(["add", e]);
                         this.data.push(e);
+                        this.raise(["add", e]);
                         return key;
                     };
                 
@@ -1048,14 +1374,14 @@ var rere = (function(){
             content: function(root, expose) {
                 expose(BaseList, function() {
                     List = root.reactive.List;
-                    GroupReducer = root.reactive.algebra.GroupReducer;
-                    MonoidReducer = root.reactive.algebra.MonoidReducer;
+                    GroupReducer2 = root.reactive.algebra.GroupReducer2;
+                    MonoidReducer2 = root.reactive.algebra.MonoidReducer2;
                     ReducedList = root.reactive.lists.ReducedList;
                     LiftedList = root.reactive.lists.LiftedList;
                     Cell = root.reactive.Cell;
                 });
                 
-                var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
+                var Cell, List, GroupReducer2, MonoidReducer2, LiftedList, ReducedList;
                 
                 function BaseList() {
                     this.listId = root.idgenerator();
@@ -1068,17 +1394,17 @@ var rere = (function(){
                 }
                 
                 BaseList.prototype.onEvent = function(f) {
-                    //var disposed = false;
-                    //root.reactive.lazy_run.postpone(function(){
-                    //    if (disposed) return;
+                    var disposed = false;
+                    root.reactive.lazy_run.run(function(){
+                        if (disposed) return;
                         if (this.usersCount>0) {
                             f(["data", this.data.slice()])
                         }
-                    //}.bind(this));
-                    //root.reactive.lazy_run.run();
+                    }.bind(this));
                 
                     var id = this.dependantsId++;
                     this.dependants.push({key: id, f:f});
+                
                     return function() {
                         disposed = true;
                         this.dependants = this.dependants.filter(function(dependant) {
@@ -1146,7 +1472,7 @@ var rere = (function(){
                     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
                     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
                 
-                    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                    return new ReducedList(this, GroupReducer2, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
                 };
                 
                 BaseList.prototype.reduceMonoid = function(monoid, opt) {
@@ -1155,7 +1481,7 @@ var rere = (function(){
                     if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
                     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
                 
-                    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                    return new ReducedList(this, MonoidReducer2, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
                 };
                 
                 BaseList.prototype.reduce = function(identity, add, opt) {
@@ -1303,36 +1629,40 @@ var rere = (function(){
                 
                 function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
                     BaseCell.apply(this);
+                    this.handler = null;
                     this.list = list;
-                    this.reducer = new Reducer(this.cellId, algebraicStructure, wrap, ignoreUnset);
-                    this.reducer.set = function(value) {
-                        if (this.usersCount===0) throw new Error();
-                        this.content = new Some(this._unwrap(value));
-                        this.raise();
-                    }.bind(this);
-                    this.reducer.unset = function() {
-                        if (this.usersCount===0) throw new Error();
-                        this.content = new None();
-                        this.raise();
-                    }.bind(this);
+                    this.Reducer = Reducer;
+                
                     this._monoid = algebraicStructure;
                     this._unwrap = unwrap;
                     this._wrap = wrap;
                     this._ignoreUnset = ignoreUnset;
                 }
                 
-                function SetPrototype() {
-                    var useCall = 0;
                 
+                function SetPrototype() {
                     ReducedList.prototype = new BaseCell();
                 
                     ReducedList.prototype.use = function(id) {
                         BaseCell.prototype.use.apply(this, [id]);
                         if (this.usersCount === 1) {
                             this.list.use(this.cellId);
-                            this.unsubscribe = this.list.onEvent(List.handler({
+                            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
                                 data: function(data) {
-                                    this.reducer.dispose();
+                                    if (this.reducer!=null) {
+                                        this.reducer.dispose();
+                                        this.reducer = null;
+                                    }
+                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                                        if (e[0]=="set") {
+                                            this.content = new Some(this._unwrap(e[1]));
+                                        } else if (e[0]=="unset") {
+                                            this.content = new None();
+                                        } else {
+                                            throw new Error();
+                                        }
+                                        this.raise();
+                                    }.bind(this));
                                     this.reducer.init(data);
                                 }.bind(this),
                                 add: function(item) {
@@ -1341,7 +1671,7 @@ var rere = (function(){
                                 remove: function(key) {
                                     this.reducer.remove(key);
                                 }.bind(this)
-                            }))
+                            }));
                         }
                     };
                 
@@ -1350,7 +1680,10 @@ var rere = (function(){
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
+                
                             this.reducer.dispose();
+                            this.reducer = null;
+                
                             this.list.leave(this.cellId);
                         }
                     };
@@ -1382,6 +1715,21 @@ var rere = (function(){
                     };
                 }
                 
+                
+                function ImmediatelyDisposableSubscribe(subscribable) {
+                    var self = this;
+                    this.isActive = true;
+                    this.onEvent = function(f) {
+                        var dispose = subscribable.onEvent(function(e){
+                            if (!self.isActive) return;
+                            f(e);
+                        });
+                        return function() {
+                            self.isActive = false;
+                            dispose();
+                        }
+                    };
+                }
             }
         },
         {

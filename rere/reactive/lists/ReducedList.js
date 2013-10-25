@@ -12,36 +12,40 @@ var None, Some, Cell, BaseCell, List;
 
 function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
     BaseCell.apply(this);
+    this.handler = null;
     this.list = list;
-    this.reducer = new Reducer(this.cellId, algebraicStructure, wrap, ignoreUnset);
-    this.reducer.set = function(value) {
-        if (this.usersCount===0) throw new Error();
-        this.content = new Some(this._unwrap(value));
-        this.raise();
-    }.bind(this);
-    this.reducer.unset = function() {
-        if (this.usersCount===0) throw new Error();
-        this.content = new None();
-        this.raise();
-    }.bind(this);
+    this.Reducer = Reducer;
+
     this._monoid = algebraicStructure;
     this._unwrap = unwrap;
     this._wrap = wrap;
     this._ignoreUnset = ignoreUnset;
 }
 
-function SetPrototype() {
-    var useCall = 0;
 
+function SetPrototype() {
     ReducedList.prototype = new BaseCell();
 
     ReducedList.prototype.use = function(id) {
         BaseCell.prototype.use.apply(this, [id]);
         if (this.usersCount === 1) {
             this.list.use(this.cellId);
-            this.unsubscribe = this.list.onEvent(List.handler({
+            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
                 data: function(data) {
-                    this.reducer.dispose();
+                    if (this.reducer!=null) {
+                        this.reducer.dispose();
+                        this.reducer = null;
+                    }
+                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                        if (e[0]=="set") {
+                            this.content = new Some(this._unwrap(e[1]));
+                        } else if (e[0]=="unset") {
+                            this.content = new None();
+                        } else {
+                            throw new Error();
+                        }
+                        this.raise();
+                    }.bind(this));
                     this.reducer.init(data);
                 }.bind(this),
                 add: function(item) {
@@ -50,7 +54,7 @@ function SetPrototype() {
                 remove: function(key) {
                     this.reducer.remove(key);
                 }.bind(this)
-            }))
+            }));
         }
     };
 
@@ -59,7 +63,10 @@ function SetPrototype() {
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
+
             this.reducer.dispose();
+            this.reducer = null;
+
             this.list.leave(this.cellId);
         }
     };
@@ -88,5 +95,21 @@ function SetPrototype() {
             sum = this._monoid.add(sum, this._wrap(item));
         }.bind(this));
         return this._unwrap(sum);
+    };
+}
+
+
+function ImmediatelyDisposableSubscribe(subscribable) {
+    var self = this;
+    this.isActive = true;
+    this.onEvent = function(f) {
+        var dispose = subscribable.onEvent(function(e){
+            if (!self.isActive) return;
+            f(e);
+        });
+        return function() {
+            self.isActive = false;
+            dispose();
+        }
     };
 }
