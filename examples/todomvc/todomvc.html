@@ -48,7 +48,6 @@
                             if (newTaskName.unwrap()==="") return;
                             todos.addTodo({mark: false, name: newTaskName.unwrap()});
                             newTaskName.set("");
-                            console.info(left.unwrap());
                         }
                     }, newTaskName]],
                 ["section", {id:"main"},
@@ -67,6 +66,7 @@
                     hasItem.when(true, ["div", ["input-check", {
                         id: "toggle-all", "rere:role": "view",
                         "!rere:changed": function(state) {
+                            console.info(state);
                             todos.forEach(function(todo){
                                 todo.mark.set(state);
                             });
@@ -110,8 +110,6 @@
                             "css/text-decoration": todo.mark.when(true, "line-through", "none")
                         }, todo.name],
                         ["button", {"class": "destroy", "!click": function() {
-                            console.info("");
-                            console.info("CLICK");
                             todo.remove();
                         }}]
                     ]);
