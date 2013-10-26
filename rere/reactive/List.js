@@ -45,7 +45,9 @@ function SetListPrototype() {
                 value: item
             }
         }.bind(this));
-        this.raise(["data", this.data.slice()]);
+        if (this.usersCount>0) {
+            this.raise(["data", this.data.slice()]);
+        }
     };
 
     List.prototype.unwrap = function() {
@@ -62,7 +64,9 @@ function SetListPrototype() {
         var key = this._elementId++;
         var e = {key: key, value: f(key)};
         this.data.push(e);
-        this.raise(["add", e]);
+        if (this.usersCount>0) {
+            this.raise(["data", this.data.slice()]);
+        }
         return key;
     };
 
@@ -75,7 +79,9 @@ function SetListPrototype() {
         if (length!=this.data.length) {
             removed = true;
         }
-        this.raise(["remove", key]);
+        if (this.usersCount>0) {
+            this.raise(["remove", key]);
+        }
         return removed;
     };
 

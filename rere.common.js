@@ -1110,7 +1110,9 @@ var rere = (function(){
                                 value: item
                             }
                         }.bind(this));
-                        this.raise(["data", this.data.slice()]);
+                        if (this.usersCount>0) {
+                            this.raise(["data", this.data.slice()]);
+                        }
                     };
                 
                     List.prototype.unwrap = function() {
@@ -1127,7 +1129,9 @@ var rere = (function(){
                         var key = this._elementId++;
                         var e = {key: key, value: f(key)};
                         this.data.push(e);
-                        this.raise(["add", e]);
+                        if (this.usersCount>0) {
+                            this.raise(["data", this.data.slice()]);
+                        }
                         return key;
                     };
                 
@@ -1140,7 +1144,9 @@ var rere = (function(){
                         if (length!=this.data.length) {
                             removed = true;
                         }
-                        this.raise(["remove", key]);
+                        if (this.usersCount>0) {
+                            this.raise(["remove", key]);
+                        }
                         return removed;
                     };
                 
@@ -1628,13 +1634,7 @@ var rere = (function(){
                                     }.bind(this), false);
                                 } else {
                                     view.addEventListener(name, function(event) {
-                                        if (name=="change") {
-                                            console.info("changing (" + this.elementId + ")..");
-                                        }
                                         this.events[name](this, view, event);
-                                        if (name=="change") {
-                                            console.info("..changed (" + this.elementId + ")!");
-                                        }
                                     }.bind(this), false);
                                 }
                             }.bind(this))(name);
@@ -1671,10 +1671,7 @@ var rere = (function(){
                     this.setAttribute = function(view, name, value) {
                         var self = this;
                         if (name in this.attributeSetters) {
-                            if (name=="checked") {
-                                console.info("subscribe to checked attribute (" + this.elementId + ")");
-                            }
-                            wrapRv(value, this.attributeSetters[name](view), name);
+                            wrapRv(value, this.attributeSetters[name](view));
                         } else {
                             wrapRv(value, defaultMap(view, name));
                         }
@@ -1690,23 +1687,10 @@ var rere = (function(){
                             }
                         }
                 
-                        function wrapRv(value, template, name) {
+                        function wrapRv(value, template) {
                             if (typeof value==="object" && value.type == Cell) {
                                 self.cells[value.cellId] = value;
-                                var unsubscribe = value.onEvent(Cell.handler({
-                                    set: function(x) {
-                                        if (name=="checked"){
-                                            console.info("setting (" + self.elementId + ")");
-                                        }
-                                        template.set(x);
-                                    },
-                                    unset: function() {
-                                        if (name=="checked"){
-                                            console.info("setting (" + self.elementId + ")");
-                                        }
-                                        template.unset();
-                                    }
-                                }));
+                                var unsubscribe = value.onEvent(Cell.handler(template));
                                 value.use(self.elementId);
                                 self.disposes.push(function(){
                                     unsubscribe();
@@ -1724,14 +1708,10 @@ var rere = (function(){
                         checked: function(view) {
                             return {
                                 set: function(v) {
-                                    console.info("setting checkbox to " + v);
                                     view.checked = v;
-                                    console.info("set!");
                                 },
                                 unset: function() {
-                                    console.info("setting checkbox to false");
                                     view.checked = false;
-                                    console.info("set!");
                                 }
                             };
                         },
@@ -2129,7 +2109,6 @@ var rere = (function(){
                         delete element.attributes["rere:role"];
                 
                         element.events.change = function(control, view) {
-                            console.info("check: " + view.checked);
                             change.apply(element.events, [control, view]);
                             changed(view.checked);
                             if (!isViewOnly) {

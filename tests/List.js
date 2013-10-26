@@ -42,6 +42,7 @@ exports.add = function(test) {
     list.add(5);
     list.add(7);
     list.add(11);
+    list.fix();
     var data = store.play();
     test.equal(data.length, 4);
     test.ok(data.has(3));
@@ -61,6 +62,7 @@ exports.addRemove = function(test) {
     var key = list.add(5);
     list.add(7);
     list.add(11);
+    list.fix();
     var data = store.play();
     test.equal(data.length, 4);
     list.remove(key);
@@ -76,7 +78,7 @@ exports.addRemove = function(test) {
 
 exports.count = function(test) {
     test.expect(3);
-    var list = new List([]);
+    var list = new List().fix();
     var count = list.count();
     test.equal(count.unwrap(), 0);
 
