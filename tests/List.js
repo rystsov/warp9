@@ -1,7 +1,8 @@
-var EventStore = require('./utils/List.EventStore');
 var rere = require('../rere.common');
-
+var EventSink = require('./utils/Cell.EventSink');
+var EventStore = require('./utils/List.EventStore');
 var List = rere.reactive.List;
+var Cell = rere.reactive.Cell;
 
 exports.ctor = function(test) {
     test.expect(0);
@@ -9,6 +10,29 @@ exports.ctor = function(test) {
     test.done();
 };
 
+exports.all = function(test) {
+    test.expect(4);
+
+    var list = new List();
+
+    var toggleAll = list.all(function(x) { return x.mark; }).fix();
+
+    var sink = new EventSink(toggleAll);
+    test.equal(sink.unwrap(0), true);
+
+    list.add({mark: new Cell(true)});
+    test.equal(sink.unwrap(0), true);
+
+    list.forEach(function(x) {x.mark.set(false); });
+    test.equal(sink.unwrap(0), false);
+
+    list.forEach(function(x) {x.mark.set(true); });
+    test.equal(sink.unwrap(0), true);
+
+    test.done();
+};
+
+// TODO: where is subscribe, why it is work?!
 exports.add = function(test) {
     test.expect(5);
     var list = new List([]);

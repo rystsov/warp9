@@ -1,7 +1,13 @@
 expose({
     hashLen: hashLen,
-    hashValues: hashValues
+    hashValues: hashValues,
+    checkBool: checkBool
 });
+
+function checkBool(x) {
+    if (typeof x == "boolean") return x;
+    throw new Error();
+}
 
 function hashLen(hash) {
     var count = 0;

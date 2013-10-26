@@ -97,21 +97,23 @@ BaseCell.prototype.coalesce = function(replace) {
     return new CoalesceCell(this, replace);
 };
 
-BaseCell.prototype.when = function(condition, transform) {
+BaseCell.prototype.when = function(condition, transform, alternative) {
     var test = typeof condition === "function" ? condition : function(value) {
         return value === condition;
     };
 
     var map = typeof transform === "function" ? transform : function() { return transform; };
 
+    var alt = null;
+    if (arguments.length==3) {
+        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
+    }
+
     var opt = {
         condition: test,
-        transform: map
+        transform: map,
+        alternative: alt
     };
-
-    if (arguments.length==3) {
-        opt.alternative = arguments[2];
-    }
 
     return new WhenCell(this, opt);
 };

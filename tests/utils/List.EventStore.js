@@ -1,8 +1,11 @@
 module.exports = ListEventStore;
 
-function ListEventStore() {
+function ListEventStore(list) {
     this.store = [];
     this.changes = 0;
+    if (arguments.length==1) {
+        list.onEvent(List.handler(this));
+    }
 }
 
 ListEventStore.prototype.data = function(data) {

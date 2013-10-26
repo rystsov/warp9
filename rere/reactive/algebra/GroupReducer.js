@@ -93,9 +93,9 @@ Sigma.prototype._add = function(key, value) {
             self.sum = self.group.add(self.sum, self.group.invert(last.value));
         }
         last = {
-            value: x
+            value: self.wrap(x)
         };
-        self.sum = self.group.add(self.sum, self.wrap(x));
+        self.sum = self.group.add(self.sum, last.value);
         ///////////////////////
         self.raise();
     }

@@ -144,9 +144,9 @@ var rere = (function(){
                             self.sum = self.group.add(self.sum, self.group.invert(last.value));
                         }
                         last = {
-                            value: x
+                            value: self.wrap(x)
                         };
-                        self.sum = self.group.add(self.sum, self.wrap(x));
+                        self.sum = self.group.add(self.sum, last.value);
                         ///////////////////////
                         self.raise();
                     }
@@ -692,21 +692,23 @@ var rere = (function(){
                     return new CoalesceCell(this, replace);
                 };
                 
-                BaseCell.prototype.when = function(condition, transform) {
+                BaseCell.prototype.when = function(condition, transform, alternative) {
                     var test = typeof condition === "function" ? condition : function(value) {
                         return value === condition;
                     };
                 
                     var map = typeof transform === "function" ? transform : function() { return transform; };
                 
+                    var alt = null;
+                    if (arguments.length==3) {
+                        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
+                    }
+                
                     var opt = {
                         condition: test,
-                        transform: map
+                        transform: map,
+                        alternative: alt
                     };
-                
-                    if (arguments.length==3) {
-                        opt.alternative = arguments[2];
-                    }
                 
                     return new WhenCell(this, opt);
                 };
@@ -961,7 +963,7 @@ var rere = (function(){
                     this.source = source;
                     this.condition = opt.condition;
                     this.transform = opt.transform;
-                    this.alternative = opt.hasOwnProperty("alternative") ? new Some(opt.alternative) : new None();
+                    this.alternative = opt.alternative;
                     BaseCell.apply(this);
                 }
                 
@@ -975,18 +977,26 @@ var rere = (function(){
                             this.unsubscribe = this.source.onEvent(Cell.handler({
                                 set: function(value) {
                                     if (this.condition(value)) {
-                                        this.content = new Some(this.transform(value));
-                                        this.raise(["set", this.content.value()]);
-                                    } else if (!this.alternative.isEmpty()) {
-                                        this.raise(["set", this.alternative.value()]);
+                                        value = {value: this.transform(value)};
+                                    } else if (this.alternative != null) {
+                                        value = {value: this.alternative(value)};
                                     } else {
-                                        this.content = new None();
-                                        this.raise(["unset"]);
+                                        value = null;
                                     }
+                
+                                    if (value != null) {
+                                        if (!isEmpty(this) && this.content.value()===value.value) return;
+                                        this.content = new Some(value.value);
+                                    } else {
+                                        if (isEmpty(this)) return;
+                                        this.content = new None();
+                                    }
+                                    this.raise();
                                 }.bind(this),
                                 unset: function(){
+                                    if (this.content != null && this.content.isEmpty()) return;
                                     this.content = new None();
-                                    this.raise(["unset"]);
+                                    this.raise();
                                 }.bind(this)
                             }))
                         }
@@ -1012,6 +1022,11 @@ var rere = (function(){
                         if (arguments.length === 0) throw new Error();
                         return arguments[0];
                     };
+                
+                    function isEmpty(self) {
+                        if (self.content === null) return true;
+                        return self.content.isEmpty();
+                    }
                 }
             }
         },
@@ -1156,9 +1171,10 @@ var rere = (function(){
                     ReducedList = root.reactive.lists.ReducedList;
                     LiftedList = root.reactive.lists.LiftedList;
                     Cell = root.reactive.Cell;
+                    checkBool = root.utils.checkBool;
                 });
                 
-                var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
+                var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList, checkBool;
                 
                 function BaseList() {
                     this.listId = root.idgenerator();
@@ -1274,7 +1290,7 @@ var rere = (function(){
                         add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
                         invert: function(x) { return [-x[0],-x[1]]; }
                     },{
-                        wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
+                        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
                         unwrap: function(x) { return x[0]==x[1]; }
                     });
                 };
@@ -1285,9 +1301,9 @@ var rere = (function(){
                     return this.lift(function(x){
                         x = predicate(x);
                         if (typeof x === "object" && x.type === Cell) {
-                            return x.lift(function(x) { return bool_to(x, 1, 0); });
+                            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
                         }
-                        return bool_to(x, 1, 0);
+                        return checkBool(x) ? 1 : 0;
                     }).reduceGroup({
                         identity: function() { return 0; },
                         add: function(x,y) { return x+y; },
@@ -1316,11 +1332,6 @@ var rere = (function(){
                     }));
                 }
                 
-                function bool_to(x, t, f) {
-                    if (x === true) return t;
-                    if (x === false) return f;
-                    throw new Error();
-                }
                 
                 
             }
@@ -1595,6 +1606,7 @@ var rere = (function(){
                 
                         this.dispose = function() { throw new Error(); }
                     };
+                
                     this.view = function() {
                         var view = document.createElement(tag);
                 
@@ -1616,7 +1628,13 @@ var rere = (function(){
                                     }.bind(this), false);
                                 } else {
                                     view.addEventListener(name, function(event) {
+                                        if (name=="change") {
+                                            console.info("changing (" + this.elementId + ")..");
+                                        }
                                         this.events[name](this, view, event);
+                                        if (name=="change") {
+                                            console.info("..changed (" + this.elementId + ")!");
+                                        }
                                     }.bind(this), false);
                                 }
                             }.bind(this))(name);
@@ -1653,7 +1671,10 @@ var rere = (function(){
                     this.setAttribute = function(view, name, value) {
                         var self = this;
                         if (name in this.attributeSetters) {
-                            wrapRv(value, this.attributeSetters[name](view));
+                            if (name=="checked") {
+                                console.info("subscribe to checked attribute (" + this.elementId + ")");
+                            }
+                            wrapRv(value, this.attributeSetters[name](view), name);
                         } else {
                             wrapRv(value, defaultMap(view, name));
                         }
@@ -1669,12 +1690,22 @@ var rere = (function(){
                             }
                         }
                 
-                        function wrapRv(value, template) {
+                        function wrapRv(value, template, name) {
                             if (typeof value==="object" && value.type == Cell) {
                                 self.cells[value.cellId] = value;
                                 var unsubscribe = value.onEvent(Cell.handler({
-                                    set: template.set,
-                                    unset: template.unset
+                                    set: function(x) {
+                                        if (name=="checked"){
+                                            console.info("setting (" + self.elementId + ")");
+                                        }
+                                        template.set(x);
+                                    },
+                                    unset: function() {
+                                        if (name=="checked"){
+                                            console.info("setting (" + self.elementId + ")");
+                                        }
+                                        template.unset();
+                                    }
                                 }));
                                 value.use(self.elementId);
                                 self.disposes.push(function(){
@@ -1693,10 +1724,14 @@ var rere = (function(){
                         checked: function(view) {
                             return {
                                 set: function(v) {
+                                    console.info("setting checkbox to " + v);
                                     view.checked = v;
+                                    console.info("set!");
                                 },
                                 unset: function() {
+                                    console.info("setting checkbox to false");
                                     view.checked = false;
+                                    console.info("set!");
                                 }
                             };
                         },
@@ -2084,21 +2119,18 @@ var rere = (function(){
                         element.attributes = attr.attributes;
                         element.attributes.type = type;
                         element.attributes.checked = state.coalesce(false);
+                        element.attributes.checked = state;
                 
                         var isViewOnly = element.attributes["rere:role"]==="view";
                         var change = element.events.change || function(){};
-                        var checked = element.events["rere:checked"] || function(){};
-                        var unchecked = element.events["rere:unchecked"] || function(){};
+                
                         var changed = element.events["rere:changed"] || function(){};
-                        delete element.events["rere:checked"];
-                        delete element.events["rere:unchecked"];
+                        delete element.events["rere:changed"];
+                        delete element.attributes["rere:role"];
+                
                         element.events.change = function(control, view) {
+                            console.info("check: " + view.checked);
                             change.apply(element.events, [control, view]);
-                            if (view.checked) {
-                                checked();
-                            } else {
-                                unchecked();
-                            }
                             changed(view.checked);
                             if (!isViewOnly) {
                                 state.set(view.checked);
@@ -2295,8 +2327,14 @@ var rere = (function(){
             content: function(root, expose) {
                 expose({
                     hashLen: hashLen,
-                    hashValues: hashValues
+                    hashValues: hashValues,
+                    checkBool: checkBool
                 });
+                
+                function checkBool(x) {
+                    if (typeof x == "boolean") return x;
+                    throw new Error();
+                }
                 
                 function hashLen(hash) {
                     var count = 0;

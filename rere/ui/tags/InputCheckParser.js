@@ -26,21 +26,17 @@ function InputCheckParser(type) {
         element.attributes = attr.attributes;
         element.attributes.type = type;
         element.attributes.checked = state.coalesce(false);
+        element.attributes.checked = state;
 
         var isViewOnly = element.attributes["rere:role"]==="view";
         var change = element.events.change || function(){};
-        var checked = element.events["rere:checked"] || function(){};
-        var unchecked = element.events["rere:unchecked"] || function(){};
+
         var changed = element.events["rere:changed"] || function(){};
-        delete element.events["rere:checked"];
-        delete element.events["rere:unchecked"];
+        delete element.events["rere:changed"];
+        delete element.attributes["rere:role"];
+
         element.events.change = function(control, view) {
             change.apply(element.events, [control, view]);
-            if (view.checked) {
-                checked();
-            } else {
-                unchecked();
-            }
             changed(view.checked);
             if (!isViewOnly) {
                 state.set(view.checked);

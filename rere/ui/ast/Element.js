@@ -22,6 +22,7 @@ function Element(tag) {
 
         this.dispose = function() { throw new Error(); }
     };
+
     this.view = function() {
         var view = document.createElement(tag);
 
@@ -99,10 +100,7 @@ function Element(tag) {
         function wrapRv(value, template) {
             if (typeof value==="object" && value.type == Cell) {
                 self.cells[value.cellId] = value;
-                var unsubscribe = value.onEvent(Cell.handler({
-                    set: template.set,
-                    unset: template.unset
-                }));
+                var unsubscribe = value.onEvent(Cell.handler(template));
                 value.use(self.elementId);
                 self.disposes.push(function(){
                     unsubscribe();

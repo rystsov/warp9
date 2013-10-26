@@ -5,9 +5,10 @@ expose(BaseList, function() {
     ReducedList = root.reactive.lists.ReducedList;
     LiftedList = root.reactive.lists.LiftedList;
     Cell = root.reactive.Cell;
+    checkBool = root.utils.checkBool;
 });
 
-var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList;
+var Cell, List, GroupReducer, MonoidReducer, LiftedList, ReducedList, checkBool;
 
 function BaseList() {
     this.listId = root.idgenerator();
@@ -123,7 +124,7 @@ BaseList.prototype.all = function(predicate) {
         add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
         invert: function(x) { return [-x[0],-x[1]]; }
     },{
-        wrap: function(x) { return bool_to(x, [1,1], [0,1]); },
+        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
         unwrap: function(x) { return x[0]==x[1]; }
     });
 };
@@ -134,9 +135,9 @@ BaseList.prototype.count = function() {
     return this.lift(function(x){
         x = predicate(x);
         if (typeof x === "object" && x.type === Cell) {
-            return x.lift(function(x) { return bool_to(x, 1, 0); });
+            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
         }
-        return bool_to(x, 1, 0);
+        return checkBool(x) ? 1 : 0;
     }).reduceGroup({
         identity: function() { return 0; },
         add: function(x,y) { return x+y; },
@@ -165,9 +166,4 @@ function initReducer(list, reducer) {
     }));
 }
 
-function bool_to(x, t, f) {
-    if (x === true) return t;
-    if (x === false) return f;
-    throw new Error();
-}
 
