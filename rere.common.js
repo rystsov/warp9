@@ -1031,6 +1031,29 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "event_broker"],
+            content: function(root, expose) {
+                expose(new EventBroker());
+                
+                function EventBroker() {
+                    this.messages = [];
+                    this.isActive = false;
+                
+                    this.issue = function(reciever, event) {
+                        this.messages.push([reciever, event]);
+                        if (this.isActive) return;
+                        this.isActive = true;
+                        while(this.events.length!=0) {
+                            var message = this.messages.shift();
+                            message[0].send(message[1]);
+                        }
+                        this.isActive = false;
+                    };
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "lazy_run"],
             content: function(root, expose) {
                 expose(new LazyRun());
