@@ -31,24 +31,50 @@ function SetCellPrototype() {
 
     // Specific
     Cell.prototype.set = function(value) {
-        this.content = new Some(value);
-        if (this.usersCount>0) {
-            this.raise(["set", value]);
-        }
+        root.reactive.event_broker.issue(this, {
+            name: "set",
+            value: value
+        });
     };
 
     Cell.prototype.unset = function() {
-        this.content = new None();
-        if (this.usersCount>0) {
-            this.raise(["unset"])
+        root.reactive.event_broker.issue(this, {
+            name: "unset"
+        });
+    };
+
+    var knownEvents = {
+        use: "_use",
+        set: "_set",
+        unset: "_unset"
+    };
+
+    Cell.prototype.send = function(event) {
+        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+        if (knownEvents.hasOwnProperty(event.name)) {
+            this[knownEvents[event.name]].apply(this, [event]);
+        } else {
+            BaseCell.prototype.send.apply(this, [event]);
         }
     };
 
-    Cell.prototype.use = function(id) {
-        BaseCell.prototype.use.apply(this, [id]);
+    Cell.prototype._use = function(event) {
+        BaseCell.prototype._use.apply(this, [event]);
         if (this.usersCount === 1) {
-            this.raise();
+            this.__raise();
         }
+    };
+
+    Cell.prototype._set = function(event) {
+        if (event.name!="set") throw new Error();
+        this.content = new Some(event.value);
+        this.__raise();
+    };
+
+    Cell.prototype._unset = function(event) {
+        if (event.name!="unset") throw new Error();
+        this.content = new None();
+        this.__raise()
     };
 }
 

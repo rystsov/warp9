@@ -8,7 +8,7 @@ function EventBroker() {
         this.messages.push([reciever, event]);
         if (this.isActive) return;
         this.isActive = true;
-        while(this.events.length!=0) {
+        while(this.messages.length!=0) {
             var message = this.messages.shift();
             message[0].send(message[1]);
         }
