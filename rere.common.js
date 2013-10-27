@@ -765,7 +765,7 @@ var rere = (function(){
                         var content = this.content;
                 
                         root.reactive.lazy_run.run(function(){
-                            // TODO: check if disposed
+                            if (event.disposed) return;
                             if (content.isEmpty()) {
                                 event.f(["unset"]);
                             } else {

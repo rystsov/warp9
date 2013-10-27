@@ -558,7 +558,6 @@ var rere = (function(){
                 
                     // Specific
                     Cell.prototype.set = function(value) {
-                        // TODO: do not set if equal
                         root.reactive.event_broker.issue(this, {
                             name: "set",
                             value: value
@@ -595,14 +594,16 @@ var rere = (function(){
                 
                     Cell.prototype._set = function(event) {
                         if (event.name!="set") throw new Error();
+                        if (!this.content.isEmpty() && this.content.value()===event.value) return;
                         this.content = new Some(event.value);
                         this.__raise();
                     };
                 
                     Cell.prototype._unset = function(event) {
                         if (event.name!="unset") throw new Error();
+                        if (this.content.isEmpty()) return;
                         this.content = new None();
-                        this.__raise()
+                        this.__raise();
                     };
                 }
                 
