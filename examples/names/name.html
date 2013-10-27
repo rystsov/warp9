@@ -1,0 +1,31 @@
+<html>
+    <head>
+        <script src="../../rere.js"></script>
+    </head>
+    <body>
+        <div id="canvas"></div>
+    </body>
+    <script type="text/javascript">
+        var Cell = rere.reactive.Cell;
+
+        function NAME(firstName, lastName) {
+            firstName = new Cell(firstName);
+            lastName = new Cell(lastName);
+            var fullName = firstName.bind(function(first){
+                return lastName.bind(function(last){
+                    return new Cell(first + " " + last);
+                });
+            });
+            return ["div",
+                ["div",
+                    "First name:", ["input-text", firstName]],
+                ["div",
+                    "Last name:", ["input-text", lastName]],
+                ["div", fullName]
+            ];
+        }
+
+        var renderer = rere.ui.renderer;
+        renderer.render(canvas, NAME("Denis", "Rystsov"));
+    </script>
+</html>

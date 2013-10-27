@@ -1,147 +1,127 @@
 <html>
     <head>
+        <meta charset="utf-8">
         <link rel="stylesheet" href="base.css">
-        <script src="../../rere.closure.js"></script>
+        <script src="../../rere.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
     </body>
-    <script type="text/javascript">
-        var renderer = rere.ui.renderer;
-        var Variable = rere.reactive.Variable;
-        var rv = rere.reactive.rv;
-        var H = rere.ui.renderer.h;
+    <script language="javascript" type="text/javascript">
+        var Cell = rere.reactive.Cell;
+        var List = rere.reactive.List;
 
-        var storage = {
-            STORAGE_ID: 'todos-rerejs',
-            get: function() {
-                return JSON.parse(localStorage.getItem(this.STORAGE_ID) || '[]');
-            },
-            put: function(todos) {
-                localStorage.setItem(this.STORAGE_ID, JSON.stringify(todos));
-            }
-        }
+        var STORAGE_ID = 'todos-rerejs';
 
-        renderer.render(canvas, todoApp(storage.get(), storage.put.bind(storage)));
+        var todos = new List([]);
+        todos.addTodo = function (todo) {
+            this.add(function(id){
+                return {
+                    mark: new Cell(todo.mark),
+                    name: new Cell(todo.name),
+                    remove: function() { this.remove(id);}.bind(this)
+                };
+            }.bind(this));
+        }.bind(todos);
 
-        function todoApp(seed, save) {
-            var todos = new rere.reactive.ObservableList([]);
+        JSON.parse(localStorage.getItem(STORAGE_ID) || '[]').forEach(todos.addTodo);
+        rere.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
+            localStorage.setItem(STORAGE_ID, JSON.stringify(todos));
+        });
 
-            seed.map(function(todo){ addTodo(todos, todo); });
-            rv.unwrapObject(todos.lift(function(item){ return {mark:item.mark, name:item.name} })).subscribe(save);
+        rere.ui.renderer.render(canvas, TODOMVC(todos));
 
-            var toggleAll = todos.lift(function(item){ return item.mark; }).reduceCA(function(a,b){
-                return a && b;
-            }).coalesce(false);
-            var leftCompleted = todos.lift(function(item){ return item.mark.lift(function(state){
-                return state ? [0,1] : [1,0];
-            }); }).reduceCA(function(a,b){ return [a[0]+b[0], a[1]+b[1]]; });
-            var activeTab = new Variable("All"); // All, Active, Completed
-            var hasItem = todos.list.bind(function(list){ return list.length>0 ? new Variable(true) : new Variable(); });
+        function TODOMVC(todos) {
+            var activeTab = new Cell("All"); // All, Active, Completed
+            var newTaskName = new Cell("");
+            var hasItem = todos.count().lift(function(count){ return count>0; });
+            var toggleAll = todos.all(function(x) { return x.mark; }).fix();
+            var left      = todos.count(function(x) { return x.mark.lift(function(x) { return !x; }); });
+            var completed = todos.count(function(x) { return x.mark; });
 
-            return ["section", H.at({id:"todoapp"}),
-                (function(name) {
-                    return ["header", H.at({id:"header"}),
-                        ["h1", "todos"],
-                        ["input-text", H.s(name),
-                            H.at({id:"new-todo", placeholder:"What needs to be done?", autofocus: true}),
-                            H.e({"key:enter": function(){
-                                if (name.value().value()==="") return;
-                                addTodo(todos, {mark: false, name: name.value().value()});
-                                name.set("");
-                            }})]]
-                })(new Variable("")),
-
-                (function(){
-                    return ["section", H.at({id:"main"}),
-                        ["ul", H.at({id:"todo-list"}),
-                            H(todos.lift(function(item){
-                                return H(H(activeTab.bind(function(tab){
-                                    return item.mark.bind(function(mark){
-                                        if (tab==="All") return new Variable(item);
-                                        if (tab==="Active" && !mark) return new Variable(item);
-                                        if (tab==="Completed" && mark) return new Variable(item);
-                                        return new Variable();
-                                    });
-                                }).lift(function(item){ return H(ITEM(item)); })));
-                            }))],
-                        H(rv.when(hasItem, true,
-                            H(["div", ["input-check",
-                                H.at({id:"toggle-all","rere:role": "view"}),
-                                H.s(toggleAll),
-                                H.e({"rere:changed": function(state){
-                                    todos.values().forEach(function(e){ e.mark.set(state); });
-                                }})
-                            ]])))
-                    ];
-                })(),
-
-                (function(){
-                    return H(rv.when(hasItem, true, H(["footer", H.at({id:"footer"}),
-                        H(leftCompleted.lift(function(v){
-                            var html = ["div",
-                                ["span", H.at({id:"todo-count"}),
-                                    ["strong", "" + v[0]], " " + (v[0]===1? "item left" : "items left")],
-                                ["ul", H.at({id:"filters"}),
-                                    ["li", tabSwitch("All")],
-                                    ["li", tabSwitch("Active")],
-                                    ["li", tabSwitch("Completed")]]];
-                            if (v[1]>0) html.push(["button", H.at({id:"clear-completed"}),
-                                H.e({click: function(){
-                                    todos.getData().map(function(item){
-                                        if (item.value.mark.value().value()) item.value.remove();
-                                    });
-                                }}),
-                                "Clear completed (" + v[1] + ")"
-                            ]);
-                            return H(html);
-                        }))
-                    ])));
-                    function tabSwitch(tabName) {
-                        return ["a",
-                            H.at({href:"#", "class":rv.when(activeTab, tabName, "selected")}),
-                            H.e({click: function() { activeTab.set(tabName); }}),
-                            tabName];
-                    }
-                })()
+            return ["section", {id: "todoapp"},
+                ["header", {id:"header"},
+                    ["h1", "todos"],
+                    ["input-text", {
+                        id:"new-todo", placeholder:"What needs to be done?", autofocus: true,
+                        "!key:enter": function() {
+                            if (newTaskName.unwrap()==="") return;
+                            todos.addTodo({mark: false, name: newTaskName.unwrap()});
+                            newTaskName.set("");
+                        }
+                    }, newTaskName]],
+                ["section", {id:"main"},
+                    ["ul", {id:"todo-list"},
+                        todos.lift(function(item){
+                            return activeTab.bind(function(tab){
+                                return item.mark.bind(function(mark){
+                                    return new Cell((tab==="All") ||
+                                                    (tab==="Active" && !mark) ||
+                                                    (tab==="Completed" && mark));
+                                });
+                            }).when(true, item).lift(ITEM);
+                        })
+                    ],
+                    hasItem.when(true, ["div", ["input-check", {
+                        id: "toggle-all", "rere:role": "view",
+                        "!rere:changed": function(state) {
+                            todos.forEach(function(todo){
+                                todo.mark.set(state);
+                            });
+                        }
+                    }, toggleAll]])],
+                hasItem.when(true, ["footer", {id: "footer"},
+                    ["div",
+                        ["span", {id: "todo-count"}, ["strong", left], left.lift(function(left){
+                            return left===1 ? " item left" : " items left";
+                        })],
+                        ["ul", {id:"filters"},
+                            ["li", tabSwitch("All")],
+                            ["li", tabSwitch("Active")],
+                            ["li", tabSwitch("Completed")]],
+                        completed.when(function(x) { return x > 0; }, ["button", {
+                            id: "clear-completed",
+                            "!click": function(){
+                                todos.removeWhich(function(item){ return item.mark.unwrap(); });
+                            }
+                        }, "Clear completed (", completed, ")"])
+                    ]
+                ])
             ];
 
-            function addTodo(todos, todo) {
-                todos.add(function(id){
-                    return {
-                        mark: new Variable(todo.mark),
-                        name: rv.batch(new Variable(todo.name)),
-                        remove: function() { todos.remove(id); }
-                    };
-                });
+            function tabSwitch(tabName) {
+                return ["a", {
+                    "href": "#", "class": activeTab.when(tabName, "selected"),
+                    "!click": function() { activeTab.set(tabName); }
+                }, tabName];
             }
 
-            function ITEM(item) {
-                var control = new Variable();
+            function ITEM(todo) {
+                var control = new Cell();
+                var name = new Cell(todo.name.unwrap());
                 var label = rere.ui.hacks.unrecursion(function() {
-                    control.set(H(renderer.parse(
-                        ["li",
-                            ["input-check", H.at({"class":"toggle"}), H.s(item.mark)],
-                            ["label",
-                                H.e({ dblclick: textbox }),
-                                H.at({css:{ "text-decoration": rv.when(item.mark, true, "line-through", "none")}}),
-                                ["text", item.name]],
-                            ["button", H.e({click: item.remove}), H.at({"class":"destroy"})]]
-                    )));
-                    item.name.commit();
-                    if (item.name.unwrap("").trim()=="") item.remove();
+                    todo.name.set(name.unwrap());
+                    control.set(["li",
+                        ["input-check", {"class": "toggle"}, todo.mark],
+                        ["label", {
+                            "!dblclick": textbox,
+                            "css/text-decoration": todo.mark.when(true, "line-through", "none")
+                        }, todo.name],
+                        ["button", {"class": "destroy", "!click": function() {
+                            todo.remove();
+                        }}]
+                    ]);
+                    if (name.unwrap("").trim()=="") todo.remove();
                 });
                 function textbox() {
-                    item.name.batch();
-                    control.set(H(renderer.parse(
-                        ["li", H.at({"class":"editing"}),
-                            ["input-text", H.s(item.name.core),
-                                H.at({"class":"edit"}),
-                                H.e({"control:draw": function(c,v) { v.focus(); }, blur: label, "key:enter": label})]]
-                    )));
+                    control.set(["li", {"class": "editing"},
+                        ["input-text", {"class": "edit", "!control:draw": function(c,v) { v.focus(); },
+                            "!blur": label, "!key:enter": label
+                        }, name]
+                    ]);
                 }
                 label();
-                return H(control);
+                return control;
             }
         }
     </script>
