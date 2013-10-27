@@ -145,25 +145,3 @@ BaseList.prototype.count = function() {
     });
 };
 
-
-function initReducer(list, reducer) {
-    var subscribes = {};
-    list.onEvent(List.handler({
-        data: function(e) {
-            for (var i=0;i < e.length;i++) {
-                subscribes[e[i].key] = reducer.add(e[i].value);
-            }
-        },
-        add: function(e) {
-            subscribes[e.key] = reducer.add(e.value);
-        },
-        remove: function(e) {
-            if (e in subscribes) {
-                subscribes[e]();
-                delete subscribes[e];
-            }
-        }
-    }));
-}
-
-
