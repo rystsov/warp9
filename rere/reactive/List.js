@@ -7,13 +7,122 @@ expose(List, function(){
 
 var BaseList, Cell;
 
-// TODO: subscribe during add consistency
-
 function List(data) {
     this._elementId = 0;
     BaseList.apply(this);
 
     this.setData(data ? data : []);
+}
+
+function SetListPrototype() {
+    List.prototype = new BaseList();
+
+    List.prototype.unwrap = function() {
+        return this.data.map(function(item){
+            return item.value;
+        });
+    };
+
+    List.prototype.add = function(f) {
+        if (typeof(f) != "function") {
+            var item = f;
+            f = function(id) { return item; };
+        }
+
+        var event = {
+            name: "add",
+            key: this._elementId++,
+            f: f
+        };
+
+        root.reactive.event_broker.issue(this, event);
+
+        return event.key;
+    };
+
+    List.prototype.setData = function(data) {
+        root.reactive.event_broker.issue(this, {
+            name: "setData",
+            data: data
+        });
+    };
+
+    List.prototype.remove = function(key) {
+        root.reactive.event_broker.issue(this, {
+            name: "remove",
+            key: key
+        });
+    };
+
+    var knownEvents = {
+        add: "_add",
+        setData: "_setData",
+        remove: "_remove",
+        use: "_use"
+    };
+
+    List.prototype.send = function(event) {
+        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+        if (knownEvents.hasOwnProperty(event.name)) {
+            this[knownEvents[event.name]].apply(this, [event]);
+        } else {
+            BaseList.prototype.send.apply(this, [event]);
+        }
+    };
+
+    List.prototype._add = function(event) {
+        if (event.name != "add") throw new Error();
+        var e = {key: event.key, value: event.f(event.key)};
+        this.data.push(e);
+        if (this.usersCount>0) {
+            this.__raise(["add", e]);
+        }
+    };
+
+    List.prototype._setData = function(event) {
+        if (event.name != "setData") throw new Error();
+        this.data = event.data.map(function(item){
+            return {
+                key: this._elementId++,
+                value: item
+            }
+        }.bind(this));
+        if (this.usersCount>0) {
+            this.__raise(["data", this.data.slice()]);
+        }
+    };
+
+    List.prototype._remove = function(event) {
+        if (event.name != "remove") throw new Error();
+        var length = this.data.length;
+        this.data = this.data.filter(function(item){
+            return item.key != event.key;
+        });
+        if (length!=this.data.length && this.usersCount>0) {
+            this.__raise(["remove", event.key]);
+        }
+    };
+
+    List.prototype._use = function(event) {
+        BaseList.prototype._use.apply(this, [event]);
+        if (this.usersCount === 1) {
+            this.__raise(["data", this.data.slice()]);
+        }
+    };
+
+//    List.prototype.removeWhich = function(f) {
+//        this.data.filter(function(item) {
+//            return f(item.value);
+//        }).forEach(function(item){
+//            this.remove(item.key);
+//        }.bind(this));
+//    };
+
+//    List.prototype.forEach = function(callback) {
+//        for(var i=0;i<this.data.length;i++) {
+//            callback(this.data[i].value);
+//        }
+//    };
 }
 
 List.handler = function(handlers) {
@@ -27,75 +136,3 @@ List.handler = function(handlers) {
         handlers[e[0]].call(handlers, e[1]);
     };
 };
-
-function SetListPrototype() {
-    List.prototype = new BaseList();
-
-    List.prototype.use = function(id) {
-        BaseList.prototype.use.apply(this, [id]);
-        if (this.usersCount === 1) {
-            this.raise(["data", this.data.slice()]);
-        }
-    };
-
-    List.prototype.setData = function(data) {
-        this.data = data.map(function(item){
-            return {
-                key: this._elementId++,
-                value: item
-            }
-        }.bind(this));
-        if (this.usersCount>0) {
-            this.raise(["data", this.data.slice()]);
-        }
-    };
-
-    List.prototype.unwrap = function() {
-        return this.data.map(function(item){
-            return item.value;
-        });
-    };
-
-    List.prototype.add = function(f) {
-        if (typeof(f) != "function") {
-            var item = f;
-            f = function(id) { return item; };
-        }
-        var key = this._elementId++;
-        var e = {key: key, value: f(key)};
-        this.data.push(e);
-        if (this.usersCount>0) {
-            this.raise(["data", this.data.slice()]);
-        }
-        return key;
-    };
-
-    List.prototype.remove = function(key) {
-        var removed = false;
-        var length = this.data.length;
-        this.data = this.data.filter(function(item){
-            return item.key != key;
-        });
-        if (length!=this.data.length) {
-            removed = true;
-        }
-        if (this.usersCount>0) {
-            this.raise(["remove", key]);
-        }
-        return removed;
-    };
-
-    List.prototype.removeWhich = function(f) {
-        this.data.filter(function(item) {
-            return f(item.value);
-        }).forEach(function(item){
-            this.remove(item.key);
-        }.bind(this));
-    };
-
-    List.prototype.forEach = function(callback) {
-        for(var i=0;i<this.data.length;i++) {
-            callback(this.data[i].value);
-        }
-    };
-}

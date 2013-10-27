@@ -19,6 +19,10 @@ function BaseCell() {
     this.usersCount = 0;
 }
 
+BaseCell.prototype.unwrap = function() {
+    throw new Error("Not implemented");
+};
+
 BaseCell.prototype.onEvent = function(f) {
     var event = {
         name: "onEvent",
@@ -47,10 +51,6 @@ BaseCell.prototype.leave = function(id) {
         name: "leave",
         id: id
     });
-};
-
-BaseCell.prototype.unwrap = function() {
-    throw new Error("Not implemented");
 };
 
 BaseCell.prototype.fix = function() {
@@ -108,6 +108,36 @@ BaseCell.prototype.send = function(event) {
     this[knownEvents[event.name]].apply(this, [event]);
 };
 
+BaseCell.prototype._onEvent = function(event) {
+    if (event.name!="onEvent") throw new Error();
+    if (event.disposed) return;
+
+    var id = this.dependantsId++;
+    this.dependants.push({key: id, f: function(e) {
+        if (event.disposed) return;
+        event.f(e);
+    }});
+
+    event.dispose = function() {
+        this.dependants = this.dependants.filter(function(d) {
+            return d.key != id;
+        });
+    }.bind(this);
+
+    if (this.usersCount>0 && this.content!=null) {
+        var content = this.content;
+
+        root.reactive.lazy_run.run(function(){
+            // TODO: check if disposed
+            if (content.isEmpty()) {
+                event.f(["unset"]);
+            } else {
+                event.f(["set", content.value()]);
+            }
+        });
+    }
+};
+
 BaseCell.prototype._use = function(event) {
     if (event.name!="use") throw new Error();
     if (!event.hasOwnProperty("id")) throw new Error();
@@ -133,35 +163,6 @@ BaseCell.prototype._leave = function(event) {
     this.usersCount--;
     if (this.users[id]===0) {
         delete this.users[id];
-    }
-};
-
-BaseCell.prototype._onEvent = function(event) {
-    if (event.name!="onEvent") throw new Error();
-    if (event.disposed) return;
-
-    var id = this.dependantsId++;
-    this.dependants.push({key: id, f: function(e) {
-        if (event.disposed) return;
-        event.f(e);
-    }});
-
-    event.dispose = function() {
-        this.dependants = this.dependants.filter(function(d) {
-            return d.key != id;
-        });
-    }.bind(this);
-
-    if (this.usersCount>0 && this.content!=null) {
-        var content = this.content;
-
-        root.reactive.lazy_run.run(function(){
-            if (content.isEmpty()) {
-                event.f(["unset"]);
-            } else {
-                event.f(["set", content.value()]);
-            }
-        });
     }
 };
 

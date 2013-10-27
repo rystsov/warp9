@@ -640,6 +640,10 @@ var rere = (function(){
                     this.usersCount = 0;
                 }
                 
+                BaseCell.prototype.unwrap = function() {
+                    throw new Error("Not implemented");
+                };
+                
                 BaseCell.prototype.onEvent = function(f) {
                     var event = {
                         name: "onEvent",
@@ -668,10 +672,6 @@ var rere = (function(){
                         name: "leave",
                         id: id
                     });
-                };
-                
-                BaseCell.prototype.unwrap = function() {
-                    throw new Error("Not implemented");
                 };
                 
                 BaseCell.prototype.fix = function() {
@@ -729,6 +729,36 @@ var rere = (function(){
                     this[knownEvents[event.name]].apply(this, [event]);
                 };
                 
+                BaseCell.prototype._onEvent = function(event) {
+                    if (event.name!="onEvent") throw new Error();
+                    if (event.disposed) return;
+                
+                    var id = this.dependantsId++;
+                    this.dependants.push({key: id, f: function(e) {
+                        if (event.disposed) return;
+                        event.f(e);
+                    }});
+                
+                    event.dispose = function() {
+                        this.dependants = this.dependants.filter(function(d) {
+                            return d.key != id;
+                        });
+                    }.bind(this);
+                
+                    if (this.usersCount>0 && this.content!=null) {
+                        var content = this.content;
+                
+                        root.reactive.lazy_run.run(function(){
+                            // TODO: check if disposed
+                            if (content.isEmpty()) {
+                                event.f(["unset"]);
+                            } else {
+                                event.f(["set", content.value()]);
+                            }
+                        });
+                    }
+                };
+                
                 BaseCell.prototype._use = function(event) {
                     if (event.name!="use") throw new Error();
                     if (!event.hasOwnProperty("id")) throw new Error();
@@ -754,35 +784,6 @@ var rere = (function(){
                     this.usersCount--;
                     if (this.users[id]===0) {
                         delete this.users[id];
-                    }
-                };
-                
-                BaseCell.prototype._onEvent = function(event) {
-                    if (event.name!="onEvent") throw new Error();
-                    if (event.disposed) return;
-                
-                    var id = this.dependantsId++;
-                    this.dependants.push({key: id, f: function(e) {
-                        if (event.disposed) return;
-                        event.f(e);
-                    }});
-                
-                    event.dispose = function() {
-                        this.dependants = this.dependants.filter(function(d) {
-                            return d.key != id;
-                        });
-                    }.bind(this);
-                
-                    if (this.usersCount>0 && this.content!=null) {
-                        var content = this.content;
-                
-                        root.reactive.lazy_run.run(function(){
-                            if (content.isEmpty()) {
-                                event.f(["unset"]);
-                            } else {
-                                event.f(["set", content.value()]);
-                            }
-                        });
                     }
                 };
                 
@@ -1263,13 +1264,122 @@ var rere = (function(){
                 
                 var BaseList, Cell;
                 
-                // TODO: subscribe during add consistency
-                
                 function List(data) {
                     this._elementId = 0;
                     BaseList.apply(this);
                 
                     this.setData(data ? data : []);
+                }
+                
+                function SetListPrototype() {
+                    List.prototype = new BaseList();
+                
+                    List.prototype.unwrap = function() {
+                        return this.data.map(function(item){
+                            return item.value;
+                        });
+                    };
+                
+                    List.prototype.add = function(f) {
+                        if (typeof(f) != "function") {
+                            var item = f;
+                            f = function(id) { return item; };
+                        }
+                
+                        var event = {
+                            name: "add",
+                            key: this._elementId++,
+                            f: f
+                        };
+                
+                        root.reactive.event_broker.issue(this, event);
+                
+                        return event.key;
+                    };
+                
+                    List.prototype.setData = function(data) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "setData",
+                            data: data
+                        });
+                    };
+                
+                    List.prototype.remove = function(key) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "remove",
+                            key: key
+                        });
+                    };
+                
+                    var knownEvents = {
+                        add: "_add",
+                        setData: "_setData",
+                        remove: "_remove",
+                        use: "_use"
+                    };
+                
+                    List.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseList.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    List.prototype._add = function(event) {
+                        if (event.name != "add") throw new Error();
+                        var e = {key: event.key, value: event.f(event.key)};
+                        this.data.push(e);
+                        if (this.usersCount>0) {
+                            this.__raise(["add", e]);
+                        }
+                    };
+                
+                    List.prototype._setData = function(event) {
+                        if (event.name != "setData") throw new Error();
+                        this.data = event.data.map(function(item){
+                            return {
+                                key: this._elementId++,
+                                value: item
+                            }
+                        }.bind(this));
+                        if (this.usersCount>0) {
+                            this.__raise(["data", this.data.slice()]);
+                        }
+                    };
+                
+                    List.prototype._remove = function(event) {
+                        if (event.name != "remove") throw new Error();
+                        var length = this.data.length;
+                        this.data = this.data.filter(function(item){
+                            return item.key != event.key;
+                        });
+                        if (length!=this.data.length && this.usersCount>0) {
+                            this.__raise(["remove", event.key]);
+                        }
+                    };
+                
+                    List.prototype._use = function(event) {
+                        BaseList.prototype._use.apply(this, [event]);
+                        if (this.usersCount === 1) {
+                            this.__raise(["data", this.data.slice()]);
+                        }
+                    };
+                
+                //    List.prototype.removeWhich = function(f) {
+                //        this.data.filter(function(item) {
+                //            return f(item.value);
+                //        }).forEach(function(item){
+                //            this.remove(item.key);
+                //        }.bind(this));
+                //    };
+                
+                //    List.prototype.forEach = function(callback) {
+                //        for(var i=0;i<this.data.length;i++) {
+                //            callback(this.data[i].value);
+                //        }
+                //    };
                 }
                 
                 List.handler = function(handlers) {
@@ -1283,78 +1393,6 @@ var rere = (function(){
                         handlers[e[0]].call(handlers, e[1]);
                     };
                 };
-                
-                function SetListPrototype() {
-                    List.prototype = new BaseList();
-                
-                    List.prototype.use = function(id) {
-                        BaseList.prototype.use.apply(this, [id]);
-                        if (this.usersCount === 1) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                    };
-                
-                    List.prototype.setData = function(data) {
-                        this.data = data.map(function(item){
-                            return {
-                                key: this._elementId++,
-                                value: item
-                            }
-                        }.bind(this));
-                        if (this.usersCount>0) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                    };
-                
-                    List.prototype.unwrap = function() {
-                        return this.data.map(function(item){
-                            return item.value;
-                        });
-                    };
-                
-                    List.prototype.add = function(f) {
-                        if (typeof(f) != "function") {
-                            var item = f;
-                            f = function(id) { return item; };
-                        }
-                        var key = this._elementId++;
-                        var e = {key: key, value: f(key)};
-                        this.data.push(e);
-                        if (this.usersCount>0) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                        return key;
-                    };
-                
-                    List.prototype.remove = function(key) {
-                        var removed = false;
-                        var length = this.data.length;
-                        this.data = this.data.filter(function(item){
-                            return item.key != key;
-                        });
-                        if (length!=this.data.length) {
-                            removed = true;
-                        }
-                        if (this.usersCount>0) {
-                            this.raise(["remove", key]);
-                        }
-                        return removed;
-                    };
-                
-                    List.prototype.removeWhich = function(f) {
-                        this.data.filter(function(item) {
-                            return f(item.value);
-                        }).forEach(function(item){
-                            this.remove(item.key);
-                        }.bind(this));
-                    };
-                
-                    List.prototype.forEach = function(callback) {
-                        for(var i=0;i<this.data.length;i++) {
-                            callback(this.data[i].value);
-                        }
-                    };
-                }
                 
             }
         },
@@ -1383,36 +1421,92 @@ var rere = (function(){
                     this.data = [];
                 }
                 
-                BaseList.prototype.onEvent = function(f) {
-                    var disposed = false;
-                    root.reactive.lazy_run.run(function(){
-                        if (disposed) return;
-                        if (this.usersCount>0) {
-                            f(["data", this.data.slice()])
-                        }
-                    }.bind(this));
-                
-                    var id = this.dependantsId++;
-                    this.dependants.push({key: id, f:f});
-                
-                    return function() {
-                        disposed = true;
-                        this.dependants = this.dependants.filter(function(dependant) {
-                            return dependant.key!=id;
-                        });
-                    }.bind(this);
+                BaseList.prototype.unwrap = function(f) {
+                    throw new Error("Not implemented");
                 };
                 
-                BaseList.prototype.raise = function(e) {
-                    this.dependants.forEach(function(d){
-                        root.reactive.lazy_run.postpone(function(){
-                            d.f(e);
-                        });
-                    });
-                    root.reactive.lazy_run.run();
+                BaseList.prototype.onEvent = function(f) {
+                    var event = {
+                        name: "onEvent",
+                        disposed: false,
+                        f: f,
+                        dispose: function() {}
+                    };
+                
+                    root.reactive.event_broker.issue(this, event);
+                
+                    return function() {
+                        event.disposed = true;
+                        event.dispose();
+                    };
                 };
                 
                 BaseList.prototype.use = function(id) {
+                    root.reactive.event_broker.issue(this, {
+                        name: "use",
+                        id: id
+                    });
+                };
+                
+                BaseList.prototype.leave = function(id) {
+                    root.reactive.event_broker.issue(this, {
+                        name: "leave",
+                        id: id
+                    });
+                };
+                
+                BaseList.prototype.fix = function() {
+                    this.use(this.listId);
+                    return this;
+                };
+                
+                BaseList.prototype.unfix = function() {
+                    this.leave(this.listId);
+                    return this;
+                };
+                
+                var knownEvents = {
+                    leave: "_leave",
+                    use: "_use",
+                    onEvent: "_onEvent"
+                };
+                
+                BaseList.prototype.send = function(event) {
+                    if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                    if (!knownEvents.hasOwnProperty(event.name)) throw new Error("Unknown event: " + event.name);
+                    this[knownEvents[event.name]].apply(this, [event]);
+                };
+                
+                BaseList.prototype._onEvent = function(event) {
+                    if (event.name!="onEvent") throw new Error();
+                    if (event.disposed) return;
+                
+                    var id = this.dependantsId++;
+                    this.dependants.push({key: id, f: function(e) {
+                        if (event.disposed) return;
+                        event.f(e);
+                    }});
+                
+                    event.dispose = function() {
+                        this.dependants = this.dependants.filter(function(d) {
+                            return d.key != id;
+                        });
+                    }.bind(this);
+                
+                    if (this.usersCount>0) {
+                        var data = this.data.slice();
+                
+                        root.reactive.lazy_run.run(function(){
+                            // TODO: check if disposed
+                            event.f(["data", data]);
+                        });
+                    }
+                };
+                
+                BaseList.prototype._use = function(event) {
+                    if (event.name!="use") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
                     if (!this.users.hasOwnProperty(id)) {
                         this.users[id] = 0;
                     }
@@ -1420,7 +1514,10 @@ var rere = (function(){
                     this.usersCount++;
                 };
                 
-                BaseList.prototype.leave = function(id) {
+                BaseList.prototype._leave = function(event) {
+                    if (event.name!="leave") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
                     if (!this.users.hasOwnProperty(id)) {
                         throw new Error();
                     }
@@ -1434,101 +1531,71 @@ var rere = (function(){
                     }
                 };
                 
-                BaseList.prototype.fix = function() {
-                    this.use(this.listId);
-                    return this;
-                };
                 
-                BaseList.prototype.unfix = function() {
-                    this.leave(this.listId);
-                    return this;
-                };
-                
-                
-                BaseList.prototype.unwrap = function(f) {
-                    throw new Error("Not implemented");
-                };
-                
-                BaseList.prototype.lift = function(f) {
-                    return new LiftedList(this, f);
-                };
-                
-                
-                
-                
-                BaseList.prototype.reduceGroup = function(group, opt) {
-                    if (!opt) opt = {};
-                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                
-                    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                };
-                
-                BaseList.prototype.reduceMonoid = function(monoid, opt) {
-                    if (!opt) opt = {};
-                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                
-                    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                };
-                
-                BaseList.prototype.reduce = function(identity, add, opt) {
-                    return this.reduceMonoid({
-                        identity: function() {return identity; },
-                        add: add
-                    }, opt);
-                };
-                
-                BaseList.prototype.all = function(predicate) {
-                    return this.lift(predicate).reduceGroup({
-                        identity: function() { return [0,0]; },
-                        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
-                        invert: function(x) { return [-x[0],-x[1]]; }
-                    },{
-                        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
-                        unwrap: function(x) { return x[0]==x[1]; }
+                BaseList.prototype.__raise = function(e) {
+                    this.dependants.forEach(function(d){
+                        root.reactive.lazy_run.postpone(function(){
+                            d.f(e);
+                        });
                     });
+                    root.reactive.lazy_run.run();
                 };
                 
-                BaseList.prototype.count = function() {
-                    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
-                
-                    return this.lift(function(x){
-                        x = predicate(x);
-                        if (typeof x === "object" && x.type === Cell) {
-                            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
-                        }
-                        return checkBool(x) ? 1 : 0;
-                    }).reduceGroup({
-                        identity: function() { return 0; },
-                        add: function(x,y) { return x+y; },
-                        invert: function(x) { return -x; }
-                    });
-                };
-                
-                
-                function initReducer(list, reducer) {
-                    var subscribes = {};
-                    list.onEvent(List.handler({
-                        data: function(e) {
-                            for (var i=0;i < e.length;i++) {
-                                subscribes[e[i].key] = reducer.add(e[i].value);
-                            }
-                        },
-                        add: function(e) {
-                            subscribes[e.key] = reducer.add(e.value);
-                        },
-                        remove: function(e) {
-                            if (e in subscribes) {
-                                subscribes[e]();
-                                delete subscribes[e];
-                            }
-                        }
-                    }));
-                }
-                
+                //BaseList.prototype.lift = function(f) {
+                //    return new LiftedList(this, f);
+                //};
+                //
+                //BaseList.prototype.reduceGroup = function(group, opt) {
+                //    if (!opt) opt = {};
+                //    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                //    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                //    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                //
+                //    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                //};
+                //
+                //BaseList.prototype.reduceMonoid = function(monoid, opt) {
+                //    if (!opt) opt = {};
+                //    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                //    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                //    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                //
+                //    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                //};
+                //
+                //BaseList.prototype.reduce = function(identity, add, opt) {
+                //    return this.reduceMonoid({
+                //        identity: function() {return identity; },
+                //        add: add
+                //    }, opt);
+                //};
+                //
+                //BaseList.prototype.all = function(predicate) {
+                //    return this.lift(predicate).reduceGroup({
+                //        identity: function() { return [0,0]; },
+                //        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+                //        invert: function(x) { return [-x[0],-x[1]]; }
+                //    },{
+                //        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
+                //        unwrap: function(x) { return x[0]==x[1]; }
+                //    });
+                //};
+                //
+                //BaseList.prototype.count = function() {
+                //    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+                //
+                //    return this.lift(function(x){
+                //        x = predicate(x);
+                //        if (typeof x === "object" && x.type === Cell) {
+                //            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
+                //        }
+                //        return checkBool(x) ? 1 : 0;
+                //    }).reduceGroup({
+                //        identity: function() { return 0; },
+                //        add: function(x,y) { return x+y; },
+                //        invert: function(x) { return -x; }
+                //    });
+                //};
                 
                 
             }

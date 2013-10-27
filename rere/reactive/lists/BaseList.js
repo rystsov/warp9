@@ -20,36 +20,92 @@ function BaseList() {
     this.data = [];
 }
 
-BaseList.prototype.onEvent = function(f) {
-    var disposed = false;
-    root.reactive.lazy_run.run(function(){
-        if (disposed) return;
-        if (this.usersCount>0) {
-            f(["data", this.data.slice()])
-        }
-    }.bind(this));
-
-    var id = this.dependantsId++;
-    this.dependants.push({key: id, f:f});
-
-    return function() {
-        disposed = true;
-        this.dependants = this.dependants.filter(function(dependant) {
-            return dependant.key!=id;
-        });
-    }.bind(this);
+BaseList.prototype.unwrap = function(f) {
+    throw new Error("Not implemented");
 };
 
-BaseList.prototype.raise = function(e) {
-    this.dependants.forEach(function(d){
-        root.reactive.lazy_run.postpone(function(){
-            d.f(e);
-        });
-    });
-    root.reactive.lazy_run.run();
+BaseList.prototype.onEvent = function(f) {
+    var event = {
+        name: "onEvent",
+        disposed: false,
+        f: f,
+        dispose: function() {}
+    };
+
+    root.reactive.event_broker.issue(this, event);
+
+    return function() {
+        event.disposed = true;
+        event.dispose();
+    };
 };
 
 BaseList.prototype.use = function(id) {
+    root.reactive.event_broker.issue(this, {
+        name: "use",
+        id: id
+    });
+};
+
+BaseList.prototype.leave = function(id) {
+    root.reactive.event_broker.issue(this, {
+        name: "leave",
+        id: id
+    });
+};
+
+BaseList.prototype.fix = function() {
+    this.use(this.listId);
+    return this;
+};
+
+BaseList.prototype.unfix = function() {
+    this.leave(this.listId);
+    return this;
+};
+
+var knownEvents = {
+    leave: "_leave",
+    use: "_use",
+    onEvent: "_onEvent"
+};
+
+BaseList.prototype.send = function(event) {
+    if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+    if (!knownEvents.hasOwnProperty(event.name)) throw new Error("Unknown event: " + event.name);
+    this[knownEvents[event.name]].apply(this, [event]);
+};
+
+BaseList.prototype._onEvent = function(event) {
+    if (event.name!="onEvent") throw new Error();
+    if (event.disposed) return;
+
+    var id = this.dependantsId++;
+    this.dependants.push({key: id, f: function(e) {
+        if (event.disposed) return;
+        event.f(e);
+    }});
+
+    event.dispose = function() {
+        this.dependants = this.dependants.filter(function(d) {
+            return d.key != id;
+        });
+    }.bind(this);
+
+    if (this.usersCount>0) {
+        var data = this.data.slice();
+
+        root.reactive.lazy_run.run(function(){
+            // TODO: check if disposed
+            event.f(["data", data]);
+        });
+    }
+};
+
+BaseList.prototype._use = function(event) {
+    if (event.name!="use") throw new Error();
+    if (!event.hasOwnProperty("id")) throw new Error();
+    var id = event.id;
     if (!this.users.hasOwnProperty(id)) {
         this.users[id] = 0;
     }
@@ -57,7 +113,10 @@ BaseList.prototype.use = function(id) {
     this.usersCount++;
 };
 
-BaseList.prototype.leave = function(id) {
+BaseList.prototype._leave = function(event) {
+    if (event.name!="leave") throw new Error();
+    if (!event.hasOwnProperty("id")) throw new Error();
+    var id = event.id;
     if (!this.users.hasOwnProperty(id)) {
         throw new Error();
     }
@@ -71,77 +130,69 @@ BaseList.prototype.leave = function(id) {
     }
 };
 
-BaseList.prototype.fix = function() {
-    this.use(this.listId);
-    return this;
-};
 
-BaseList.prototype.unfix = function() {
-    this.leave(this.listId);
-    return this;
-};
-
-
-BaseList.prototype.unwrap = function(f) {
-    throw new Error("Not implemented");
-};
-
-BaseList.prototype.lift = function(f) {
-    return new LiftedList(this, f);
-};
-
-
-
-
-BaseList.prototype.reduceGroup = function(group, opt) {
-    if (!opt) opt = {};
-    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-
-    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-};
-
-BaseList.prototype.reduceMonoid = function(monoid, opt) {
-    if (!opt) opt = {};
-    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-
-    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-};
-
-BaseList.prototype.reduce = function(identity, add, opt) {
-    return this.reduceMonoid({
-        identity: function() {return identity; },
-        add: add
-    }, opt);
-};
-
-BaseList.prototype.all = function(predicate) {
-    return this.lift(predicate).reduceGroup({
-        identity: function() { return [0,0]; },
-        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
-        invert: function(x) { return [-x[0],-x[1]]; }
-    },{
-        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
-        unwrap: function(x) { return x[0]==x[1]; }
+BaseList.prototype.__raise = function(e) {
+    this.dependants.forEach(function(d){
+        root.reactive.lazy_run.postpone(function(){
+            d.f(e);
+        });
     });
+    root.reactive.lazy_run.run();
 };
 
-BaseList.prototype.count = function() {
-    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
-
-    return this.lift(function(x){
-        x = predicate(x);
-        if (typeof x === "object" && x.type === Cell) {
-            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
-        }
-        return checkBool(x) ? 1 : 0;
-    }).reduceGroup({
-        identity: function() { return 0; },
-        add: function(x,y) { return x+y; },
-        invert: function(x) { return -x; }
-    });
-};
+//BaseList.prototype.lift = function(f) {
+//    return new LiftedList(this, f);
+//};
+//
+//BaseList.prototype.reduceGroup = function(group, opt) {
+//    if (!opt) opt = {};
+//    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+//    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+//    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+//
+//    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+//};
+//
+//BaseList.prototype.reduceMonoid = function(monoid, opt) {
+//    if (!opt) opt = {};
+//    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+//    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+//    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+//
+//    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+//};
+//
+//BaseList.prototype.reduce = function(identity, add, opt) {
+//    return this.reduceMonoid({
+//        identity: function() {return identity; },
+//        add: add
+//    }, opt);
+//};
+//
+//BaseList.prototype.all = function(predicate) {
+//    return this.lift(predicate).reduceGroup({
+//        identity: function() { return [0,0]; },
+//        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+//        invert: function(x) { return [-x[0],-x[1]]; }
+//    },{
+//        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
+//        unwrap: function(x) { return x[0]==x[1]; }
+//    });
+//};
+//
+//BaseList.prototype.count = function() {
+//    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+//
+//    return this.lift(function(x){
+//        x = predicate(x);
+//        if (typeof x === "object" && x.type === Cell) {
+//            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
+//        }
+//        return checkBool(x) ? 1 : 0;
+//    }).reduceGroup({
+//        identity: function() { return 0; },
+//        add: function(x,y) { return x+y; },
+//        invert: function(x) { return -x; }
+//    });
+//};
 
