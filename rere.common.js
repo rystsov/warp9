@@ -1577,7 +1577,7 @@ var rere = (function(){
                         var data = this.data.slice();
                 
                         root.reactive.lazy_run.run(function(){
-                            // TODO: check if disposed
+                            if (event.disposed) return;
                             event.f(["data", data]);
                         });
                     }
