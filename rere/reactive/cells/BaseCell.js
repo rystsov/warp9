@@ -63,6 +63,10 @@ BaseCell.prototype.unfix = function() {
     return this;
 };
 
+BaseCell.prototype.lift = function(f) {
+    return new LiftedCell(this, f);
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -113,6 +117,12 @@ BaseCell.prototype._onEvent = function(event) {
         event.f(e);
     }});
 
+    event.dispose = function() {
+        this.dependants = this.dependants.filter(function(d) {
+            return d.key != id;
+        });
+    }.bind(this);
+
     if (this.usersCount>0 && this.content!=null) {
         var content = this.content;
 
@@ -149,10 +159,6 @@ BaseCell.prototype.__raise = function(e) {
 //        set: f,
 //        unset:  function() {}
 //    }));
-//};
-
-//BaseCell.prototype.lift = function(f) {
-//    return new LiftedCell(this, f);
 //};
 
 //BaseCell.prototype.isSet = function() {
