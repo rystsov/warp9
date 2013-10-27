@@ -717,6 +717,17 @@ var rere = (function(){
                     return new CoalesceCell(this, replace);
                 };
                 
+                BaseCell.prototype.onSet = function(f) {
+                    return this.onEvent(Cell.handler({
+                        set: f,
+                        unset:  function() {}
+                    }));
+                };
+                
+                BaseCell.prototype.isSet = function() {
+                    return this.lift(function(){ return true }).coalesce(false);
+                };
+                
                 var knownEvents = {
                     leave: "_leave",
                     use: "_use",
@@ -805,16 +816,6 @@ var rere = (function(){
                     root.reactive.lazy_run.run();
                 };
                 
-                //BaseCell.prototype.onSet = function(f) {
-                //    return this.onEvent(Cell.handler({
-                //        set: f,
-                //        unset:  function() {}
-                //    }));
-                //};
-                
-                //BaseCell.prototype.isSet = function() {
-                //    return this.lift(function(){ return true }).coalesce(false);
-                //};
                 
             }
         },
@@ -1311,10 +1312,26 @@ var rere = (function(){
                         });
                     };
                 
+                    List.prototype.forEach = function(callback) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "forEach",
+                            callback: callback
+                        });
+                    };
+                
+                    List.prototype.removeWhich = function(f) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "removeWhich",
+                            f: f
+                        });
+                    };
+                
                     var knownEvents = {
                         add: "_add",
                         setData: "_setData",
                         remove: "_remove",
+                        forEach: "_forEach",
+                        removeWhich: "_removeWhich",
                         use: "_use"
                     };
                 
@@ -1360,26 +1377,28 @@ var rere = (function(){
                         }
                     };
                 
+                    List.prototype._forEach = function(event) {
+                        if (event.name != "forEach") throw new Error();
+                        for(var i=0;i<this.data.length;i++) {
+                            event.callback(this.data[i].value);
+                        }
+                    };
+                
+                    List.prototype._removeWhich = function(event) {
+                        if (event.name != "removeWhich") throw new Error();
+                        this.data.filter(function(item) {
+                            return event.f(item.value);
+                        }).forEach(function(item){
+                            this.remove(item.key);
+                        }.bind(this));
+                    };
+                
                     List.prototype._use = function(event) {
                         BaseList.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.__raise(["data", this.data.slice()]);
                         }
                     };
-                
-                //    List.prototype.removeWhich = function(f) {
-                //        this.data.filter(function(item) {
-                //            return f(item.value);
-                //        }).forEach(function(item){
-                //            this.remove(item.key);
-                //        }.bind(this));
-                //    };
-                
-                //    List.prototype.forEach = function(callback) {
-                //        for(var i=0;i<this.data.length;i++) {
-                //            callback(this.data[i].value);
-                //        }
-                //    };
                 }
                 
                 List.handler = function(handlers) {
@@ -1465,6 +1484,62 @@ var rere = (function(){
                     return this;
                 };
                 
+                BaseList.prototype.lift = function(f) {
+                    return new LiftedList(this, f);
+                };
+                
+                BaseList.prototype.reduceGroup = function(group, opt) {
+                    if (!opt) opt = {};
+                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                
+                    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                };
+                
+                BaseList.prototype.reduceMonoid = function(monoid, opt) {
+                    if (!opt) opt = {};
+                    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                
+                    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                };
+                
+                BaseList.prototype.reduce = function(identity, add, opt) {
+                    return this.reduceMonoid({
+                        identity: function() {return identity; },
+                        add: add
+                    }, opt);
+                };
+                
+                BaseList.prototype.all = function(predicate) {
+                    return this.lift(predicate).reduceGroup({
+                        identity: function() { return [0,0]; },
+                        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+                        invert: function(x) { return [-x[0],-x[1]]; }
+                    },{
+                        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
+                        unwrap: function(x) { return x[0]==x[1]; }
+                    });
+                };
+                
+                BaseList.prototype.count = function() {
+                    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+                
+                    return this.lift(function(x){
+                        x = predicate(x);
+                        if (typeof x === "object" && x.type === Cell) {
+                            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
+                        }
+                        return checkBool(x) ? 1 : 0;
+                    }).reduceGroup({
+                        identity: function() { return 0; },
+                        add: function(x,y) { return x+y; },
+                        invert: function(x) { return -x; }
+                    });
+                };
+                
                 var knownEvents = {
                     leave: "_leave",
                     use: "_use",
@@ -1533,6 +1608,7 @@ var rere = (function(){
                 
                 
                 BaseList.prototype.__raise = function(e) {
+                    // TODO: check if used
                     this.dependants.forEach(function(d){
                         root.reactive.lazy_run.postpone(function(){
                             d.f(e);
@@ -1541,61 +1617,6 @@ var rere = (function(){
                     root.reactive.lazy_run.run();
                 };
                 
-                //BaseList.prototype.lift = function(f) {
-                //    return new LiftedList(this, f);
-                //};
-                //
-                //BaseList.prototype.reduceGroup = function(group, opt) {
-                //    if (!opt) opt = {};
-                //    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                //    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                //    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                //
-                //    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                //};
-                //
-                //BaseList.prototype.reduceMonoid = function(monoid, opt) {
-                //    if (!opt) opt = {};
-                //    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                //    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                //    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                //
-                //    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                //};
-                //
-                //BaseList.prototype.reduce = function(identity, add, opt) {
-                //    return this.reduceMonoid({
-                //        identity: function() {return identity; },
-                //        add: add
-                //    }, opt);
-                //};
-                //
-                //BaseList.prototype.all = function(predicate) {
-                //    return this.lift(predicate).reduceGroup({
-                //        identity: function() { return [0,0]; },
-                //        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
-                //        invert: function(x) { return [-x[0],-x[1]]; }
-                //    },{
-                //        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
-                //        unwrap: function(x) { return x[0]==x[1]; }
-                //    });
-                //};
-                //
-                //BaseList.prototype.count = function() {
-                //    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
-                //
-                //    return this.lift(function(x){
-                //        x = predicate(x);
-                //        if (typeof x === "object" && x.type === Cell) {
-                //            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
-                //        }
-                //        return checkBool(x) ? 1 : 0;
-                //    }).reduceGroup({
-                //        identity: function() { return 0; },
-                //        add: function(x,y) { return x+y; },
-                //        invert: function(x) { return -x; }
-                //    });
-                //};
                 
                 
             }
@@ -1621,8 +1642,28 @@ var rere = (function(){
                 function SetLiftedPrototype() {
                     LiftedList.prototype = new BaseList();
                 
-                    LiftedList.prototype.use = function(id) {
-                        BaseList.prototype.use.apply(this, [id]);
+                    LiftedList.prototype.unwrap = function() {
+                        return this.source.unwrap().map(function(item){
+                            return this.f(item);
+                        }.bind(this));
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    LiftedList.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseList.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    LiftedList.prototype._use = function(event) {
+                        BaseList.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.listId);
                             this.unsubscribe = this.source.onEvent(List.handler({
@@ -1630,36 +1671,30 @@ var rere = (function(){
                                     this.data = data.map(function(item){
                                         return {key: item.key, value: this.f(item.value)};
                                     }.bind(this));
-                                    this.raise(["data", this.data.slice()]);
+                                    this.__raise(["data", this.data.slice()]);
                                 }.bind(this),
                                 add: function(item) {
                                     item = {key: item.key, value: this.f(item.value)};
                                     this.data.push(item);
-                                    this.raise(["add", item]);
+                                    this.__raise(["add", item]);
                                 }.bind(this),
                                 remove: function(key){
                                     this.data = this.data.filter(function(item){
                                         return item.key != key;
                                     });
-                                    this.raise(["remove", key]);
+                                    this.__raise(["remove", key]);
                                 }.bind(this)
                             }))
                         }
                     };
                 
-                    LiftedList.prototype.leave = function(id) {
-                        BaseList.prototype.leave.apply(this, [id]);
+                    LiftedList.prototype._leave = function(event) {
+                        BaseList.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
                             this.source.leave(this.listId);
                         }
-                    };
-                
-                    LiftedList.prototype.unwrap = function() {
-                        return this.source.unwrap().map(function(item){
-                            return this.f(item);
-                        }.bind(this));
                     };
                 }
             }
@@ -1695,51 +1730,6 @@ var rere = (function(){
                 function SetPrototype() {
                     ReducedList.prototype = new BaseCell();
                 
-                    ReducedList.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
-                        if (this.usersCount === 1) {
-                            this.list.use(this.cellId);
-                            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
-                                data: function(data) {
-                                    if (this.reducer!=null) {
-                                        this.reducer.dispose();
-                                        this.reducer = null;
-                                    }
-                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
-                                        if (e[0]=="set") {
-                                            this.content = new Some(this._unwrap(e[1]));
-                                        } else if (e[0]=="unset") {
-                                            this.content = new None();
-                                        } else {
-                                            throw new Error();
-                                        }
-                                        this.raise();
-                                    }.bind(this));
-                                    this.reducer.init(data);
-                                }.bind(this),
-                                add: function(item) {
-                                    this.reducer.add(item.key, item.value);
-                                }.bind(this),
-                                remove: function(key) {
-                                    this.reducer.remove(key);
-                                }.bind(this)
-                            }));
-                        }
-                    };
-                
-                    ReducedList.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
-                        if (this.usersCount === 0) {
-                            this.unsubscribe();
-                            this.unsubscribe = null;
-                
-                            this.reducer.dispose();
-                            this.reducer = null;
-                
-                            this.list.leave(this.cellId);
-                        }
-                    };
-                
                     ReducedList.prototype.unwrap = function() {
                         var blocked = false;
                         var data = this.list.unwrap().map(function(value){
@@ -1758,30 +1748,73 @@ var rere = (function(){
                             if (arguments.length === 0) throw new Error();
                             return arguments[0];
                         }
-                        
+                
                         var sum = this._monoid.identity();
                         data.forEach(function(item){
                             sum = this._monoid.add(sum, this._wrap(item));
                         }.bind(this));
                         return this._unwrap(sum);
                     };
-                }
                 
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
                 
-                function ImmediatelyDisposableSubscribe(subscribable) {
-                    var self = this;
-                    this.isActive = true;
-                    this.onEvent = function(f) {
-                        var dispose = subscribable.onEvent(function(e){
-                            if (!self.isActive) return;
-                            f(e);
-                        });
-                        return function() {
-                            self.isActive = false;
-                            dispose();
+                    ReducedList.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    ReducedList.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
+                        if (this.usersCount === 1) {
+                            this.list.use(this.cellId);
+                            this.unsubscribe = this.list.onEvent(List.handler({
+                                data: function(data) {
+                                    if (this.reducer!=null) {
+                                        this.reducer.dispose();
+                                    }
+                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                                        if (e[0]=="set") {
+                                            this.content = new Some(this._unwrap(e[1]));
+                                        } else if (e[0]=="unset") {
+                                            this.content = new None();
+                                        } else {
+                                            throw new Error();
+                                        }
+                                        this.__raise();
+                                    }.bind(this));
+                                    this.reducer.init(data);
+                                }.bind(this),
+                                add: function(item) {
+                                    this.reducer.add(item.key, item.value);
+                                }.bind(this),
+                                remove: function(key) {
+                                    this.reducer.remove(key);
+                                }.bind(this)
+                            }));
+                        }
+                    };
+                
+                    ReducedList.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                
+                            this.reducer.dispose();
+                            this.reducer = null;
+                
+                            this.list.leave(this.cellId);
                         }
                     };
                 }
+                
             }
         },
         {

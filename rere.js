@@ -539,9 +539,10 @@ var rere = (function(){
                 function Cell() {
                     BaseCell.apply(this, []);
                 
-                    this.content = new None();
                     if (arguments.length>0) {
-                        this.set(arguments[0])
+                        this.content = new Some(arguments[0]);
+                    } else {
+                        this.content = new None();
                     }
                 }
                 
@@ -549,30 +550,59 @@ var rere = (function(){
                     Cell.prototype = new BaseCell();
                 
                     Cell.prototype.unwrap = function(alt) {
-                        if (arguments.length==0 && this.content.isEmpty()) throw new Error();
+                        if (arguments.length==0 && this.content.isEmpty()) {
+                            throw new Error();
+                        }
                         return this.content.isEmpty() ? alt : this.content.value();
                     };
                 
                     // Specific
                     Cell.prototype.set = function(value) {
-                        this.content = new Some(value);
-                        if (this.usersCount>0) {
-                            this.raise(["set", value]);
-                        }
+                        // TODO: do not set if equal
+                        root.reactive.event_broker.issue(this, {
+                            name: "set",
+                            value: value
+                        });
                     };
                 
                     Cell.prototype.unset = function() {
-                        this.content = new None();
-                        if (this.usersCount>0) {
-                            this.raise(["unset"])
+                        root.reactive.event_broker.issue(this, {
+                            name: "unset"
+                        });
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        set: "_set",
+                        unset: "_unset"
+                    };
+                
+                    Cell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
                         }
                     };
                 
-                    Cell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
+                    Cell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
-                            this.raise();
+                            this.__raise();
                         }
+                    };
+                
+                    Cell.prototype._set = function(event) {
+                        if (event.name!="set") throw new Error();
+                        this.content = new Some(event.value);
+                        this.__raise();
+                    };
+                
+                    Cell.prototype._unset = function(event) {
+                        if (event.name!="unset") throw new Error();
+                        this.content = new None();
+                        this.__raise()
                     };
                 }
                 
@@ -614,6 +644,40 @@ var rere = (function(){
                     this.usersCount = 0;
                 }
                 
+                BaseCell.prototype.unwrap = function() {
+                    throw new Error("Not implemented");
+                };
+                
+                BaseCell.prototype.onEvent = function(f) {
+                    var event = {
+                        name: "onEvent",
+                        disposed: false,
+                        f: f,
+                        dispose: function() {}
+                    };
+                
+                    root.reactive.event_broker.issue(this, event);
+                
+                    return function() {
+                        event.disposed = true;
+                        event.dispose();
+                    };
+                };
+                
+                BaseCell.prototype.use = function(id) {
+                    root.reactive.event_broker.issue(this, {
+                        name: "use",
+                        id: id
+                    });
+                };
+                
+                BaseCell.prototype.leave = function(id) {
+                    root.reactive.event_broker.issue(this, {
+                        name: "leave",
+                        id: id
+                    });
+                };
+                
                 BaseCell.prototype.fix = function() {
                     this.use(this.cellId);
                     return this;
@@ -624,72 +688,12 @@ var rere = (function(){
                     return this;
                 };
                 
-                BaseCell.prototype.onEvent = function(f) {
-                    var disposed = false;
-                    root.reactive.lazy_run.run(function(){
-                        if (disposed) return;
-                        if (this.usersCount>0 && this.content!=null) {
-                            if (this.content.isEmpty()) {
-                                f(["unset"]);
-                            } else {
-                                f(["set", this.content.value()]);
-                            }
-                        }
-                    }.bind(this));
-                
-                    var id = this.dependantsId++;
-                    this.dependants.push({key: id, f:f});
-                    return function() {
-                        disposed = true;
-                        this.dependants = this.dependants.filter(function(dependant) {
-                            return dependant.key!=id;
-                        });
-                    }.bind(this);
-                };
-                
-                BaseCell.prototype.onSet = function(f) {
-                    return this.onEvent(Cell.handler({
-                        set: f,
-                        unset:  function() {}
-                    }));
-                };
-                
-                BaseCell.prototype.use = function(id) {
-                    if (!this.users.hasOwnProperty(id)) {
-                        this.users[id] = 0;
-                    }
-                    this.users[id]++;
-                    this.usersCount++;
-                };
-                
-                BaseCell.prototype.leave = function(id) {
-                    if (!this.users.hasOwnProperty(id)) {
-                        throw new Error();
-                    }
-                    if (this.users[id]===0) {
-                        throw new Error();
-                    }
-                    this.users[id]--;
-                    this.usersCount--;
-                    if (this.users[id]===0) {
-                        delete this.users[id];
-                    }
-                };
-                
-                BaseCell.prototype.unwrap = function() {
-                    throw new Error("Not implemented");
-                };
-                
                 BaseCell.prototype.lift = function(f) {
                     return new LiftedCell(this, f);
                 };
                 
-                BaseCell.prototype.isSet = function() {
-                    return this.lift(function(){ return true }).coalesce(false);
-                };
-                
-                BaseCell.prototype.coalesce = function(replace) {
-                    return new CoalesceCell(this, replace);
+                BaseCell.prototype.bind = function(f) {
+                    return new BindedCell(this, f);
                 };
                 
                 BaseCell.prototype.when = function(condition, transform, alternative) {
@@ -713,16 +717,97 @@ var rere = (function(){
                     return new WhenCell(this, opt);
                 };
                 
-                BaseCell.prototype.bind = function(f) {
-                    return new BindedCell(this, f);
+                BaseCell.prototype.coalesce = function(replace) {
+                    return new CoalesceCell(this, replace);
                 };
                 
-                BaseCell.prototype.raise = function(e) {
+                BaseCell.prototype.onSet = function(f) {
+                    return this.onEvent(Cell.handler({
+                        set: f,
+                        unset:  function() {}
+                    }));
+                };
+                
+                BaseCell.prototype.isSet = function() {
+                    return this.lift(function(){ return true }).coalesce(false);
+                };
+                
+                var knownEvents = {
+                    leave: "_leave",
+                    use: "_use",
+                    onEvent: "_onEvent"
+                };
+                
+                BaseCell.prototype.send = function(event) {
+                    if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                    if (!knownEvents.hasOwnProperty(event.name)) throw new Error("Unknown event: " + event.name);
+                    this[knownEvents[event.name]].apply(this, [event]);
+                };
+                
+                BaseCell.prototype._onEvent = function(event) {
+                    if (event.name!="onEvent") throw new Error();
+                    if (event.disposed) return;
+                
+                    var id = this.dependantsId++;
+                    this.dependants.push({key: id, f: function(e) {
+                        if (event.disposed) return;
+                        event.f(e);
+                    }});
+                
+                    event.dispose = function() {
+                        this.dependants = this.dependants.filter(function(d) {
+                            return d.key != id;
+                        });
+                    }.bind(this);
+                
+                    if (this.usersCount>0 && this.content!=null) {
+                        var content = this.content;
+                
+                        root.reactive.lazy_run.run(function(){
+                            // TODO: check if disposed
+                            if (content.isEmpty()) {
+                                event.f(["unset"]);
+                            } else {
+                                event.f(["set", content.value()]);
+                            }
+                        });
+                    }
+                };
+                
+                BaseCell.prototype._use = function(event) {
+                    if (event.name!="use") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
+                    if (!this.users.hasOwnProperty(id)) {
+                        this.users[id] = 0;
+                    }
+                    this.users[id]++;
+                    this.usersCount++;
+                };
+                
+                BaseCell.prototype._leave = function(event) {
+                    if (event.name!="leave") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
+                    if (!this.users.hasOwnProperty(id)) {
+                        throw new Error();
+                    }
+                    if (this.users[id]===0) {
+                        throw new Error();
+                    }
+                    this.users[id]--;
+                    this.usersCount--;
+                    if (this.users[id]===0) {
+                        delete this.users[id];
+                    }
+                };
+                
+                BaseCell.prototype.__raise = function(e) {
                     if (arguments.length===0) {
                         if (this.content.isEmpty()) {
-                            this.raise(["unset"]);
+                            this.__raise(["unset"]);
                         } else {
-                            this.raise(["set", this.content.value()]);
+                            this.__raise(["set", this.content.value()]);
                         }
                         return;
                     }
@@ -734,6 +819,8 @@ var rere = (function(){
                     });
                     root.reactive.lazy_run.run();
                 };
+                
+                
             }
         },
         {
@@ -763,8 +850,36 @@ var rere = (function(){
                 function SetBindedPrototype() {
                     BindedCell.prototype = new BaseCell();
                 
-                    BindedCell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
+                    BindedCell.prototype.unwrap = function() {
+                        var marker = {};
+                        var value = this.source.unwrap(marker);
+                        if (value !== marker) {
+                            var mapped = this.f(value);
+                            value = mapped.unwrap(marker);
+                            if (value !== marker) {
+                                return value;
+                            }
+                        }
+                        if (arguments.length === 0) throw new Error();
+                        return arguments[0];
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    BindedCell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    BindedCell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.cellId);
                             this.unsource = this.source.onEvent(Cell.handler({
@@ -778,11 +893,11 @@ var rere = (function(){
                                     var dispose = this.mapped.onEvent(Cell.handler({
                                         set: function(value) {
                                             this.content = new Some(value);
-                                            this.raise(["set", this.content.value()]);
+                                            this.__raise();
                                         }.bind(this),
                                         unset: function() {
                                             this.content = new None();
-                                            this.raise(["unset"]);
+                                            this.__raise();
                                         }.bind(this)
                                     }));
                                     this.unmap = function(){
@@ -795,35 +910,21 @@ var rere = (function(){
                                 unset: function(){
                                     this.unmap();
                                     this.content = new None();
-                                    this.raise(["unset"]);
+                                    this.__raise();
                                 }.bind(this)
                             }));
                         }
                     };
                 
-                    BindedCell.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
+                    BindedCell.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsource();
                             this.unmap();
                             this.unsource = null;
-                            this.source.leave(this.cellId);
                             this.content = null;
+                            this.source.leave(this.cellId);
                         }
-                    };
-                
-                    BindedCell.prototype.unwrap = function() {
-                        var marker = {};
-                        var value = this.source.unwrap(marker);
-                        if (value !== marker) {
-                            var mapped = this.f(value);
-                            value = mapped.unwrap(marker);
-                            if (value !== marker) {
-                                return value;
-                            }
-                        }
-                        if (arguments.length === 0) throw new Error();
-                        return arguments[0];
                     };
                 }
             }
@@ -851,34 +952,48 @@ var rere = (function(){
                 function SetCoalescePrototype() {
                     CoalesceCell.prototype = new BaseCell();
                 
-                    CoalesceCell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
+                    CoalesceCell.prototype.unwrap = function() {
+                        return this.source.unwrap(this.replace);
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    CoalesceCell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    CoalesceCell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.cellId);
                             this.unsubscribe = this.source.onEvent(Cell.handler({
                                 set: function(value) {
                                     this.content = new Some(value);
-                                    this.raise(["set", this.content.value()]);
+                                    this.__raise();
                                 }.bind(this),
                                 unset: function(){
                                     this.content = new Some(this.replace);
-                                    this.raise(["set", this.content.value()]);
+                                    this.__raise();
                                 }.bind(this)
                             }))
                         }
                     };
                 
-                    CoalesceCell.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
+                    CoalesceCell.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
                             this.source.leave(this.cellId);
                         }
-                    };
-                
-                    CoalesceCell.prototype.unwrap = function() {
-                        return this.source.unwrap(this.replace);
                     };
                 }
             }
@@ -906,32 +1021,6 @@ var rere = (function(){
                 function SetLiftedPrototype() {
                     LiftedCell.prototype = new BaseCell();
                 
-                    LiftedCell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
-                        if (this.usersCount === 1) {
-                            this.source.use(this.cellId);
-                            this.unsubscribe = this.source.onEvent(Cell.handler({
-                                set: function(value) {
-                                    this.content = new Some(this.f(value));
-                                    this.raise(["set", this.content.value()]);
-                                }.bind(this),
-                                unset: function(){
-                                    this.content = new None();
-                                    this.raise(["unset"]);
-                                }.bind(this)
-                            }))
-                        }
-                    };
-                
-                    LiftedCell.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
-                        if (this.usersCount === 0) {
-                            this.unsubscribe();
-                            this.unsubscribe = null;
-                            this.source.leave(this.cellId);
-                        }
-                    };
-                
                     LiftedCell.prototype.unwrap = function() {
                         var marker = {};
                         var value = this.source.unwrap(marker);
@@ -940,6 +1029,47 @@ var rere = (function(){
                         } else {
                             if (arguments.length === 0) throw new Error();
                             return arguments[0];
+                        }
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    LiftedCell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    LiftedCell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
+                
+                        if (this.usersCount === 1) {
+                            this.source.use(this.cellId);
+                            this.unsubscribe = this.source.onEvent(Cell.handler({
+                                set: function(value) {
+                                    this.content = new Some(this.f(value));
+                                    this.__raise();
+                                }.bind(this),
+                                unset: function(){
+                                    this.content = new None();
+                                    this.__raise();
+                                }.bind(this)
+                            }))
+                        }
+                    };
+                
+                    LiftedCell.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                            this.source.leave(this.cellId);
                         }
                     };
                 }
@@ -970,8 +1100,34 @@ var rere = (function(){
                 function SetWhenPrototype() {
                     WhenCell.prototype = new BaseCell();
                 
-                    WhenCell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
+                    WhenCell.prototype.unwrap = function() {
+                        var marker = {};
+                        var value = this.source.unwrap(marker);
+                        if (value !== marker) {
+                            if (this.condition(value)) {
+                                return this.transform(value);
+                            }
+                        }
+                        if (arguments.length === 0) throw new Error();
+                        return arguments[0];
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    WhenCell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    WhenCell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.cellId);
                             this.unsubscribe = this.source.onEvent(Cell.handler({
@@ -991,36 +1147,24 @@ var rere = (function(){
                                         if (isEmpty(this)) return;
                                         this.content = new None();
                                     }
-                                    this.raise();
+                                    this.__raise();
                                 }.bind(this),
                                 unset: function(){
                                     if (this.content != null && this.content.isEmpty()) return;
                                     this.content = new None();
-                                    this.raise();
+                                    this.__raise();
                                 }.bind(this)
                             }))
                         }
                     };
                 
-                    WhenCell.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
+                    WhenCell.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
                             this.source.leave(this.cellId);
                         }
-                    };
-                
-                    WhenCell.prototype.unwrap = function() {
-                        var marker = {};
-                        var value = this.source.unwrap(marker);
-                        if (value !== marker) {
-                            if (this.condition(value)) {
-                                return this.transform(value);
-                            }
-                        }
-                        if (arguments.length === 0) throw new Error();
-                        return arguments[0];
                     };
                 
                     function isEmpty(self) {
@@ -1031,6 +1175,29 @@ var rere = (function(){
             }
         },
         {
+            path: ["reactive", "event_broker"],
+            content: function(root, expose) {
+                expose(new EventBroker());
+                
+                function EventBroker() {
+                    this.messages = [];
+                    this.isActive = false;
+                
+                    this.issue = function(reciever, event) {
+                        this.messages.push([reciever, event]);
+                        if (this.isActive) return;
+                        this.isActive = true;
+                        while(this.messages.length!=0) {
+                            var message = this.messages.shift();
+                            message[0].send(message[1]);
+                        }
+                        this.isActive = false;
+                    };
+                }
+                
+            }
+        },
+        {
             path: ["reactive", "lazy_run"],
             content: function(root, expose) {
                 expose(new LazyRun());
@@ -1038,23 +1205,53 @@ var rere = (function(){
                 function LazyRun() {
                     this.functions = [];
                     this.isActive = false;
+                    this.isCallback = false;
+                    this.root = null;
                 
                     this.postpone = function(f) {
-                        this.functions.push(f);
+                        if (this.isCallback) throw new Error("Can't postpone or run a task during callback");
+                        var item = {
+                            f: f,
+                            father: this.root,
+                            children: 0,
+                            callback: arguments.length==1 ? null : arguments[1]
+                        };
+                        if (this.isActive) {
+                            this.root.children++;
+                        }
+                        this.functions.push(item);
                     };
                 
                     this.run = function() {
-                        if (arguments.length==1) {
-                            this.postpone(arguments[0]);
+                        if (this.isCallback) throw new Error("Can't postpone or run a task during callback");
+                        if (arguments.length>0) {
+                            this.postpone.apply(this, arguments);
                         }
                 
                         if (this.isActive) return;
                         this.isActive = true;
                         while(this.functions.length!=0) {
-                            var f = this.functions.shift();
-                            f();
+                            var item = this.functions.shift();
+                            this.root = item;
+                            item.f();
+                            this.finalize(item);
                         }
+                        this.root = null;
                         this.isActive = false;
+                    };
+                
+                    this.finalize = function(item) {
+                        if (item.children<0) throw new Error("Inconsistent internal state");
+                        if (item.children==0) {
+                            if (item.callback != null) {
+                                this.isCallback = true;
+                                item.callback();
+                                this.isCallback = false;
+                            }
+                            if (item.father==null) return;
+                            item.father.children--;
+                            this.finalize(item.father);
+                        }
                     };
                 }
                 
@@ -1072,13 +1269,140 @@ var rere = (function(){
                 
                 var BaseList, Cell;
                 
-                // TODO: subscribe during add consistency
-                
                 function List(data) {
                     this._elementId = 0;
                     BaseList.apply(this);
                 
                     this.setData(data ? data : []);
+                }
+                
+                function SetListPrototype() {
+                    List.prototype = new BaseList();
+                
+                    List.prototype.unwrap = function() {
+                        return this.data.map(function(item){
+                            return item.value;
+                        });
+                    };
+                
+                    List.prototype.add = function(f) {
+                        if (typeof(f) != "function") {
+                            var item = f;
+                            f = function(id) { return item; };
+                        }
+                
+                        var event = {
+                            name: "add",
+                            key: this._elementId++,
+                            f: f
+                        };
+                
+                        root.reactive.event_broker.issue(this, event);
+                
+                        return event.key;
+                    };
+                
+                    List.prototype.setData = function(data) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "setData",
+                            data: data
+                        });
+                    };
+                
+                    List.prototype.remove = function(key) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "remove",
+                            key: key
+                        });
+                    };
+                
+                    List.prototype.forEach = function(callback) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "forEach",
+                            callback: callback
+                        });
+                    };
+                
+                    List.prototype.removeWhich = function(f) {
+                        root.reactive.event_broker.issue(this, {
+                            name: "removeWhich",
+                            f: f
+                        });
+                    };
+                
+                    var knownEvents = {
+                        add: "_add",
+                        setData: "_setData",
+                        remove: "_remove",
+                        forEach: "_forEach",
+                        removeWhich: "_removeWhich",
+                        use: "_use"
+                    };
+                
+                    List.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseList.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    List.prototype._add = function(event) {
+                        if (event.name != "add") throw new Error();
+                        var e = {key: event.key, value: event.f(event.key)};
+                        this.data.push(e);
+                        if (this.usersCount>0) {
+                            this.__raise(["add", e]);
+                        }
+                    };
+                
+                    List.prototype._setData = function(event) {
+                        if (event.name != "setData") throw new Error();
+                        this.data = event.data.map(function(item){
+                            return {
+                                key: this._elementId++,
+                                value: item
+                            }
+                        }.bind(this));
+                        if (this.usersCount>0) {
+                            this.__raise(["data", this.data.slice()]);
+                        }
+                    };
+                
+                    List.prototype._remove = function(event) {
+                        if (event.name != "remove") throw new Error();
+                        var length = this.data.length;
+                        this.data = this.data.filter(function(item){
+                            return item.key != event.key;
+                        });
+                        if (length!=this.data.length && this.usersCount>0) {
+                            this.__raise(["remove", event.key]);
+                        }
+                    };
+                
+                    List.prototype._forEach = function(event) {
+                        if (event.name != "forEach") throw new Error();
+                        for(var i=0;i<this.data.length;i++) {
+                            event.callback(this.data[i].value);
+                        }
+                    };
+                
+                    List.prototype._removeWhich = function(event) {
+                        if (event.name != "removeWhich") throw new Error();
+                        this.data.filter(function(item) {
+                            return event.f(item.value);
+                        }).forEach(function(item){
+                            this.remove(item.key);
+                        }.bind(this));
+                    };
+                
+                    List.prototype._use = function(event) {
+                        BaseList.prototype._use.apply(this, [event]);
+                        if (this.usersCount === 1) {
+                            this.__raise(["data", this.data.slice()]);
+                        }
+                    };
                 }
                 
                 List.handler = function(handlers) {
@@ -1092,78 +1416,6 @@ var rere = (function(){
                         handlers[e[0]].call(handlers, e[1]);
                     };
                 };
-                
-                function SetListPrototype() {
-                    List.prototype = new BaseList();
-                
-                    List.prototype.use = function(id) {
-                        BaseList.prototype.use.apply(this, [id]);
-                        if (this.usersCount === 1) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                    };
-                
-                    List.prototype.setData = function(data) {
-                        this.data = data.map(function(item){
-                            return {
-                                key: this._elementId++,
-                                value: item
-                            }
-                        }.bind(this));
-                        if (this.usersCount>0) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                    };
-                
-                    List.prototype.unwrap = function() {
-                        return this.data.map(function(item){
-                            return item.value;
-                        });
-                    };
-                
-                    List.prototype.add = function(f) {
-                        if (typeof(f) != "function") {
-                            var item = f;
-                            f = function(id) { return item; };
-                        }
-                        var key = this._elementId++;
-                        var e = {key: key, value: f(key)};
-                        this.data.push(e);
-                        if (this.usersCount>0) {
-                            this.raise(["data", this.data.slice()]);
-                        }
-                        return key;
-                    };
-                
-                    List.prototype.remove = function(key) {
-                        var removed = false;
-                        var length = this.data.length;
-                        this.data = this.data.filter(function(item){
-                            return item.key != key;
-                        });
-                        if (length!=this.data.length) {
-                            removed = true;
-                        }
-                        if (this.usersCount>0) {
-                            this.raise(["remove", key]);
-                        }
-                        return removed;
-                    };
-                
-                    List.prototype.removeWhich = function(f) {
-                        this.data.filter(function(item) {
-                            return f(item.value);
-                        }).forEach(function(item){
-                            this.remove(item.key);
-                        }.bind(this));
-                    };
-                
-                    List.prototype.forEach = function(callback) {
-                        for(var i=0;i<this.data.length;i++) {
-                            callback(this.data[i].value);
-                        }
-                    };
-                }
                 
             }
         },
@@ -1192,55 +1444,38 @@ var rere = (function(){
                     this.data = [];
                 }
                 
-                BaseList.prototype.onEvent = function(f) {
-                    var disposed = false;
-                    root.reactive.lazy_run.run(function(){
-                        if (disposed) return;
-                        if (this.usersCount>0) {
-                            f(["data", this.data.slice()])
-                        }
-                    }.bind(this));
-                
-                    var id = this.dependantsId++;
-                    this.dependants.push({key: id, f:f});
-                
-                    return function() {
-                        disposed = true;
-                        this.dependants = this.dependants.filter(function(dependant) {
-                            return dependant.key!=id;
-                        });
-                    }.bind(this);
+                BaseList.prototype.unwrap = function(f) {
+                    throw new Error("Not implemented");
                 };
                 
-                BaseList.prototype.raise = function(e) {
-                    this.dependants.forEach(function(d){
-                        root.reactive.lazy_run.postpone(function(){
-                            d.f(e);
-                        });
-                    });
-                    root.reactive.lazy_run.run();
+                BaseList.prototype.onEvent = function(f) {
+                    var event = {
+                        name: "onEvent",
+                        disposed: false,
+                        f: f,
+                        dispose: function() {}
+                    };
+                
+                    root.reactive.event_broker.issue(this, event);
+                
+                    return function() {
+                        event.disposed = true;
+                        event.dispose();
+                    };
                 };
                 
                 BaseList.prototype.use = function(id) {
-                    if (!this.users.hasOwnProperty(id)) {
-                        this.users[id] = 0;
-                    }
-                    this.users[id]++;
-                    this.usersCount++;
+                    root.reactive.event_broker.issue(this, {
+                        name: "use",
+                        id: id
+                    });
                 };
                 
                 BaseList.prototype.leave = function(id) {
-                    if (!this.users.hasOwnProperty(id)) {
-                        throw new Error();
-                    }
-                    if (this.users[id]===0) {
-                        throw new Error();
-                    }
-                    this.users[id]--;
-                    this.usersCount--;
-                    if (this.users[id]===0) {
-                        delete this.users[id];
-                    }
+                    root.reactive.event_broker.issue(this, {
+                        name: "leave",
+                        id: id
+                    });
                 };
                 
                 BaseList.prototype.fix = function() {
@@ -1253,17 +1488,9 @@ var rere = (function(){
                     return this;
                 };
                 
-                
-                BaseList.prototype.unwrap = function(f) {
-                    throw new Error("Not implemented");
-                };
-                
                 BaseList.prototype.lift = function(f) {
                     return new LiftedList(this, f);
                 };
-                
-                
-                
                 
                 BaseList.prototype.reduceGroup = function(group, opt) {
                     if (!opt) opt = {};
@@ -1317,26 +1544,82 @@ var rere = (function(){
                     });
                 };
                 
+                var knownEvents = {
+                    leave: "_leave",
+                    use: "_use",
+                    onEvent: "_onEvent"
+                };
                 
-                function initReducer(list, reducer) {
-                    var subscribes = {};
-                    list.onEvent(List.handler({
-                        data: function(e) {
-                            for (var i=0;i < e.length;i++) {
-                                subscribes[e[i].key] = reducer.add(e[i].value);
-                            }
-                        },
-                        add: function(e) {
-                            subscribes[e.key] = reducer.add(e.value);
-                        },
-                        remove: function(e) {
-                            if (e in subscribes) {
-                                subscribes[e]();
-                                delete subscribes[e];
-                            }
-                        }
-                    }));
-                }
+                BaseList.prototype.send = function(event) {
+                    if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                    if (!knownEvents.hasOwnProperty(event.name)) throw new Error("Unknown event: " + event.name);
+                    this[knownEvents[event.name]].apply(this, [event]);
+                };
+                
+                BaseList.prototype._onEvent = function(event) {
+                    if (event.name!="onEvent") throw new Error();
+                    if (event.disposed) return;
+                
+                    var id = this.dependantsId++;
+                    this.dependants.push({key: id, f: function(e) {
+                        if (event.disposed) return;
+                        event.f(e);
+                    }});
+                
+                    event.dispose = function() {
+                        this.dependants = this.dependants.filter(function(d) {
+                            return d.key != id;
+                        });
+                    }.bind(this);
+                
+                    if (this.usersCount>0) {
+                        var data = this.data.slice();
+                
+                        root.reactive.lazy_run.run(function(){
+                            // TODO: check if disposed
+                            event.f(["data", data]);
+                        });
+                    }
+                };
+                
+                BaseList.prototype._use = function(event) {
+                    if (event.name!="use") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
+                    if (!this.users.hasOwnProperty(id)) {
+                        this.users[id] = 0;
+                    }
+                    this.users[id]++;
+                    this.usersCount++;
+                };
+                
+                BaseList.prototype._leave = function(event) {
+                    if (event.name!="leave") throw new Error();
+                    if (!event.hasOwnProperty("id")) throw new Error();
+                    var id = event.id;
+                    if (!this.users.hasOwnProperty(id)) {
+                        throw new Error();
+                    }
+                    if (this.users[id]===0) {
+                        throw new Error();
+                    }
+                    this.users[id]--;
+                    this.usersCount--;
+                    if (this.users[id]===0) {
+                        delete this.users[id];
+                    }
+                };
+                
+                
+                BaseList.prototype.__raise = function(e) {
+                    // TODO: check if used
+                    this.dependants.forEach(function(d){
+                        root.reactive.lazy_run.postpone(function(){
+                            d.f(e);
+                        });
+                    });
+                    root.reactive.lazy_run.run();
+                };
                 
                 
                 
@@ -1363,8 +1646,28 @@ var rere = (function(){
                 function SetLiftedPrototype() {
                     LiftedList.prototype = new BaseList();
                 
-                    LiftedList.prototype.use = function(id) {
-                        BaseList.prototype.use.apply(this, [id]);
+                    LiftedList.prototype.unwrap = function() {
+                        return this.source.unwrap().map(function(item){
+                            return this.f(item);
+                        }.bind(this));
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    LiftedList.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseList.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    LiftedList.prototype._use = function(event) {
+                        BaseList.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.listId);
                             this.unsubscribe = this.source.onEvent(List.handler({
@@ -1372,36 +1675,30 @@ var rere = (function(){
                                     this.data = data.map(function(item){
                                         return {key: item.key, value: this.f(item.value)};
                                     }.bind(this));
-                                    this.raise(["data", this.data.slice()]);
+                                    this.__raise(["data", this.data.slice()]);
                                 }.bind(this),
                                 add: function(item) {
                                     item = {key: item.key, value: this.f(item.value)};
                                     this.data.push(item);
-                                    this.raise(["add", item]);
+                                    this.__raise(["add", item]);
                                 }.bind(this),
                                 remove: function(key){
                                     this.data = this.data.filter(function(item){
                                         return item.key != key;
                                     });
-                                    this.raise(["remove", key]);
+                                    this.__raise(["remove", key]);
                                 }.bind(this)
                             }))
                         }
                     };
                 
-                    LiftedList.prototype.leave = function(id) {
-                        BaseList.prototype.leave.apply(this, [id]);
+                    LiftedList.prototype._leave = function(event) {
+                        BaseList.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
                             this.source.leave(this.listId);
                         }
-                    };
-                
-                    LiftedList.prototype.unwrap = function() {
-                        return this.source.unwrap().map(function(item){
-                            return this.f(item);
-                        }.bind(this));
                     };
                 }
             }
@@ -1437,51 +1734,6 @@ var rere = (function(){
                 function SetPrototype() {
                     ReducedList.prototype = new BaseCell();
                 
-                    ReducedList.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
-                        if (this.usersCount === 1) {
-                            this.list.use(this.cellId);
-                            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
-                                data: function(data) {
-                                    if (this.reducer!=null) {
-                                        this.reducer.dispose();
-                                        this.reducer = null;
-                                    }
-                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
-                                        if (e[0]=="set") {
-                                            this.content = new Some(this._unwrap(e[1]));
-                                        } else if (e[0]=="unset") {
-                                            this.content = new None();
-                                        } else {
-                                            throw new Error();
-                                        }
-                                        this.raise();
-                                    }.bind(this));
-                                    this.reducer.init(data);
-                                }.bind(this),
-                                add: function(item) {
-                                    this.reducer.add(item.key, item.value);
-                                }.bind(this),
-                                remove: function(key) {
-                                    this.reducer.remove(key);
-                                }.bind(this)
-                            }));
-                        }
-                    };
-                
-                    ReducedList.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
-                        if (this.usersCount === 0) {
-                            this.unsubscribe();
-                            this.unsubscribe = null;
-                
-                            this.reducer.dispose();
-                            this.reducer = null;
-                
-                            this.list.leave(this.cellId);
-                        }
-                    };
-                
                     ReducedList.prototype.unwrap = function() {
                         var blocked = false;
                         var data = this.list.unwrap().map(function(value){
@@ -1500,30 +1752,73 @@ var rere = (function(){
                             if (arguments.length === 0) throw new Error();
                             return arguments[0];
                         }
-                        
+                
                         var sum = this._monoid.identity();
                         data.forEach(function(item){
                             sum = this._monoid.add(sum, this._wrap(item));
                         }.bind(this));
                         return this._unwrap(sum);
                     };
-                }
                 
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
                 
-                function ImmediatelyDisposableSubscribe(subscribable) {
-                    var self = this;
-                    this.isActive = true;
-                    this.onEvent = function(f) {
-                        var dispose = subscribable.onEvent(function(e){
-                            if (!self.isActive) return;
-                            f(e);
-                        });
-                        return function() {
-                            self.isActive = false;
-                            dispose();
+                    ReducedList.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    ReducedList.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
+                        if (this.usersCount === 1) {
+                            this.list.use(this.cellId);
+                            this.unsubscribe = this.list.onEvent(List.handler({
+                                data: function(data) {
+                                    if (this.reducer!=null) {
+                                        this.reducer.dispose();
+                                    }
+                                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                                        if (e[0]=="set") {
+                                            this.content = new Some(this._unwrap(e[1]));
+                                        } else if (e[0]=="unset") {
+                                            this.content = new None();
+                                        } else {
+                                            throw new Error();
+                                        }
+                                        this.__raise();
+                                    }.bind(this));
+                                    this.reducer.init(data);
+                                }.bind(this),
+                                add: function(item) {
+                                    this.reducer.add(item.key, item.value);
+                                }.bind(this),
+                                remove: function(key) {
+                                    this.reducer.remove(key);
+                                }.bind(this)
+                            }));
+                        }
+                    };
+                
+                    ReducedList.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
+                        if (this.usersCount === 0) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                
+                            this.reducer.dispose();
+                            this.reducer = null;
+                
+                            this.list.leave(this.cellId);
                         }
                     };
                 }
+                
             }
         },
         {

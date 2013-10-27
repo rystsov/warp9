@@ -54,10 +54,26 @@ function SetListPrototype() {
         });
     };
 
+    List.prototype.forEach = function(callback) {
+        root.reactive.event_broker.issue(this, {
+            name: "forEach",
+            callback: callback
+        });
+    };
+
+    List.prototype.removeWhich = function(f) {
+        root.reactive.event_broker.issue(this, {
+            name: "removeWhich",
+            f: f
+        });
+    };
+
     var knownEvents = {
         add: "_add",
         setData: "_setData",
         remove: "_remove",
+        forEach: "_forEach",
+        removeWhich: "_removeWhich",
         use: "_use"
     };
 
@@ -103,26 +119,28 @@ function SetListPrototype() {
         }
     };
 
+    List.prototype._forEach = function(event) {
+        if (event.name != "forEach") throw new Error();
+        for(var i=0;i<this.data.length;i++) {
+            event.callback(this.data[i].value);
+        }
+    };
+
+    List.prototype._removeWhich = function(event) {
+        if (event.name != "removeWhich") throw new Error();
+        this.data.filter(function(item) {
+            return event.f(item.value);
+        }).forEach(function(item){
+            this.remove(item.key);
+        }.bind(this));
+    };
+
     List.prototype._use = function(event) {
         BaseList.prototype._use.apply(this, [event]);
         if (this.usersCount === 1) {
             this.__raise(["data", this.data.slice()]);
         }
     };
-
-//    List.prototype.removeWhich = function(f) {
-//        this.data.filter(function(item) {
-//            return f(item.value);
-//        }).forEach(function(item){
-//            this.remove(item.key);
-//        }.bind(this));
-//    };
-
-//    List.prototype.forEach = function(callback) {
-//        for(var i=0;i<this.data.length;i++) {
-//            callback(this.data[i].value);
-//        }
-//    };
 }
 
 List.handler = function(handlers) {

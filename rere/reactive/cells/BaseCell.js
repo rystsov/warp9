@@ -96,6 +96,17 @@ BaseCell.prototype.coalesce = function(replace) {
     return new CoalesceCell(this, replace);
 };
 
+BaseCell.prototype.onSet = function(f) {
+    return this.onEvent(Cell.handler({
+        set: f,
+        unset:  function() {}
+    }));
+};
+
+BaseCell.prototype.isSet = function() {
+    return this.lift(function(){ return true }).coalesce(false);
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -184,13 +195,3 @@ BaseCell.prototype.__raise = function(e) {
     root.reactive.lazy_run.run();
 };
 
-//BaseCell.prototype.onSet = function(f) {
-//    return this.onEvent(Cell.handler({
-//        set: f,
-//        unset:  function() {}
-//    }));
-//};
-
-//BaseCell.prototype.isSet = function() {
-//    return this.lift(function(){ return true }).coalesce(false);
-//};

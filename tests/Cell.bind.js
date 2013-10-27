@@ -5,47 +5,45 @@ var List = rere.reactive.List;
 var idgenerator = rere.idgenerator;
 
 
-// TODO: uncomment
-//exports.dag1 = function(test) {
-//    test.expect(2);
-//
-//    var list = new List();
-//
-//    var hasItem = list.reduceGroup({
-//        identity: function() { return 0; },
-//        add: function(a,b) { return a+b; },
-//        invert: function(x) { return -x; }
-//    }, {
-//        wrap: function() { return 1; },
-//        unwrap: function(x) { return x > 0; }
-//    });
-//
-//    var left    = list.reduceGroup({
-//        identity: function() { return 0; },
-//        add: function(a,b) { return a+b; },
-//        invert: function(x) { return -x; }
-//    }, {
-//        wrap: function() { return 1; }
-//    });
-//
-//    var dag = hasItem.bind(function(hasItem){
-//        if (hasItem) return left;
-//        return new Cell();
-//    });
-//    dag.fix();
-//    var event = null;
-//    dag.onEvent(Cell.handler({
-//        set: function(x) { event = [x]; },
-//        unset: function() { event = []; }
-//    }));
-//    test.equal(event.length, 0);
-//
-//    list.add("qwerty");
-//    test.equal(event[0], 1);
-//
-//    test.done();
-//};
+exports.dag1 = function(test) {
+    test.expect(2);
 
+    var list = new List();
+
+    var hasItem = list.reduceGroup({
+        identity: function() { return 0; },
+        add: function(a,b) { return a+b; },
+        invert: function(x) { return -x; }
+    }, {
+        wrap: function() { return 1; },
+        unwrap: function(x) { return x > 0; }
+    });
+
+    var left    = list.reduceGroup({
+        identity: function() { return 0; },
+        add: function(a,b) { return a+b; },
+        invert: function(x) { return -x; }
+    }, {
+        wrap: function() { return 1; }
+    });
+
+    var dag = hasItem.bind(function(hasItem){
+        if (hasItem) return left;
+        return new Cell();
+    });
+    dag.fix();
+    var event = null;
+    dag.onEvent(Cell.handler({
+        set: function(x) { event = [x]; },
+        unset: function() { event = []; }
+    }));
+    test.equal(event.length, 0);
+
+    list.add("qwerty");
+    test.equal(event[0], 1);
+
+    test.done();
+};
 
 exports.unary = function(test) {
     test.expect(4);

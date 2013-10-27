@@ -26,51 +26,6 @@ function ReducedList(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnse
 function SetPrototype() {
     ReducedList.prototype = new BaseCell();
 
-    ReducedList.prototype.use = function(id) {
-        BaseCell.prototype.use.apply(this, [id]);
-        if (this.usersCount === 1) {
-            this.list.use(this.cellId);
-            this.unsubscribe = new ImmediatelyDisposableSubscribe(this.list).onEvent(List.handler({
-                data: function(data) {
-                    if (this.reducer!=null) {
-                        this.reducer.dispose();
-                        this.reducer = null;
-                    }
-                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
-                        if (e[0]=="set") {
-                            this.content = new Some(this._unwrap(e[1]));
-                        } else if (e[0]=="unset") {
-                            this.content = new None();
-                        } else {
-                            throw new Error();
-                        }
-                        this.raise();
-                    }.bind(this));
-                    this.reducer.init(data);
-                }.bind(this),
-                add: function(item) {
-                    this.reducer.add(item.key, item.value);
-                }.bind(this),
-                remove: function(key) {
-                    this.reducer.remove(key);
-                }.bind(this)
-            }));
-        }
-    };
-
-    ReducedList.prototype.leave = function(id) {
-        BaseCell.prototype.leave.apply(this, [id]);
-        if (this.usersCount === 0) {
-            this.unsubscribe();
-            this.unsubscribe = null;
-
-            this.reducer.dispose();
-            this.reducer = null;
-
-            this.list.leave(this.cellId);
-        }
-    };
-
     ReducedList.prototype.unwrap = function() {
         var blocked = false;
         var data = this.list.unwrap().map(function(value){
@@ -89,27 +44,69 @@ function SetPrototype() {
             if (arguments.length === 0) throw new Error();
             return arguments[0];
         }
-        
+
         var sum = this._monoid.identity();
         data.forEach(function(item){
             sum = this._monoid.add(sum, this._wrap(item));
         }.bind(this));
         return this._unwrap(sum);
     };
-}
 
+    var knownEvents = {
+        use: "_use",
+        leave: "_leave"
+    };
 
-function ImmediatelyDisposableSubscribe(subscribable) {
-    var self = this;
-    this.isActive = true;
-    this.onEvent = function(f) {
-        var dispose = subscribable.onEvent(function(e){
-            if (!self.isActive) return;
-            f(e);
-        });
-        return function() {
-            self.isActive = false;
-            dispose();
+    ReducedList.prototype.send = function(event) {
+        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+        if (knownEvents.hasOwnProperty(event.name)) {
+            this[knownEvents[event.name]].apply(this, [event]);
+        } else {
+            BaseCell.prototype.send.apply(this, [event]);
+        }
+    };
+
+    ReducedList.prototype._use = function(event) {
+        BaseCell.prototype._use.apply(this, [event]);
+        if (this.usersCount === 1) {
+            this.list.use(this.cellId);
+            this.unsubscribe = this.list.onEvent(List.handler({
+                data: function(data) {
+                    if (this.reducer!=null) {
+                        this.reducer.dispose();
+                    }
+                    this.reducer = new this.Reducer(this.cellId, this._monoid, this._wrap, this._ignoreUnset, function(e){
+                        if (e[0]=="set") {
+                            this.content = new Some(this._unwrap(e[1]));
+                        } else if (e[0]=="unset") {
+                            this.content = new None();
+                        } else {
+                            throw new Error();
+                        }
+                        this.__raise();
+                    }.bind(this));
+                    this.reducer.init(data);
+                }.bind(this),
+                add: function(item) {
+                    this.reducer.add(item.key, item.value);
+                }.bind(this),
+                remove: function(key) {
+                    this.reducer.remove(key);
+                }.bind(this)
+            }));
+        }
+    };
+
+    ReducedList.prototype._leave = function(event) {
+        BaseCell.prototype._leave.apply(this, [event]);
+        if (this.usersCount === 0) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+
+            this.reducer.dispose();
+            this.reducer = null;
+
+            this.list.leave(this.cellId);
         }
     };
 }

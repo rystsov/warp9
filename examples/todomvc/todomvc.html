@@ -60,15 +60,6 @@
                                                     (tab==="Completed" && mark));
                                 });
                             }).when(true, item).lift(ITEM);
-
-                            /*return activeTab.bind(function(tab){
-                                return item.mark.bind(function(mark){
-                                    if (tab==="All") return new Cell(item);
-                                    if (tab==="Active" && !mark) return new Cell(item);
-                                    if (tab==="Completed" && mark) return new Cell(item);
-                                    return new Cell();
-                                });
-                            }).lift(ITEM);*/
                         })
                     ],
                     hasItem.when(true, ["div", ["input-check", {
@@ -109,7 +100,7 @@
                 var control = new Cell();
                 var name = new Cell(todo.name.unwrap());
                 var label = rere.ui.hacks.unrecursion(function() {
-                    if (todo.name.unwrap()!=name.unwrap()) todo.name.set(name.unwrap());
+                    todo.name.set(name.unwrap());
                     control.set(["li",
                         ["input-check", {"class": "toggle"}, todo.mark],
                         ["label", {
@@ -120,7 +111,7 @@
                             todo.remove();
                         }}]
                     ]);
-                    if (todo.name.unwrap("").trim()=="") todo.remove();
+                    if (name.unwrap("").trim()=="") todo.remove();
                 });
                 function textbox() {
                     control.set(["li", {"class": "editing"},

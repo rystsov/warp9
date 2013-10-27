@@ -15,9 +15,10 @@ var Some, None, BaseCell;
 function Cell() {
     BaseCell.apply(this, []);
 
-    this.content = new None();
     if (arguments.length>0) {
-        this.set(arguments[0])
+        this.content = new Some(arguments[0]);
+    } else {
+        this.content = new None();
     }
 }
 
@@ -25,12 +26,15 @@ function SetCellPrototype() {
     Cell.prototype = new BaseCell();
 
     Cell.prototype.unwrap = function(alt) {
-        if (arguments.length==0 && this.content.isEmpty()) throw new Error();
+        if (arguments.length==0 && this.content.isEmpty()) {
+            throw new Error();
+        }
         return this.content.isEmpty() ? alt : this.content.value();
     };
 
     // Specific
     Cell.prototype.set = function(value) {
+        // TODO: do not set if equal
         root.reactive.event_broker.issue(this, {
             name: "set",
             value: value

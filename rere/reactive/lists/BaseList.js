@@ -64,6 +64,62 @@ BaseList.prototype.unfix = function() {
     return this;
 };
 
+BaseList.prototype.lift = function(f) {
+    return new LiftedList(this, f);
+};
+
+BaseList.prototype.reduceGroup = function(group, opt) {
+    if (!opt) opt = {};
+    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+
+    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+};
+
+BaseList.prototype.reduceMonoid = function(monoid, opt) {
+    if (!opt) opt = {};
+    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+
+    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
+};
+
+BaseList.prototype.reduce = function(identity, add, opt) {
+    return this.reduceMonoid({
+        identity: function() {return identity; },
+        add: add
+    }, opt);
+};
+
+BaseList.prototype.all = function(predicate) {
+    return this.lift(predicate).reduceGroup({
+        identity: function() { return [0,0]; },
+        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+        invert: function(x) { return [-x[0],-x[1]]; }
+    },{
+        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
+        unwrap: function(x) { return x[0]==x[1]; }
+    });
+};
+
+BaseList.prototype.count = function() {
+    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+
+    return this.lift(function(x){
+        x = predicate(x);
+        if (typeof x === "object" && x.type === Cell) {
+            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
+        }
+        return checkBool(x) ? 1 : 0;
+    }).reduceGroup({
+        identity: function() { return 0; },
+        add: function(x,y) { return x+y; },
+        invert: function(x) { return -x; }
+    });
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -132,6 +188,7 @@ BaseList.prototype._leave = function(event) {
 
 
 BaseList.prototype.__raise = function(e) {
+    // TODO: check if used
     this.dependants.forEach(function(d){
         root.reactive.lazy_run.postpone(function(){
             d.f(e);
@@ -140,59 +197,4 @@ BaseList.prototype.__raise = function(e) {
     root.reactive.lazy_run.run();
 };
 
-//BaseList.prototype.lift = function(f) {
-//    return new LiftedList(this, f);
-//};
-//
-//BaseList.prototype.reduceGroup = function(group, opt) {
-//    if (!opt) opt = {};
-//    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-//    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-//    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-//
-//    return new ReducedList(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-//};
-//
-//BaseList.prototype.reduceMonoid = function(monoid, opt) {
-//    if (!opt) opt = {};
-//    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-//    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-//    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-//
-//    return new ReducedList(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
-//};
-//
-//BaseList.prototype.reduce = function(identity, add, opt) {
-//    return this.reduceMonoid({
-//        identity: function() {return identity; },
-//        add: add
-//    }, opt);
-//};
-//
-//BaseList.prototype.all = function(predicate) {
-//    return this.lift(predicate).reduceGroup({
-//        identity: function() { return [0,0]; },
-//        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
-//        invert: function(x) { return [-x[0],-x[1]]; }
-//    },{
-//        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
-//        unwrap: function(x) { return x[0]==x[1]; }
-//    });
-//};
-//
-//BaseList.prototype.count = function() {
-//    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
-//
-//    return this.lift(function(x){
-//        x = predicate(x);
-//        if (typeof x === "object" && x.type === Cell) {
-//            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
-//        }
-//        return checkBool(x) ? 1 : 0;
-//    }).reduceGroup({
-//        identity: function() { return 0; },
-//        add: function(x,y) { return x+y; },
-//        invert: function(x) { return -x; }
-//    });
-//};
 
