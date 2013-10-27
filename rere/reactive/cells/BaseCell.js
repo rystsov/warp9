@@ -67,6 +67,10 @@ BaseCell.prototype.lift = function(f) {
     return new LiftedCell(this, f);
 };
 
+BaseCell.prototype.bind = function(f) {
+    return new BindedCell(this, f);
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -188,8 +192,4 @@ BaseCell.prototype.__raise = function(e) {
 //    };
 //
 //    return new WhenCell(this, opt);
-//};
-
-//BaseCell.prototype.bind = function(f) {
-//    return new BindedCell(this, f);
 //};

@@ -22,8 +22,36 @@ function BindedCell(source, f) {
 function SetBindedPrototype() {
     BindedCell.prototype = new BaseCell();
 
-    BindedCell.prototype.use = function(id) {
-        BaseCell.prototype.use.apply(this, [id]);
+    BindedCell.prototype.unwrap = function() {
+        var marker = {};
+        var value = this.source.unwrap(marker);
+        if (value !== marker) {
+            var mapped = this.f(value);
+            value = mapped.unwrap(marker);
+            if (value !== marker) {
+                return value;
+            }
+        }
+        if (arguments.length === 0) throw new Error();
+        return arguments[0];
+    };
+
+    var knownEvents = {
+        use: "_use",
+        leave: "_leave"
+    };
+
+    BindedCell.prototype.send = function(event) {
+        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+        if (knownEvents.hasOwnProperty(event.name)) {
+            this[knownEvents[event.name]].apply(this, [event]);
+        } else {
+            BaseCell.prototype.send.apply(this, [event]);
+        }
+    };
+
+    BindedCell.prototype._use = function(event) {
+        BaseCell.prototype._use.apply(this, [event]);
         if (this.usersCount === 1) {
             this.source.use(this.cellId);
             this.unsource = this.source.onEvent(Cell.handler({
@@ -37,11 +65,11 @@ function SetBindedPrototype() {
                     var dispose = this.mapped.onEvent(Cell.handler({
                         set: function(value) {
                             this.content = new Some(value);
-                            this.raise(["set", this.content.value()]);
+                            this.__raise();
                         }.bind(this),
                         unset: function() {
                             this.content = new None();
-                            this.raise(["unset"]);
+                            this.__raise();
                         }.bind(this)
                     }));
                     this.unmap = function(){
@@ -54,34 +82,20 @@ function SetBindedPrototype() {
                 unset: function(){
                     this.unmap();
                     this.content = new None();
-                    this.raise(["unset"]);
+                    this.__raise();
                 }.bind(this)
             }));
         }
     };
 
-    BindedCell.prototype.leave = function(id) {
-        BaseCell.prototype.leave.apply(this, [id]);
+    BindedCell.prototype._leave = function(event) {
+        BaseCell.prototype._leave.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsource();
             this.unmap();
             this.unsource = null;
-            this.source.leave(this.cellId);
             this.content = null;
+            this.source.leave(this.cellId);
         }
-    };
-
-    BindedCell.prototype.unwrap = function() {
-        var marker = {};
-        var value = this.source.unwrap(marker);
-        if (value !== marker) {
-            var mapped = this.f(value);
-            value = mapped.unwrap(marker);
-            if (value !== marker) {
-                return value;
-            }
-        }
-        if (arguments.length === 0) throw new Error();
-        return arguments[0];
     };
 }
