@@ -1,7 +1,4 @@
-node_modules/*
-rerejs.iml
-rerejs.ipr
-rerejs.iws
-secret/
+warp9.iml
+warp9.ipr
+warp9.iws
 *.DS_Store
-site/
