@@ -18,33 +18,47 @@ function CoalesceCell(source, replace) {
 function SetCoalescePrototype() {
     CoalesceCell.prototype = new BaseCell();
 
-    CoalesceCell.prototype.use = function(id) {
-        BaseCell.prototype.use.apply(this, [id]);
+    CoalesceCell.prototype.unwrap = function() {
+        return this.source.unwrap(this.replace);
+    };
+
+    var knownEvents = {
+        use: "_use",
+        leave: "_leave"
+    };
+
+    CoalesceCell.prototype.send = function(event) {
+        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+        if (knownEvents.hasOwnProperty(event.name)) {
+            this[knownEvents[event.name]].apply(this, [event]);
+        } else {
+            BaseCell.prototype.send.apply(this, [event]);
+        }
+    };
+
+    CoalesceCell.prototype._use = function(event) {
+        BaseCell.prototype._use.apply(this, [event]);
         if (this.usersCount === 1) {
             this.source.use(this.cellId);
             this.unsubscribe = this.source.onEvent(Cell.handler({
                 set: function(value) {
                     this.content = new Some(value);
-                    this.raise(["set", this.content.value()]);
+                    this.__raise();
                 }.bind(this),
                 unset: function(){
                     this.content = new Some(this.replace);
-                    this.raise(["set", this.content.value()]);
+                    this.__raise();
                 }.bind(this)
             }))
         }
     };
 
-    CoalesceCell.prototype.leave = function(id) {
-        BaseCell.prototype.leave.apply(this, [id]);
+    CoalesceCell.prototype._leave = function(event) {
+        BaseCell.prototype._leave.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
             this.source.leave(this.cellId);
         }
-    };
-
-    CoalesceCell.prototype.unwrap = function() {
-        return this.source.unwrap(this.replace);
     };
 }

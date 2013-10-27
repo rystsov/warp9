@@ -92,6 +92,10 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
     return new WhenCell(this, opt);
 };
 
+BaseCell.prototype.coalesce = function(replace) {
+    return new CoalesceCell(this, replace);
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -188,8 +192,4 @@ BaseCell.prototype.__raise = function(e) {
 
 //BaseCell.prototype.isSet = function() {
 //    return this.lift(function(){ return true }).coalesce(false);
-//};
-
-//BaseCell.prototype.coalesce = function(replace) {
-//    return new CoalesceCell(this, replace);
 //};
