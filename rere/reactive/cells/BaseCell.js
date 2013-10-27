@@ -71,6 +71,27 @@ BaseCell.prototype.bind = function(f) {
     return new BindedCell(this, f);
 };
 
+BaseCell.prototype.when = function(condition, transform, alternative) {
+    var test = typeof condition === "function" ? condition : function(value) {
+        return value === condition;
+    };
+
+    var map = typeof transform === "function" ? transform : function() { return transform; };
+
+    var alt = null;
+    if (arguments.length==3) {
+        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
+    }
+
+    var opt = {
+        condition: test,
+        transform: map,
+        alternative: alt
+    };
+
+    return new WhenCell(this, opt);
+};
+
 var knownEvents = {
     leave: "_leave",
     use: "_use",
@@ -171,25 +192,4 @@ BaseCell.prototype.__raise = function(e) {
 
 //BaseCell.prototype.coalesce = function(replace) {
 //    return new CoalesceCell(this, replace);
-//};
-
-//BaseCell.prototype.when = function(condition, transform, alternative) {
-//    var test = typeof condition === "function" ? condition : function(value) {
-//        return value === condition;
-//    };
-//
-//    var map = typeof transform === "function" ? transform : function() { return transform; };
-//
-//    var alt = null;
-//    if (arguments.length==3) {
-//        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
-//    }
-//
-//    var opt = {
-//        condition: test,
-//        transform: map,
-//        alternative: alt
-//    };
-//
-//    return new WhenCell(this, opt);
 //};

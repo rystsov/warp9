@@ -692,6 +692,27 @@ var rere = (function(){
                     return new BindedCell(this, f);
                 };
                 
+                BaseCell.prototype.when = function(condition, transform, alternative) {
+                    var test = typeof condition === "function" ? condition : function(value) {
+                        return value === condition;
+                    };
+                
+                    var map = typeof transform === "function" ? transform : function() { return transform; };
+                
+                    var alt = null;
+                    if (arguments.length==3) {
+                        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
+                    }
+                
+                    var opt = {
+                        condition: test,
+                        transform: map,
+                        alternative: alt
+                    };
+                
+                    return new WhenCell(this, opt);
+                };
+                
                 var knownEvents = {
                     leave: "_leave",
                     use: "_use",
@@ -792,27 +813,6 @@ var rere = (function(){
                 
                 //BaseCell.prototype.coalesce = function(replace) {
                 //    return new CoalesceCell(this, replace);
-                //};
-                
-                //BaseCell.prototype.when = function(condition, transform, alternative) {
-                //    var test = typeof condition === "function" ? condition : function(value) {
-                //        return value === condition;
-                //    };
-                //
-                //    var map = typeof transform === "function" ? transform : function() { return transform; };
-                //
-                //    var alt = null;
-                //    if (arguments.length==3) {
-                //        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
-                //    }
-                //
-                //    var opt = {
-                //        condition: test,
-                //        transform: map,
-                //        alternative: alt
-                //    };
-                //
-                //    return new WhenCell(this, opt);
                 //};
             }
         },
@@ -1079,8 +1079,34 @@ var rere = (function(){
                 function SetWhenPrototype() {
                     WhenCell.prototype = new BaseCell();
                 
-                    WhenCell.prototype.use = function(id) {
-                        BaseCell.prototype.use.apply(this, [id]);
+                    WhenCell.prototype.unwrap = function() {
+                        var marker = {};
+                        var value = this.source.unwrap(marker);
+                        if (value !== marker) {
+                            if (this.condition(value)) {
+                                return this.transform(value);
+                            }
+                        }
+                        if (arguments.length === 0) throw new Error();
+                        return arguments[0];
+                    };
+                
+                    var knownEvents = {
+                        use: "_use",
+                        leave: "_leave"
+                    };
+                
+                    WhenCell.prototype.send = function(event) {
+                        if (!event.hasOwnProperty("name")) throw new Error("Event must have a name");
+                        if (knownEvents.hasOwnProperty(event.name)) {
+                            this[knownEvents[event.name]].apply(this, [event]);
+                        } else {
+                            BaseCell.prototype.send.apply(this, [event]);
+                        }
+                    };
+                
+                    WhenCell.prototype._use = function(event) {
+                        BaseCell.prototype._use.apply(this, [event]);
                         if (this.usersCount === 1) {
                             this.source.use(this.cellId);
                             this.unsubscribe = this.source.onEvent(Cell.handler({
@@ -1100,36 +1126,24 @@ var rere = (function(){
                                         if (isEmpty(this)) return;
                                         this.content = new None();
                                     }
-                                    this.raise();
+                                    this.__raise();
                                 }.bind(this),
                                 unset: function(){
                                     if (this.content != null && this.content.isEmpty()) return;
                                     this.content = new None();
-                                    this.raise();
+                                    this.__raise();
                                 }.bind(this)
                             }))
                         }
                     };
                 
-                    WhenCell.prototype.leave = function(id) {
-                        BaseCell.prototype.leave.apply(this, [id]);
+                    WhenCell.prototype._leave = function(event) {
+                        BaseCell.prototype._leave.apply(this, [event]);
                         if (this.usersCount === 0) {
                             this.unsubscribe();
                             this.unsubscribe = null;
                             this.source.leave(this.cellId);
                         }
-                    };
-                
-                    WhenCell.prototype.unwrap = function() {
-                        var marker = {};
-                        var value = this.source.unwrap(marker);
-                        if (value !== marker) {
-                            if (this.condition(value)) {
-                                return this.transform(value);
-                            }
-                        }
-                        if (arguments.length === 0) throw new Error();
-                        return arguments[0];
                     };
                 
                     function isEmpty(self) {
