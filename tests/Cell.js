@@ -1,5 +1,7 @@
 var rere = require('../rere.common');
 
+var EventSink = require('./utils/Cell.EventSink');
+
 var Cell = rere.reactive.Cell;
 
 exports.ctor = function(test) {
@@ -73,6 +75,48 @@ exports.subscribeUse = function(test) {
 
     cell.fix();
     test.equal(event[0], 42);
+
+    test.done();
+};
+
+exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
+    test.expect(6);
+
+    var cell = new Cell(42);
+    cell.fix();
+
+    var sink = new EventSink(cell);
+    test.equal(sink.changes, 1);
+    test.equal(sink.unwrap(0), 42);
+
+    cell.set(13);
+    test.equal(sink.changes, 2);
+    test.equal(sink.unwrap(0), 13);
+
+    cell.set(13);
+    test.equal(sink.changes, 2);
+    test.equal(sink.unwrap(0), 13);
+
+    test.done();
+};
+
+exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
+    test.expect(6);
+
+    var cell = new Cell(42);
+    cell.fix();
+
+    var sink = new EventSink(cell);
+    test.equal(sink.changes, 1);
+    test.equal(sink.unwrap(0), 42);
+
+    cell.unset();
+    test.equal(sink.changes, 2);
+    test.equal(sink.unwrap(0), 0);
+
+    cell.unset();
+    test.equal(sink.changes, 2);
+    test.equal(sink.unwrap(0), 0);
 
     test.done();
 };
