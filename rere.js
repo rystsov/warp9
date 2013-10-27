@@ -765,7 +765,7 @@ var rere = (function(){
                         var content = this.content;
                 
                         root.reactive.lazy_run.run(function(){
-                            // TODO: check if disposed
+                            if (event.disposed) return;
                             if (content.isEmpty()) {
                                 event.f(["unset"]);
                             } else {
@@ -1353,9 +1353,7 @@ var rere = (function(){
                         if (event.name != "add") throw new Error();
                         var e = {key: event.key, value: event.f(event.key)};
                         this.data.push(e);
-                        if (this.usersCount>0) {
-                            this.__raise(["add", e]);
-                        }
+                        this.__raise(["add", e]);
                     };
                 
                     List.prototype._setData = function(event) {
@@ -1366,9 +1364,7 @@ var rere = (function(){
                                 value: item
                             }
                         }.bind(this));
-                        if (this.usersCount>0) {
-                            this.__raise(["data", this.data.slice()]);
-                        }
+                        this.__raise(["data", this.data.slice()]);
                     };
                 
                     List.prototype._remove = function(event) {
@@ -1377,7 +1373,7 @@ var rere = (function(){
                         this.data = this.data.filter(function(item){
                             return item.key != event.key;
                         });
-                        if (length!=this.data.length && this.usersCount>0) {
+                        if (length!=this.data.length) {
                             this.__raise(["remove", event.key]);
                         }
                     };
@@ -1577,7 +1573,7 @@ var rere = (function(){
                         var data = this.data.slice();
                 
                         root.reactive.lazy_run.run(function(){
-                            // TODO: check if disposed
+                            if (event.disposed) return;
                             event.f(["data", data]);
                         });
                     }
@@ -1613,13 +1609,14 @@ var rere = (function(){
                 
                 
                 BaseList.prototype.__raise = function(e) {
-                    // TODO: check if used
-                    this.dependants.forEach(function(d){
-                        root.reactive.lazy_run.postpone(function(){
-                            d.f(e);
+                    if (this.usersCount>0) {
+                        this.dependants.forEach(function(d){
+                            root.reactive.lazy_run.postpone(function(){
+                                d.f(e);
+                            });
                         });
-                    });
-                    root.reactive.lazy_run.run();
+                        root.reactive.lazy_run.run();
+                    }
                 };
                 
                 

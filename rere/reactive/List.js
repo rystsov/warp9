@@ -90,9 +90,7 @@ function SetListPrototype() {
         if (event.name != "add") throw new Error();
         var e = {key: event.key, value: event.f(event.key)};
         this.data.push(e);
-        if (this.usersCount>0) {
-            this.__raise(["add", e]);
-        }
+        this.__raise(["add", e]);
     };
 
     List.prototype._setData = function(event) {
@@ -103,9 +101,7 @@ function SetListPrototype() {
                 value: item
             }
         }.bind(this));
-        if (this.usersCount>0) {
-            this.__raise(["data", this.data.slice()]);
-        }
+        this.__raise(["data", this.data.slice()]);
     };
 
     List.prototype._remove = function(event) {
@@ -114,7 +110,7 @@ function SetListPrototype() {
         this.data = this.data.filter(function(item){
             return item.key != event.key;
         });
-        if (length!=this.data.length && this.usersCount>0) {
+        if (length!=this.data.length) {
             this.__raise(["remove", event.key]);
         }
     };

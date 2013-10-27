@@ -188,13 +188,14 @@ BaseList.prototype._leave = function(event) {
 
 
 BaseList.prototype.__raise = function(e) {
-    // TODO: check if used
-    this.dependants.forEach(function(d){
-        root.reactive.lazy_run.postpone(function(){
-            d.f(e);
+    if (this.usersCount>0) {
+        this.dependants.forEach(function(d){
+            root.reactive.lazy_run.postpone(function(){
+                d.f(e);
+            });
         });
-    });
-    root.reactive.lazy_run.run();
+        root.reactive.lazy_run.run();
+    }
 };
 
 
