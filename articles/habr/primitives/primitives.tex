@@ -1,0 +1,839 @@
+%[14pt,...
+\documentclass[xetex]{beamer}
+
+%http://tex.stackexchange.com/questions/79420/changing-font-style-using-beamer
+\usefonttheme{professionalfonts}
+\usefonttheme{serif}
+\usepackage{fontspec}
+\setmainfont[Ligatures=TeX]{Linux Libertine O}
+
+\usepackage{color}
+\definecolor{keywords-color}{RGB}{204, 120, 50}
+\definecolor{comments-color}{RGB}{128, 128, 128}
+\definecolor{identifier-color}{RGB}{169, 183, 198}
+\definecolor{string-color}{RGB}{165, 194, 92}
+\definecolor{digit-color}{RGB}{104, 151, 187}
+
+\usepackage{listings}
+
+% http://tex.stackexchange.com/questions/89574/language-option-supported-in-listings
+% http://tex.stackexchange.com/questions/83085/how-to-improve-listings-display-of-json-files
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break},
+  keywordstyle=\color{keywords-color}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{keywords-color}\bfseries,
+  identifierstyle=\color{identifier-color},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{comments-color}\ttfamily,
+  stringstyle=\color{string-color}\ttfamily,
+  morestring=[b]',
+  morestring=[b]",
+  literate=
+    *{0}{{{\color{digit-color}0}}}{1}
+     {1}{{{\color{digit-color}1}}}{1}
+     {2}{{{\color{digit-color}2}}}{1}
+     {3}{{{\color{digit-color}3}}}{1}
+     {4}{{{\color{digit-color}4}}}{1}
+     {5}{{{\color{digit-color}5}}}{1}
+     {6}{{{\color{digit-color}6}}}{1}
+     {7}{{{\color{digit-color}7}}}{1}
+     {8}{{{\color{digit-color}8}}}{1}
+     {9}{{{\color{digit-color}9}}}{1}
+}
+
+% Black 'n White
+\setbeamercolor{normal text}{fg=white,bg=black!90}
+\setbeamercolor{structure}{fg=white}
+\setbeamercolor{alerted text}{fg=red!85!black}
+\setbeamercolor{item projected}{use=item,fg=black,bg=item.fg!35}
+\setbeamercolor*{palette primary}{use=structure,fg=structure.fg}
+\setbeamercolor*{palette secondary}{use=structure,fg=structure.fg!95!black}
+\setbeamercolor*{palette tertiary}{use=structure,fg=structure.fg!90!black}
+\setbeamercolor*{palette quaternary}{use=structure,fg=structure.fg!95!black,bg=black!80}
+\setbeamercolor*{framesubtitle}{fg=white}
+\setbeamercolor*{block title}{parent=structure,bg=black!60}
+\setbeamercolor*{block body}{fg=black,bg=black!10}
+\setbeamercolor*{block title alerted}{parent=alerted text,bg=black!15}
+\setbeamercolor*{block title example}{parent=example text,bg=black!15}
+
+
+\lstset{
+  language=JavaScript,
+  frame=tb,
+  xleftmargin=.2\textwidth, xrightmargin=.2\textwidth,
+  breaklines=true
+}
+
+\title{Реактивные примитивы Warp9}
+\author{@rystsov}
+\date{2013}
+
+\begin{document}
+
+
+\maketitle
+\centering
+
+\begin{frame}
+    Warp9 поддерживает реактивные переменные (Cell) и реактивный списки (List).
+\end{frame}
+
+
+\begin{frame}
+    Cell: реактивные переменные
+\end{frame}
+
+
+\begin{frame}[fragile]
+    \frametitle{Cell / ctor}
+    Реактивная переменная в warp9 может содержать какое-либо значение или быть пустой, по умолчанию переменная создается пустой.
+
+\vspace{10mm}
+
+\begin{lstlisting}
+var a = new Cell();
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+    \frametitle{Cell / set}
+    Для того чтобы положить в неё какое-либо значение используется метод “set”
+
+\vspace{10mm}
+
+\begin{lstlisting}
+var a = new Cell();
+a.set(42);
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / ctor(\dots)}
+Альтернатива - передать начальное значение в конструкторе
+
+\vspace{10mm}
+
+\begin{lstlisting}
+var a = new Cell(42);
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / unset}
+В любой момент переменную можно сделать пустой
+
+\vspace{10mm}
+
+\begin{lstlisting}
+var a = new Cell(42);
+a.unset();
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / unwrap}
+У переменной можно вызвать метод unwrap для того, чтобы получить значение, которое она содержит
+
+\vspace{10mm}
+
+\begin{lstlisting}
+var a = new Cell(42);
+console.info(a.unwrap());
+//> 42
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / unwrap(\dots)}
+Если переменная была пустой - вылетит исключение, но unwrap можно передать значение, которое следует вернуть, если переменная пустая
+
+\vspace{10mm}
+
+\lstset{
+  xleftmargin=.1\textwidth, xrightmargin=.1\textwidth
+}
+\begin{lstlisting}
+console.info(new Cell().unwrap(42));
+//> 42
+\end{lstlisting}
+\end{frame}
+
+\lstset{
+  xleftmargin=.05\textwidth, xrightmargin=.05\textwidth
+}
+
+\begin{frame}[fragile]
+\frametitle{Cell / lift}
+К существующей переменной можно применить функцию и получить реактивную переменную, которая связана с первой этой функцией: при изменении первой - автоматически меняется вторая
+
+\vspace{4mm}
+\begin{lstlisting}
+var a = new Cell(); // a is unset
+var b = a.lift(function(a) { 
+    return a+2; 
+}); // b is unset
+a.set(1); // a contains 1, b contains 3
+a.set(5); // a contains 1, b contains 7
+a.unset(); // a is unset, b is unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / lift}
+Можно сказать, что для метода lift выполняется\\ следующий закон
+
+\vspace{10mm}
+
+\begin{lstlisting}
+forall(f,x):
+    new Cell(x).lift(f).unwrap()==f(x);
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / lift}
+У переменных полученных лифтингом (а врочем и любым другим способом, кроме как вызовом конструктора Cell) невозможно вызывать методы set, unset
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / coalesce}
+Еще один способо создать переменную - вызвать метод coalesce и передать ему значение по умолчанию. Если исходная переменная содержит какое-либо значение, то и новая переменная будет его содержать, если исходная переменная пустая, то новая переменная будет содержать значение по умолчанию.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / coalesce}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.coalesce(42); // b contains 42
+a.set(13); // a contains 13, b contains 13
+a.unset(); // a is unset, b contains 42
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots)}
+Другой способ создать переменную - вызвать метод when. Если метод вызван с одним параметром, то параметр рассматривается как фильтр. Если значение фильтра true, то переменная будет содержать значение, совпадающее с исходной, иначе переменная будет пустая.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots)}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.when(function(a) { 
+    return a>3; 
+}); // b in unset
+a.set(42); // a contains 42, b contains 42
+a.set(4); // a contains 4, b contains 4
+a.set(1); // a contains 1, b is unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when}
+Если в качестве фильтра передать не функцию, то значение исходной переменной будет сравниваться с ``фильтром'' на равенство.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots)}
+Так же методу when можно передать два параметра: фильтр и трансформер, в это случае трансформер будет применен к значению исходной переменной, если фильтр вернул true.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots)}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.when(
+    function(a) { return a>3; }, 
+    function(x){ return x+1 }
+); //  b in unset
+a.set(42); // a contains 42, b contains 43
+a.set(4); // a contains 4, b contains 5
+a.set(1); // a contains 1, b is unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots)}
+На самом деле when с двумя аргументами практически эквивалентен комбинации when и lift
+
+\vspace{4mm}
+\begin{lstlisting}
+forall(f,t,cell):
+    cell.when(f,t)==cell.when(f).lift(t);
+\end{lstlisting}
+\vspace{4mm}
+Практически, потому что, как и в случае с одним параметром - вместо фильтра и трансформера можно передать константы - ``фильтр’’ будет сравниваться с значением исходной переменной, а ``трансформер’’ вернет себя
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots)}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.when(42,13);  // b in unset
+a.set(42); // a contains 42, b contains 13
+a.set(4); // a contains 4, b is unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots, \dots)}
+Последняя форма when - три аргумента: фильтр, трансформер и алтернативный трансформер, работает точно так же как и предыдущий, но если фильтр вернул false - применяется алтернативный трансформер
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots, \dots)}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.when(
+    function(a) { return a>=0; }, 
+    function(x) { return x+1 },
+    function(x) { return x-1; }
+); // b in unset
+a.set(0); // a contains 0, b contains 1
+a.set(-1); // a contains -1, b contains -2
+a.unset(1); // a is unset, b in unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots, \dots)}
+Вместо функций можно передать значения, в этом случае when ведет себя как реактивный тернарный оператор
+
+\vspace{10mm}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.when(true, 1, 0); // b is unset
+a.set(true); // a has true, b has 1
+a.set(false); // a has false, b has 0
+a.unset(); // a is unset, b is unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / when(\dots, \dots, \dots)}
+За ислючения случая с константами, для when с тремя аргументами выполняется закон
+
+\vspace{10mm}
+\begin{lstlisting}
+forall(c,f,t,a):
+    c.when(f,t,a)==c.lift(function(c){ 
+        return f(c) ? t(c) : a(c) 
+    });
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind}
+Теперь рассмотрим последний метод Cell для создания новых переменных - bind. Если бы мне пришлось выбирать из lift, when и bind - я бы выбрал bind, так как остальные легко из него выводятся
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind}
+Bind’у на вход нужно передавать функцию. Эта функция применяется к значению реактивной переменной и возвращает Cell, в свою очередь bind возвращает новую реактивную переменную, которая содержит то же значение, что и переменная, которую вернула функция. Звучит cтрашно, но надеюсь после примеров станет понятнее, но вначале\dots
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind}
+\dots{}закон
+
+\vspace{6mm}
+\begin{lstlisting}
+forall(cell,f):
+    cell.bind(f).unwrap() 
+        == 
+    f(cell.unwrap()).unwrap()
+\end{lstlisting}
+\vspace{6mm}
+
+Сложно сказать зачем именно нужен этот монстр, так как применяется он практически везде, но начнем по порядку, я сказал, что с него помощью можно создать lift\dots
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind / lift}
+\begin{lstlisting}
+var cell = new Cell();
+cell.lift = function(f) {
+    return this.bind(function(x) {
+        return new Cell(f(x));
+    });
+}
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind / when}
+Теперь реализуем самую первую форму when
+\vspace{10mm}
+\begin{lstlisting}
+var cell = new Cell();
+cell.when = function(f) {
+    return this.bind(function(x) {
+        return f(x) ? new Cell(x) : new Cell();
+    });
+};
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind / binary}
+Это далеко не все, например, с помощью bind можно взять любую бинарную функцию от обычных значений и возвращающую обычное значение, и применить её к двум реактивным переменным и получить реактивную переменную
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Cell / bind / binary}
+\begin{lstlisting}
+var a = new Cell(1);
+var b = new Cell(2);
+var sum = a.bind(function(a) {
+    return b.bind(function(b) {
+        return new Cell(a+b);
+    });
+}); // sum has 3
+a.set(2); // a has 2, b has 2, sum has 4
+b.unset(); // a has 2, b & sum are unset
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Монады}
+Как только вы скажете ``Ага, я все понял!'' - поздравляю, вы только что познакомились с монадами
+
+\vspace{10mm}
+{\color{comments-color}(черт, я же не хотел писать очередной туториал по монадам)}
+\end{frame}
+
+
+\begin{frame}
+    Переходим к реактивным спискам (List)
+\end{frame}
+
+\lstset{
+  xleftmargin=.2\textwidth, xrightmargin=.2\textwidth
+}
+\begin{frame}[fragile]
+\frametitle{List / ctor}
+Создаем список
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List();
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / ctor(\dots)}
+Списку можно передать начальные значения в конструкторе.
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List([1,2,3])
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / add}
+Кладем элементы в список
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List();
+list.add("Warp9");
+list.add("React");
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / unwrap}
+Получить содержимое списка можно через unwrap
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List();
+list.add("Warp9");
+console.info(list.unwrap()); 
+// ["Warp9"]
+\end{lstlisting}
+\end{frame}
+
+
+\lstset{
+  xleftmargin=.1\textwidth, xrightmargin=.1\textwidth
+}
+
+
+\begin{frame}[fragile]
+\frametitle{List / remove}
+Метод add возвращает id элемента, \\ по которому его можно удалить
+
+\vspace{6mm}
+\begin{lstlisting}
+var list = new List();
+var warpId = list.add("Warp9");
+var reactId = list.add("React");
+console.info(list.unwrap()); 
+//> ["Warp9", "React"]
+list.remove(reactId);
+console.info(list.unwrap()); 
+//> ["Warp9"]
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / add($\lambda$)}
+Часто id элемента должен содержаться внутри элемента, поэтому методу add можно передать функцию, эта функция будет вызвана, аргументом будет id, а в список будет добавлен результат выполнения этой функции
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List();
+list.add(function(id){
+    return { id: id, name: "Warp"};
+});
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / removeWhich}
+Кроме remove, есть еще один метод - removeWhich, он принимает предикат и удаляет из списка все элементы, которые удоволетворяют этому предикату
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List([1,2,3]);
+list.removeWhich(function(x) { 
+    return x < 2 
+});
+// list contains 2,3
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / forEach}
+Так же в списке есть метод forEach, который ведет себя подобно forEach массива
+
+\vspace{10mm}
+\begin{lstlisting}
+var list = new List([
+    "Warp9", "React"
+]);
+list.forEach(function(x){
+    console.info(x); 
+});
+//> Warp9
+//> React
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / remove, removeWhich и forEach}
+Методы remove, removeWhich и forEach не учитывают реактивную природу списка и выполняются один раз в момент вызова (не перевыполняются при добавлении новых элементов)
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / lift}
+Так же как и Cell, в List есть метод lift, который создает новый список и связывает его функцией с исходным, получается реактивный map
+
+\vspace{6mm}
+\lstset{
+  xleftmargin=.03\textwidth, xrightmargin=.03\textwidth
+}
+\begin{lstlisting}
+var a = new List(); 
+var b = a.lift(function(x){ return x+2; }); 
+// b.unwrap()==[]
+var id1 = a.add(1); 
+// a.unwrap()==[1], b.unwrap()==[3]
+var id2 = a.add(2); 
+// a.unwrap()==[1,2], b.unwrap()==[3,4]
+a.remove(id1); 
+// a.unwrap()==[2], b.unwrap()==[4]
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / lifting}
+У списка полученный через лифтинг невозможно вызвать методы add, remove, removeWhich
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce}
+Все, что я пока рассказал про списки есть и в Knockout и ReactiveCoffee, но я обещал, что warp9 поддерживает больше, а именно агрегацию. Начнем с метода reduce и попробуем просуммировать элементы в списке и получить реактивное значение суммы
+\end{frame}
+
+
+\lstset{
+  xleftmargin=.05\textwidth, xrightmargin=.05\textwidth
+}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / sum}
+Первый параметр reduce - значение, которое соответствует пустому списку, второе значение - функция, которая занимается сверткой
+\vspace{4mm}
+\begin{lstlisting}
+var list = new List();
+var sum = list.reduce(0, function(a,b) { 
+    return a+b; 
+});
+list.add(41); // sum has 41
+list.add(1); // sum has 42
+\end{lstlisting}
+\vspace{4mm}
+Как мы видим переменная sum получилась реактивной и изменяется при изменении списка. 
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / count}
+После того, как мы посчитали сумму списка, давайте узнаем кол-во элементов в нем
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / count}
+\begin{lstlisting}
+var list = new List();
+var count = list.lift(function(x) { 
+    return 1; 
+}).reduce(0, function(a,b) { 
+    return a+b; 
+});
+var id41 = list.add(41); // count has 1
+list.add(1); // count has 2
+list.remove(id41); // count has 1
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / count / wrap}
+Это работающий метод, правда требует создания нового списка; существует чуть более эффективный путь
+\vspace{10mm}
+\begin{lstlisting}
+var count = list.reduce(0, function(a,b) { 
+  return a+b; 
+}, {
+  wrap: function(x) { 
+    return 1; 
+  } 
+});
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / wrap}
+Функция wrap выполняется для каждого элемента списка и уже её результат агрегируется, очевидно, что выполняется закон
+
+\vspace{10mm}
+\begin{lstlisting}
+forall(list,f,id,fold): 
+    list.reduce(id, fold, {wrap: f}) 
+        == 
+    list.lift(f).reduce(id, fold)
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / эффективность}
+Раз мы заговорили об эффективности, какова сложноть у функции reduce, при добавлении элемента в список размера n? В knockout она равна $\mathrm{O}(n)$, в warp9 она $\mathrm{O}(\ln n)$. Но делать даже $\ln n$ вычислений на каждое добавление элемента в список, чтобы инкременировать одно значение (sum или count) странно, поэтому в warp9 есть другой путь
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduceMonoid}
+Если посмотреть на реализацию функции reduce, видно, что вызов \quad{\ttfamily list.reduce(id, fold)}\quad раскрывается в 
+\vspace{4mm}
+\begin{lstlisting}
+var sum = list.reduceGroup({
+    identity: function() { return 0 },
+    add: function(a,b) { return a+b; },
+    invert: function(x) { return -x; }
+});
+\end{lstlisting}
+\vspace{4mm}
+Искушенный читатель догадается, что раз есть Monoid, то есть и Group, и будет прав
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduceGroup}
+Пример с суммой элементов списка:
+\begin{lstlisting}[frame=none]
+var sum = list.reduce(0, function(a,b) { 
+    return a+b; 
+});
+\end{lstlisting}
+можно переписать так:
+\begin{lstlisting}[frame=none]
+var sum = list.reduceGroup({
+    identity: function() { return 0 },
+    add: function(a,b) { return a+b; },
+    invert: function(x) { return -x; }
+});
+\end{lstlisting}
+
+\vspace{4mm}
+И сложность, магическим образом, упадет с $\mathrm{O}(\ln n)$ до $\mathrm{O}(1)$. Аналогично можно посчитать и кол-во элементов в списке
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce$\ast$}
+Понять, можно ли использоват \quad{\ttfamily reduce$\ast$}\quad и какой вариант использовать достаточно просто. Если агрегат списка не зависит от порядка элементов в списке и по посчитанному агрегату и вставляемому элементу вы можете посчитать значение нового агрегата, то агрегат можно выразить через \quad{\ttfamily reduce$\ast$}\quad функции.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduceGroup}
+Если зная агрегат и удаляемый элемент вы сможете посчитать значение, которое совпадет с агрегатом нового списка, то агрегат можно выразить через \quad{\ttfamily reduceGroup}
+
+\vspace{10mm}
+Очевидно, что агрегаты sum и count попадают под оба определения, а значит мы можем для них использовать \quad{\ttfamily reduceGroup}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduceMonoid}
+Может сложится впечатление, что любой коммутативный агрегат попадает под это определение, \\ но на самом деле это не так. 
+
+\vspace{6mm}
+Допустим, мы хотим посчитать логическое \& от списка bool. Данная задача попадает под \quad{\ttfamily reduceMonoid}\quad, но не под \quad{\ttfamily reduceGroup}
+
+\vspace{6mm}
+{\color{comments-color} Зная, что агрегат false и зная, что удаляемый элемент тоже false, мы не обладаем информацией, есть ли в списке еще false, а от этого зависит будет ли агрегат false или true}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce(\&)}
+Хотя я вру
+
+\vspace{10mm}
+На самом деле, задачу логического \& можно свести к \quad{\ttfamily reduceGroup}. Достаточно каждое true рассматривать как пару (1,1), каждое false как (0,1), при добавлении элемента - покомпонентно складывать пары, при удалении - удалять. Если в каждой компоненте одинаковое число - значит значение агрегата true, иначе false. Единственная проблема - в качестве результата будет пара, а не boolean
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / unwrap}
+Оказывается в warp9 это не проблема, так как есть опция unwrap
+
+\vspace{10mm}
+
+После того как reduce отработает, вызывается unwrap и преобразовывает результат в нужный тип..
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce / unwrap}
+\begin{lstlisting}[frame=none, xleftmargin=.01\textwidth]
+list.reduceGroup({
+    identity: function() { return [0,0]; },
+    add: function(x,y) { 
+        return [x[0]+y[0],x[1]+y[1]]; 
+    },
+    invert: function(x) { 
+        return [-x[0],-x[1]]; 
+    }
+},{
+    wrap: function(x) { 
+        return x ? [1,1] : [0,1]; 
+    },
+    unwrap: function(x) { 
+        return x[0]==x[1]; 
+    }
+});
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce$\ast$ / Cell}
+Особенностью работы reduce$\ast$ является то, что он учитывает не только реактивность списка, но и реактивность переменных\dots
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce$\ast$ / Cell}
+\begin{lstlisting}
+var list = new List();
+var it1 = new Cell(0);
+var it2 = new Cell(1);
+var sum = list.reduce(0, function(a,b) { 
+    return a + b; 
+}); // sum has 0
+var itId1 = list.add(it1); // sum has 0
+var itId2 = list.add(it2); // sum has 1
+it1.set(5); // sum has 6
+it2.set(2); // sum has 7
+it1.unset(); // sum is unset
+list.remove(itId1); // sum has 2
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / reduce$\ast$ / Cell / ignoreUnset}
+Видно, что если внутри реактивный списока есть пустая переменная, то результат агрегации будет пустым. Это поведение можно изменить:  достаточно в reduce передать опцию ignoreUnset - все пустые элементы будут заменяться на единичный элемент моноида или группы
+\begin{lstlisting}[frame=none]
+var item1 = new Cell();
+var item2 = new Cell(1);
+var list = new List([item1, item2]);
+var sum = list.reduce(0, function(a,b) { 
+    return a + b; 
+}, {
+    ignoreUnset: true
+}); // sum has 1 
+item1.set(3); // sum has 4
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{List / }
+
+\vspace{10mm}
+\begin{lstlisting}
+\end{lstlisting}
+\end{frame}
+\end{document}

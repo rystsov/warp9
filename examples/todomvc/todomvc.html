@@ -1,0 +1,126 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="base.css">
+        <script src="../warp9.js"></script>
+    </head>
+    <body>
+        <div id="canvas"></div>
+    </body>
+    <script language="javascript" type="text/javascript">
+        var Cell = warp9.reactive.Cell;
+        var List = warp9.reactive.List;
+
+        var STORAGE_ID = 'todos-warp9js';
+
+        var todos = new List([]);
+        todos.addTodo = function (todo) {
+            this.add(function(id){
+                return {
+                    mark: new Cell(todo.mark),
+                    name: new Cell(todo.name),
+                    remove: function() { this.remove(id);}.bind(this)
+                };
+            }.bind(this));
+        }.bind(todos);
+
+        JSON.parse(localStorage.getItem(STORAGE_ID) || '[]').forEach(todos.addTodo);
+        warp9.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
+            localStorage.setItem(STORAGE_ID, JSON.stringify(todos));
+        });
+
+        warp9.ui.renderer.render(canvas, TODOMVC(todos));
+
+        function TODOMVC(todos) {
+            var activeTab = new Cell("All"); // All, Active, Completed
+            var newTaskName = new Cell("");
+            var hasItem = todos.count().lift(function(count){ return count>0; });
+            var toggleAll = todos.all(function(x) { return x.mark; }).fix();
+            var left      = todos.count(function(x) { return x.mark.lift(function(x) { return !x; }); });
+            var completed = todos.count(function(x) { return x.mark; });
+
+            return ["section", {id: "todoapp"},
+                ["header", {id:"header"},
+                    ["h1", "todos"],
+                    ["input-text", {
+                        id:"new-todo", placeholder:"What needs to be done?", autofocus: true,
+                        "!key:enter": function() {
+                            if (newTaskName.unwrap()==="") return;
+                            todos.addTodo({mark: false, name: newTaskName.unwrap()});
+                            newTaskName.set("");
+                        }
+                    }, newTaskName]],
+                ["section", {id:"main"},
+                    ["ul", {id:"todo-list"},
+                        todos.lift(function(item){
+                            return activeTab.bind(function(tab){
+                                return item.mark.bind(function(mark){
+                                    return new Cell((tab==="All") || (tab==="Active" && !mark) || (tab==="Completed" && mark));
+                                });
+                            }).when(true, item).lift(ITEM);
+                        })
+                    ],
+                    hasItem.when(true, ["div", ["input-check", {
+                        id: "toggle-all", "warp9:role": "view",
+                        "!warp9:changed": function(state) {
+                            todos.forEach(function(todo){
+                                todo.mark.set(state);
+                            });
+                        }
+                    }, toggleAll]])],
+                hasItem.when(true, ["footer", {id: "footer"},
+                    ["div",
+                        ["span", {id: "todo-count"}, ["strong", left], left.lift(function(left){
+                            return left===1 ? " item left" : " items left";
+                        })],
+                        ["ul", {id:"filters"},
+                            ["li", tabSwitch("All")],
+                            ["li", tabSwitch("Active")],
+                            ["li", tabSwitch("Completed")]],
+                        completed.when(function(x) { return x > 0; }, ["button", {
+                            id: "clear-completed",
+                            "!click": function(){
+                                todos.removeWhich(function(item){ return item.mark.unwrap(); });
+                            }
+                        }, "Clear completed (", completed, ")"])
+                    ]
+                ])
+            ];
+
+            function tabSwitch(tabName) {
+                return ["a", {
+                    "href": "#", "class": activeTab.when(tabName, "selected"),
+                    "!click": function() { activeTab.set(tabName); }
+                }, tabName];
+            }
+
+            function ITEM(todo) {
+                var control = new Cell();
+                var name = new Cell(todo.name.unwrap());
+                var label = warp9.ui.hacks.unrecursion(function() {
+                    todo.name.set(name.unwrap());
+                    control.set(["li",
+                        ["input-check", {"class": "toggle"}, todo.mark],
+                        ["label", {
+                            "!dblclick": textbox,
+                            "css/text-decoration": todo.mark.when(true, "line-through", "none")
+                        }, todo.name],
+                        ["button", {"class": "destroy", "!click": function() {
+                            todo.remove();
+                        }}]
+                    ]);
+                    if (name.unwrap("").trim()=="") todo.remove();
+                });
+                function textbox() {
+                    control.set(["li", {"class": "editing"},
+                        ["input-text", {"class": "edit", "!control:draw": function(c,v) { v.focus(); },
+                            "!blur": label, "!key:enter": label
+                        }, name]
+                    ]);
+                }
+                label();
+                return control;
+            }
+        }
+    </script>
+</html>
