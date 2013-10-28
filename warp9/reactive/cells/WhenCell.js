@@ -25,11 +25,26 @@ function SetWhenPrototype() {
         var value = this.source.unwrap(marker);
         if (value !== marker) {
             if (this.condition(value)) {
-                return this.transform(value);
+                if (this.transform != null) {
+                    value = {value: this.transform(value)};
+                } else {
+                    value = {value: value};
+                }
+            } else {
+                if (this.alternative != null) {
+                    value = {value: this.alternative(value)};
+                } else {
+                    value = null;
+                }
             }
+        } else {
+            value = null;
         }
-        if (arguments.length === 0) throw new Error();
-        return arguments[0];
+        if (value==null) {
+            if (arguments.length == 0) throw new Error();
+            return arguments[0];
+        }
+        return value.value;
     };
 
     var knownEvents = {
@@ -53,7 +68,11 @@ function SetWhenPrototype() {
             this.unsubscribe = this.source.onEvent(Cell.handler({
                 set: function(value) {
                     if (this.condition(value)) {
-                        value = {value: this.transform(value)};
+                        if (this.transform != null) {
+                            value = {value: this.transform(value)};
+                        } else {
+                            value = {value: value};
+                        }
                     } else if (this.alternative != null) {
                         value = {value: this.alternative(value)};
                     } else {

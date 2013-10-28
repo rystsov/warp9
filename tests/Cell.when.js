@@ -4,6 +4,30 @@ var EventSink = require('./utils/Cell.EventSink');
 
 var Cell = warp9.reactive.Cell;
 
+exports.when1 = function(test) {
+    test.expect(6);
+
+    var a = new Cell();
+    var b = a.when(function(a) {
+        return a>3 ;
+    });
+    var sink = new EventSink(b);
+    a.set(42);
+    a.fix(); b.fix();
+    test.equal(sink.changes, 1);
+    test.equal(sink.unwrap(0), 42);
+
+    a.set(4);
+    test.equal(sink.changes, 2);
+    test.equal(sink.unwrap(0), 4);
+
+    a.set(1);
+    test.equal(sink.changes, 3);
+    test.equal(sink.unwrap(0), 0);
+
+    test.done();
+};
+
 exports.when2 = function(test) {
     test.expect(4);
 
