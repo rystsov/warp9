@@ -2,3 +2,4 @@ warp9.iml
 warp9.ipr
 warp9.iws
 *.DS_Store
+node_modules/
