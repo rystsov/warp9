@@ -76,7 +76,10 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
         return value === condition;
     };
 
-    var map = typeof transform === "function" ? transform : function() { return transform; };
+    var map = null;
+    if (arguments.length > 1) {
+        map = typeof transform === "function" ? transform : function() { return transform; };
+    }
 
     var alt = null;
     if (arguments.length==3) {
@@ -105,6 +108,19 @@ BaseCell.prototype.onSet = function(f) {
 
 BaseCell.prototype.isSet = function() {
     return this.lift(function(){ return true }).coalesce(false);
+};
+
+BaseCell.prototype.fireOnceOn = function(value, action) {
+    var self = this;
+    return self.fix().onEvent(Cell.handler({
+        set: function(x) {
+            if (x===value) {
+                self.unfix();
+                action();
+            }
+        },
+        unset: function() {}
+    }))
 };
 
 var knownEvents = {
