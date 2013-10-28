@@ -1,24 +1,21 @@
 <html>
     <head>
-        <script src="../../rere.js"></script>
+        <script src="../../target/warp9.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
     </body>
     <script type="text/javascript">
-        var Cell = rere.reactive.Cell;
-        var renderer = rere.ui.renderer;
-        var H = renderer.h;
+        var Cell = warp9.reactive.Cell;
+        var List = warp9.reactive.List;
 
         function NAME(firstName, lastName) {
-            firstName = new Cell(firstName);
-            lastName = new Cell(lastName);
             var fullName = firstName.bind(function(first){
                 return lastName.bind(function(last){
                     return new Cell(first + " " + last);
                 });
             });
-            return ["div", {"class": "name-component"},
+            return ["div",
                 ["div",
                     "First name:", ["input-text", firstName]],
                 ["div",
@@ -28,12 +25,13 @@
         }
 
         function NAMES(names) {
-            return ["div", H(names.map(function(name){ return NAME(name.firstName, name.lastName); }))];
+            return ["div", names.lift(function(name){ return NAME(name.firstName, name.lastName); })];
         }
 
-        renderer.render(canvas, NAMES([
-            {firstName: "Denis", lastName: "Rystsov"},
-            {firstName: "Lisa", lastName: "Kosyachenko"}
-        ]));
+        var renderer = warp9.ui.renderer;
+        renderer.render(canvas, NAMES(new List([
+            {firstName: new Cell("Denis"), lastName: new Cell("Rystsov")},
+            {firstName: new Cell("Lisa"), lastName: new Cell("Kosyachenko")}
+        ])));
     </script>
 </html>

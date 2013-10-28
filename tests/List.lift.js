@@ -1,9 +1,9 @@
 var EventStore = require('./utils/List.EventStore');
-var rere = require('../rere.common');
+var warp9 = require('../target/warp9.common');
 
-var List = rere.reactive.List;
+var List = warp9.reactive.List;
 
-var idgenerator = rere.idgenerator;
+var idgenerator = warp9.idgenerator;
 
 exports.subscribeUnused = function(test) {
     test.expect(2);

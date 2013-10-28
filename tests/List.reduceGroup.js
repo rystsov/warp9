@@ -1,4 +1,4 @@
-var rere = require('../rere.common');
+var warp9 = require('../target/warp9.common');
 
 var Summer = require('./utils/Summer');
 var ReduceTests = require('./utils/List.ReduceTests');

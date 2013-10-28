@@ -11,7 +11,7 @@ function Element(tag) {
     this.attributes = {};
     this.events = {};
     this.children = [];
-    this.elementId = "rere/ui/ast/element/" + (id++);
+    this.elementId = "warp9/" + (id++);
 
     this.attributeSetters = defaultAttributeSetters();
 
@@ -52,7 +52,8 @@ function Element(tag) {
         if ("css" in this.attributes) {
             for (var property in this.attributes["css"]) {
                 if (!this.attributes["css"].hasOwnProperty(property)) continue;
-                if (property.indexOf("rere:")==0) continue;
+                // TODO: unnecessary condition?!
+                if (property.indexOf("warp9:")==0) continue;
                 (function(property, value){
                     if (typeof value==="object" && value.type == Cell) {
                         this.cells[value.cellId] = value;

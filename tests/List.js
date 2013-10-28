@@ -1,8 +1,8 @@
-var rere = require('../rere.common');
+var warp9 = require('../target/warp9.common');
 var EventSink = require('./utils/Cell.EventSink');
 var EventStore = require('./utils/List.EventStore');
-var List = rere.reactive.List;
-var Cell = rere.reactive.Cell;
+var List = warp9.reactive.List;
+var Cell = warp9.reactive.Cell;
 
 exports.ctor = function(test) {
     test.expect(0);

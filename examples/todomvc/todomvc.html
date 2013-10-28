@@ -2,16 +2,16 @@
     <head>
         <meta charset="utf-8">
         <link rel="stylesheet" href="base.css">
-        <script src="../../rere.js"></script>
+        <script src="../../target/warp9.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
     </body>
     <script language="javascript" type="text/javascript">
-        var Cell = rere.reactive.Cell;
-        var List = rere.reactive.List;
+        var Cell = warp9.reactive.Cell;
+        var List = warp9.reactive.List;
 
-        var STORAGE_ID = 'todos-rerejs';
+        var STORAGE_ID = 'todos-warp9js';
 
         var todos = new List([]);
         todos.addTodo = function (todo) {
@@ -25,11 +25,11 @@
         }.bind(todos);
 
         JSON.parse(localStorage.getItem(STORAGE_ID) || '[]').forEach(todos.addTodo);
-        rere.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
+        warp9.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
             localStorage.setItem(STORAGE_ID, JSON.stringify(todos));
         });
 
-        rere.ui.renderer.render(canvas, TODOMVC(todos));
+        warp9.ui.renderer.render(canvas, TODOMVC(todos));
 
         function TODOMVC(todos) {
             var activeTab = new Cell("All"); // All, Active, Completed
@@ -63,8 +63,8 @@
                         })
                     ],
                     hasItem.when(true, ["div", ["input-check", {
-                        id: "toggle-all", "rere:role": "view",
-                        "!rere:changed": function(state) {
+                        id: "toggle-all", "warp9:role": "view",
+                        "!warp9:changed": function(state) {
                             todos.forEach(function(todo){
                                 todo.mark.set(state);
                             });
@@ -99,7 +99,7 @@
             function ITEM(todo) {
                 var control = new Cell();
                 var name = new Cell(todo.name.unwrap());
-                var label = rere.ui.hacks.unrecursion(function() {
+                var label = warp9.ui.hacks.unrecursion(function() {
                     todo.name.set(name.unwrap());
                     control.set(["li",
                         ["input-check", {"class": "toggle"}, todo.mark],

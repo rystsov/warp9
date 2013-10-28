@@ -1,10 +1,10 @@
-var rere = require('../../rere.common');
+var warp9 = require('../../target/warp9.common');
 
 var EventSink = require('./Cell.EventSink');
-var List = rere.reactive.List;
-var Cell = rere.reactive.Cell;
+var List = warp9.reactive.List;
+var Cell = warp9.reactive.Cell;
 
-var idgenerator = rere.idgenerator;
+var idgenerator = warp9.idgenerator;
 
 module.exports = ReducerTests;
 

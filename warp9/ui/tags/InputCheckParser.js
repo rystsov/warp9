@@ -28,12 +28,12 @@ function InputCheckParser(type) {
         element.attributes.checked = state.coalesce(false);
         element.attributes.checked = state;
 
-        var isViewOnly = element.attributes["rere:role"]==="view";
+        var isViewOnly = element.attributes["warp9:role"]==="view";
         var change = element.events.change || function(){};
 
-        var changed = element.events["rere:changed"] || function(){};
-        delete element.events["rere:changed"];
-        delete element.attributes["rere:role"];
+        var changed = element.events["warp9:changed"] || function(){};
+        delete element.events["warp9:changed"];
+        delete element.attributes["warp9:role"];
 
         element.events.change = function(control, view) {
             change.apply(element.events, [control, view]);

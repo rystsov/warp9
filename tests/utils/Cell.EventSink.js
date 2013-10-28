@@ -1,6 +1,6 @@
-var rere = require('../../rere.common');
+var warp9 = require('../../target/warp9.common');
 
-var Cell = rere.reactive.Cell;
+var Cell = warp9.reactive.Cell;
 
 module.exports = EventSink;
 

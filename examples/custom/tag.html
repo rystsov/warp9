@@ -1,36 +1,36 @@
 <html>
     <head>
-        <script src="../../rere.js"></script>
+        <script src="../../target/warp9.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
     </body>
     <script type="text/javascript">
-        var List = rere.reactive.List;
-        var Cell = rere.reactive.Cell;
+        var List = warp9.reactive.List;
+        var Cell = warp9.reactive.Cell;
 
-        rere.ui.renderer.addTag("linkbutton", function(opt) {
-            var args = rere.ui.tags.utils.parseTagArgs(opt);
-            var attr = rere.ui.tags.utils.normalizeAttributes(args.attr);
+        warp9.ui.renderer.addTag("linkbutton", function(opt) {
+            var args = warp9.ui.tags.utils.parseTagArgs(opt);
+            var attr = warp9.ui.tags.utils.normalizeAttributes(args.attr);
 
             var css = {};
-            rere.ui.tags.utils.tryEnrich(css, attr.attributes.css);
-            rere.ui.tags.utils.tryEnrich(css, {
+            warp9.ui.tags.utils.tryEnrich(css, attr.attributes.css);
+            warp9.ui.tags.utils.tryEnrich(css, {
                 "text-decoration": "none",
                 "border-bottom": "1px dashed",
                 "color": "blue",
                 "cursor": "pointer",
-                "rere:disabled": {
+                "warp9:disabled": {
                     "cursor": "default",
                     "color": "#585858"
                 }
             });
 
             var disabled;
-            if ("rere:disabled" in attr.attributes) {
-                disabled = attr.attributes["rere:disabled"];
+            if ("warp9:disabled" in attr.attributes) {
+                disabled = attr.attributes["warp9:disabled"];
                 if (typeof disabled=="boolean") disabled = new Cell(disabled);
-                delete attr.attributes["rere:disabled"];
+                delete attr.attributes["warp9:disabled"];
             } else {
                 disabled = new Cell();
             }
@@ -42,19 +42,19 @@
                 click();
             };
 
-            for (var key in css["rere:disabled"]) {
-                if (!css["rere:disabled"].hasOwnProperty(key)) continue;
-                if (!css.hasOwnProperty(key)) throw new Error(key + " in css/rere:disabled but not in css");
-                css[key] = disabled.when(false, css[key]).coalesce(css["rere:disabled"][key]);
+            for (var key in css["warp9:disabled"]) {
+                if (!css["warp9:disabled"].hasOwnProperty(key)) continue;
+                if (!css.hasOwnProperty(key)) throw new Error(key + " in css/warp9:disabled but not in css");
+                css[key] = disabled.when(false, css[key]).coalesce(css["warp9:disabled"][key]);
             }
-            delete css["rere:disabled"];
+            delete css["warp9:disabled"];
 
             attr.attributes.css = css;
             attr.attributes.href = "#";
 
-            attr = rere.ui.tags.utils.denormalizeAttributes(attr);
+            attr = warp9.ui.tags.utils.denormalizeAttributes(attr);
 
-            return rere.ui.renderer.parse(["a", attr, args.attr==null ? opt[0] : opt[1]]);
+            return warp9.ui.renderer.parse(["a", attr, args.attr==null ? opt[0] : opt[1]]);
         });
 
         function LIST_TEST() {
@@ -72,7 +72,7 @@
             ];
         }
 
-        var renderer = rere.ui.renderer;
+        var renderer = warp9.ui.renderer;
         renderer.render(canvas, LIST_TEST());
     </script>
 </html>

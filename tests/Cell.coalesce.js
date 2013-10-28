@@ -1,7 +1,7 @@
-var rere = require('../rere.common');
+var warp9 = require('../target/warp9.common');
 
-var Cell = rere.reactive.Cell;
-var idgenerator = rere.idgenerator;
+var Cell = warp9.reactive.Cell;
+var idgenerator = warp9.idgenerator;
 
 exports.subscribeUnused = function(test) {
     test.expect(4);

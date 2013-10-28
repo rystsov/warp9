@@ -1,16 +1,14 @@
 <html>
     <head>
-        <script src="../../rere.js"></script>
+        <script src="../../target/warp9.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
     </body>
     <script type="text/javascript">
-        var Cell = rere.reactive.Cell;
+        var Cell = warp9.reactive.Cell;
 
         function NAME(firstName, lastName) {
-            firstName = new Cell(firstName);
-            lastName = new Cell(lastName);
             var fullName = firstName.bind(function(first){
                 return lastName.bind(function(last){
                     return new Cell(first + " " + last);
@@ -25,7 +23,7 @@
             ];
         }
 
-        var renderer = rere.ui.renderer;
-        renderer.render(canvas, NAME("Denis", "Rystsov"));
+        var renderer = warp9.ui.renderer;
+        renderer.render(canvas, NAME(new Cell("Denis"), new Cell("Rystsov")));
     </script>
 </html>
