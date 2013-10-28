@@ -2,7 +2,7 @@
     <head>
         <meta charset="utf-8">
         <link rel="stylesheet" href="base.css">
-        <script src="../warp9.js"></script>
+        <script src="../../warp9/warp9.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
@@ -55,7 +55,9 @@
                         todos.lift(function(item){
                             return activeTab.bind(function(tab){
                                 return item.mark.bind(function(mark){
-                                    return new Cell((tab==="All") || (tab==="Active" && !mark) || (tab==="Completed" && mark));
+                                    return new Cell((tab==="All") ||
+                                                    (tab==="Active" && !mark) ||
+                                                    (tab==="Completed" && mark));
                                 });
                             }).when(true, item).lift(ITEM);
                         })
@@ -95,31 +97,28 @@
             }
 
             function ITEM(todo) {
-                var control = new Cell();
-                var name = new Cell(todo.name.unwrap());
-                var label = warp9.ui.hacks.unrecursion(function() {
-                    todo.name.set(name.unwrap());
-                    control.set(["li",
-                        ["input-check", {"class": "toggle"}, todo.mark],
-                        ["label", {
-                            "!dblclick": textbox,
-                            "css/text-decoration": todo.mark.when(true, "line-through", "none")
-                        }, todo.name],
-                        ["button", {"class": "destroy", "!click": function() {
-                            todo.remove();
-                        }}]
-                    ]);
-                    if (name.unwrap("").trim()=="") todo.remove();
-                });
-                function textbox() {
-                    control.set(["li", {"class": "editing"},
-                        ["input-text", {"class": "edit", "!control:draw": function(c,v) { v.focus(); },
-                            "!blur": label, "!key:enter": label
-                        }, name]
-                    ]);
-                }
-                label();
-                return control;
+                var type = new Cell("view");
+                todo.name.bind(function(name) {
+                    return type.bind(function(type){
+                        return new Cell(name.trim()==="" && type==="view");
+                    });
+                }).fireOnceOn(true, function() { todo.remove(); });
+
+                return type.when("view",["li",
+                    ["input-check", {"class": "toggle"}, todo.mark],
+                    ["label", {
+                        "!dblclick": function() { type.set("edit"); },
+                        "css/text-decoration": todo.mark.when(true, "line-through", "none")
+                    }, todo.name],
+                    ["button", {"class": "destroy", "!click": function() {
+                        todo.name.set("");
+                    }}]
+                ], ["li", {"class": "editing"},
+                    ["input-text", {"class": "edit", "!control:draw": function(c,v) { v.focus(); },
+                        "!blur": function() { type.set("view"); },
+                        "!key:enter": function() { type.set("view"); }
+                    }, todo.name]
+                ]);
             }
         }
     </script>

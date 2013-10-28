@@ -224,6 +224,20 @@ a.unset(); // a is unset, b contains 42
 
 
 \begin{frame}[fragile]
+\frametitle{Cell / isSet}
+Вызов isSet вернет реактивную переменную, которая содержит true если исходная не пустая, и false в ином случае.
+
+\vspace{10mm}
+\begin{lstlisting}
+var a = new Cell();
+var b = a.isSet(); // b has false
+a.set(13); // a has 13, b has true
+a.unset(); // a is unset, b has false
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
 \frametitle{Cell / when(\dots)}
 Другой способ создать переменную - вызвать метод when. Если метод вызван с одним параметром, то параметр рассматривается как фильтр. Если значение фильтра true, то переменная будет содержать значение, совпадающее с исходной, иначе переменная будет пустая.
 \end{frame}
@@ -312,7 +326,7 @@ var b = a.when(
 ); // b in unset
 a.set(0); // a contains 0, b contains 1
 a.set(-1); // a contains -1, b contains -2
-a.unset(1); // a is unset, b in unset
+a.unset(); // a is unset, b in unset
 \end{lstlisting}
 \end{frame}
 
@@ -535,7 +549,7 @@ list.add(function(id){
 \begin{lstlisting}
 var list = new List([1,2,3]);
 list.removeWhich(function(x) { 
-    return x < 2 
+    return x < 2;
 });
 // list contains 2,3
 \end{lstlisting}
@@ -685,10 +699,9 @@ forall(list,f,id,fold):
 Если посмотреть на реализацию функции reduce, видно, что вызов \quad{\ttfamily list.reduce(id, fold)}\quad раскрывается в 
 \vspace{4mm}
 \begin{lstlisting}
-var sum = list.reduceGroup({
-    identity: function() { return 0 },
-    add: function(a,b) { return a+b; },
-    invert: function(x) { return -x; }
+list.reduceMonoid({
+    identity: id,
+    add: fold
 });
 \end{lstlisting}
 \vspace{4mm}
@@ -830,10 +843,9 @@ item1.set(3); // sum has 4
 
 
 \begin{frame}[fragile]
-\frametitle{List / }
+\frametitle{Спасибо}
 
-\vspace{10mm}
-\begin{lstlisting}
-\end{lstlisting}
+{\fontsize{20}{20}\selectfont Wow! 65 слайдов, вы это выдержали!}
+
 \end{frame}
 \end{document}
