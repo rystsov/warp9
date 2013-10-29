@@ -9,7 +9,7 @@
     <title>Warp9</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="lib/bootstrap/css/bootstrap.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
     <link href="css/common.css" rel="stylesheet">
@@ -24,15 +24,22 @@
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
-                <li><a href="about.html">About</a></li>
-                <li><a href="competitors.html">Competitor analysis</a></li>
+                <li><a href="pages/about.html">About</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="pages/competitors/matrix.html">Matrix</a></li>
+                        <li class="divider"></li>
+                        <li><a href="pages/competitors/leaks/leaks.html">Accidental memory leaks</a></li>
+                    </ul>
+                </li>
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
                     <ul class="dropdown-menu">
                         <li><a href="examples/todomvc/todomvc.html">TodoMVC</a></li>
                     </ul>
                 </li>
-                <li><a href="download.html">Download</a></li>
+                <li><a href="pages/download.html">Download</a></li>
                 <li><a href="https://github.com/rystsov/warp9">Sources</a></li>
             </ul>
         </div>
@@ -48,7 +55,7 @@
             composability and modularization of views. Also warp9 is built to avoid common pitfall of
         reactive libraries like memory leaks.</p>
 
-        <p><a class="btn btn-primary btn-lg" href="about.html">Learn more &raquo;</a></p>
+        <p><a class="btn btn-primary btn-lg" href="pages/about.html">Learn more &raquo;</a></p>
     </div>
 </div>
 
@@ -60,13 +67,13 @@
             <p>When we write code our default method to handle complexity is a divide and conquer approach.
                 It can be functional decomposition or aggregation in OOP. Warp9 provides the same concept for
             UI decomposition/aggregation</p>
-            <p><a class="btn btn-default" href="about.html">View details &raquo;</a></p>
+            <p><a class="btn btn-default" href="pages/about.html">View details &raquo;</a></p>
         </div>
         <div class="col-lg-4">
             <h2>Modularization</h2>
             <p>When you break UI into pieces the good question is how to reuse and distribute it. With warp9 you
             can use AMD to distribute not only logic, but a view too.</p>
-            <p><a class="btn btn-default" href="about.html">View details &raquo;</a></p>
+            <p><a class="btn btn-default" href="pages/about.html">View details &raquo;</a></p>
         </div>
     </div>
 
@@ -78,7 +85,7 @@
 </div>
 
 
-<script src="jquery/jquery-2.0.3.min.js"></script>
-<script src="bootstrap/js/bootstrap.min.js"></script>
+<script src="lib/jquery/jquery-2.0.3.min.js"></script>
+<script src="lib/bootstrap/js/bootstrap.min.js"></script>
 </body>
 </html>

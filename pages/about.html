@@ -6,13 +6,13 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Competitor analysis</title>
+    <title>Wapr9 / About</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="css/common.css" rel="stylesheet">
+    <link href="../css/common.css" rel="stylesheet">
 </head>
 
 <body>
@@ -20,16 +20,23 @@
 <div class="navbar navbar-inverse navbar-fixed-top">
     <div class="container">
         <div class="navbar-header">
-            <a class="navbar-brand" href="index.html">WARP9</a>
+            <a class="navbar-brand" href="../index.html">WARP9</a>
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
                 <li><a href="about.html">About</a></li>
-                <li><a href="competitors.html">Competitor analysis</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="competitors/matrix.html">Matrix</a></li>
+                        <li class="divider"></li>
+                        <li><a href="competitors/leaks/leaks.html">Accidental memory leaks</a></li>
+                    </ul>
+                </li>
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
                     <ul class="dropdown-menu">
-                        <li><a href="examples/todomvc/todomvc.html">TodoMVC</a></li>
+                        <li><a href="../examples/todomvc/todomvc.html">TodoMVC</a></li>
                     </ul>
                 </li>
                 <li><a href="download.html">Download</a></li>
@@ -41,13 +48,13 @@
 
 <div class="container">
     <div class="starter-template">
-        <h1>TODO</h1>
+        <h1>About</h1>
         <p class="lead">todo</p>
     </div>
 </div>
 
 
-<script src="jquery/jquery-2.0.3.min.js"></script>
-<script src="bootstrap/js/bootstrap.min.js"></script>
+<script src="../lib/jquery/jquery-2.0.3.min.js"></script>
+<script src="../lib/bootstrap/js/bootstrap.min.js"></script>
 </body>
 </html>
