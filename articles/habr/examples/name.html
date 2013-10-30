@@ -1,0 +1,30 @@
+<html>
+<body>
+    <div id="placeholder"></div>
+</body>
+<script src="../../../lib/warp9/warp9.js"></script>
+<script language="javascript" type="text/javascript">
+    var Cell = warp9.reactive.Cell;
+
+    warp9.ui.renderer.render(placeholder, NAME(new Cell("Denis")));
+
+    function NAME(name) {
+        var hello = name.when(
+            function(name) { return name.length > 0; },
+            function(name) { return "Hello, " + name + "!"; }
+        );
+        return ["div",
+            ["div",
+                ["input-text", {
+                    "css/background": hello.isSet().when(false, "red")
+                }, name],
+                ["button", {"!click": function() {
+                    name.unset();
+                }}, "clear"]],
+            hello.lift(function(hello) {
+                return ["div", hello];
+            })
+        ];
+    }
+</script>
+</html>

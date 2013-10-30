@@ -1,0 +1,18 @@
+<html>
+<body>
+<div id="placeholder"></div>
+</body>
+<script src="../../../lib/requirejs-2.1.9/require.js"></script>
+<script src="../../../lib/warp9/warp9.js"></script>
+<script language="javascript" type="text/javascript">
+    require(["modularized/NAMES"], function(NAMES) {
+        var Cell = warp9.reactive.Cell;
+        var List = warp9.reactive.List;
+
+        var names = new List();
+        warp9.ui.renderer.render(placeholder, NAMES(names));
+        names.add(new Cell("Denis"));
+        names.add(new Cell("Lisa"));
+    });
+</script>
+</html>
