@@ -48,7 +48,7 @@ function SetWhenPrototype() {
     };
 
     var knownEvents = {
-        use: "_use",
+        leak: "_leak",
         leave: "_leave"
     };
 
@@ -61,10 +61,10 @@ function SetWhenPrototype() {
         }
     };
 
-    WhenCell.prototype._use = function(event) {
-        BaseCell.prototype._use.apply(this, [event]);
+    WhenCell.prototype._leak = function(event) {
+        BaseCell.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
-            this.source.use(this.cellId);
+            this.source.leak(this.cellId);
             this.unsubscribe = this.source.onEvent(Cell.handler({
                 set: function(value) {
                     if (this.condition(value)) {

@@ -39,27 +39,25 @@ BaseCell.prototype.onEvent = function(f) {
     };
 };
 
-BaseCell.prototype.use = function(id) {
+BaseCell.prototype.leak = function(id) {
+    if (arguments.length==0) {
+        return this.leak(this.cellId);
+    }
     root.reactive.event_broker.issue(this, {
-        name: "use",
+        name: "leak",
         id: id
     });
+    return this;
 };
 
 BaseCell.prototype.leave = function(id) {
+    if (arguments.length==0) {
+        return this.leave(this.cellId);
+    }
     root.reactive.event_broker.issue(this, {
         name: "leave",
         id: id
     });
-};
-
-BaseCell.prototype.fix = function() {
-    this.use(this.cellId);
-    return this;
-};
-
-BaseCell.prototype.unfix = function() {
-    this.leave(this.cellId);
     return this;
 };
 
@@ -112,10 +110,10 @@ BaseCell.prototype.isSet = function() {
 
 BaseCell.prototype.fireOnceOn = function(value, action) {
     var self = this;
-    return self.fix().onEvent(Cell.handler({
+    return self.leak().onEvent(Cell.handler({
         set: function(x) {
             if (x===value) {
-                self.unfix();
+                self.leave();
                 action();
             }
         },
@@ -125,7 +123,7 @@ BaseCell.prototype.fireOnceOn = function(value, action) {
 
 var knownEvents = {
     leave: "_leave",
-    use: "_use",
+    leak: "_leak",
     onEvent: "_onEvent"
 };
 
@@ -165,8 +163,8 @@ BaseCell.prototype._onEvent = function(event) {
     }
 };
 
-BaseCell.prototype._use = function(event) {
-    if (event.name!="use") throw new Error();
+BaseCell.prototype._leak = function(event) {
+    if (event.name!="leak") throw new Error();
     if (!event.hasOwnProperty("id")) throw new Error();
     var id = event.id;
     if (!this.users.hasOwnProperty(id)) {

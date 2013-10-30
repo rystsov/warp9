@@ -74,7 +74,7 @@ function SetListPrototype() {
         remove: "_remove",
         forEach: "_forEach",
         removeWhich: "_removeWhich",
-        use: "_use"
+        leak: "_leak"
     };
 
     List.prototype.send = function(event) {
@@ -131,8 +131,8 @@ function SetListPrototype() {
         }.bind(this));
     };
 
-    List.prototype._use = function(event) {
-        BaseList.prototype._use.apply(this, [event]);
+    List.prototype._leak = function(event) {
+        BaseList.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
             this.__raise(["data", this.data.slice()]);
         }

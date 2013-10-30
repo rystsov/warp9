@@ -27,7 +27,7 @@ exports.subscribeUsed = function(test) {
 
     var cell = new Cell();
     var or2 = cell.coalesce(2);
-    or2.use(idgenerator());
+    or2.leak(idgenerator());
     var event = null;
     or2.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
@@ -47,7 +47,7 @@ exports.subscribeUseLeave = function(test) {
     var or2 = cell.coalesce(2);
     test.equal(cell.dependants.length, 0);
     var id = idgenerator();
-    or2.use(id);
+    or2.leak(id);
     test.equal(cell.dependants.length, 1);
     var event = null;
     or2.onEvent(Cell.handler({
@@ -76,7 +76,7 @@ exports.coalesceLift = function(test) {
     });
     test.equal(cell.dependants.length, 0);
     var id = idgenerator();
-    add3.use(id);
+    add3.leak(id);
     test.equal(cell.dependants.length, 1);
     var event = null;
     add3.onEvent(Cell.handler({

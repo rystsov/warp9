@@ -25,7 +25,7 @@
         }.bind(todos);
 
         JSON.parse(localStorage.getItem(STORAGE_ID) || '[]').forEach(todos.addTodo);
-        warp9.reactive.utils.unwrapObject(todos).fix().onSet(function(todos){
+        warp9.reactive.utils.unwrapObject(todos).leak().onSet(function(todos){
             localStorage.setItem(STORAGE_ID, JSON.stringify(todos));
         });
 
@@ -35,7 +35,8 @@
             var activeTab = new Cell("All"); // All, Active, Completed
             var newTaskName = new Cell("");
             var hasItem = todos.count().lift(function(count){ return count>0; });
-            var toggleAll = todos.all(function(x) { return x.mark; }).fix();
+            // TODO: why leak?
+            var toggleAll = todos.all(function(x) { return x.mark; }).leak();
             var left      = todos.count(function(x) { return x.mark.lift(function(x) { return !x; }); });
             var completed = todos.count(function(x) { return x.mark; });
 

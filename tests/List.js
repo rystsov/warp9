@@ -15,7 +15,7 @@ exports.all = function(test) {
 
     var list = new List();
 
-    var toggleAll = list.all(function(x) { return x.mark; }).fix();
+    var toggleAll = list.all(function(x) { return x.mark; }).leak();
 
     var sink = new EventSink(toggleAll);
     test.equal(sink.unwrap(0), true);
@@ -39,7 +39,7 @@ exports.subscribeUse = function(test) {
     list.onEvent(List.handler(store));
     test.equal(store.changes, 0);
 
-    list.fix();
+    list.leak();
     test.ok(store.play().has(42));
 
     test.done();
@@ -54,7 +54,7 @@ exports.add = function(test) {
     list.add(5);
     list.add(7);
     list.add(11);
-    list.fix();
+    list.leak();
     var data = store.play();
     test.equal(data.length, 4);
     test.ok(data.has(3));
@@ -74,7 +74,7 @@ exports.addRemove = function(test) {
     var key = list.add(5);
     list.add(7);
     list.add(11);
-    list.fix();
+    list.leak();
     var data = store.play();
     test.equal(data.length, 4);
     list.remove(key);
@@ -90,7 +90,7 @@ exports.addRemove = function(test) {
 
 exports.count = function(test) {
     test.expect(3);
-    var list = new List().fix();
+    var list = new List().leak();
     var count = list.count();
     test.equal(count.unwrap(), 0);
 

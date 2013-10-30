@@ -13,7 +13,7 @@ exports.when1 = function(test) {
     });
     var sink = new EventSink(b);
     a.set(42);
-    a.fix(); b.fix();
+    a.leak(); b.leak();
     test.equal(sink.changes, 1);
     test.equal(sink.unwrap(0), 42);
 
@@ -33,7 +33,7 @@ exports.when2 = function(test) {
 
     var cell = new Cell();
     var when42 = cell.when(true, 42);
-    when42.fix();
+    when42.leak();
     var sink = new EventSink(when42);
     test.equal(sink.changes, 1);
     test.equal(sink.unwrap(0), 0);
@@ -50,7 +50,7 @@ exports.when3 = function(test) {
 
     var cell = new Cell();
     var when4213 = cell.when(true, 42, 13);
-    when4213.fix();
+    when4213.leak();
     var sink1 = new EventSink(when4213);
     test.equal(sink1.changes, 1);
     test.equal(sink1.unwrap(0), 0);
@@ -75,7 +75,7 @@ exports.whenFnCC = function(test) {
 
     var cell = new Cell();
     var whenFn4213 = cell.when(function(x) { return x>0; }, 42, 13);
-    whenFn4213.fix();
+    whenFn4213.leak();
 
     var sink = new EventSink(whenFn4213);
     test.equal(sink.changes, 1);
@@ -101,7 +101,7 @@ exports.whenFnFnFn = function(test) {
         function(x) { return x; },
         function(x) { return 2*x; }
     );
-    whenFn4213.fix();
+    whenFn4213.leak();
 
     var sink = new EventSink(whenFn4213);
     test.equal(sink.changes, 1);
@@ -123,7 +123,7 @@ exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen2 = function(test) {
 
     var cell = new Cell();
     var when42 = cell.when(true, 42);
-    when42.fix();
+    when42.leak();
     var sink = new EventSink(when42);
     test.equal(sink.changes, 1);
     test.equal(sink.unwrap(0), 0);

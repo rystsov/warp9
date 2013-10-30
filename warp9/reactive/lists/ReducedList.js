@@ -53,7 +53,7 @@ function SetPrototype() {
     };
 
     var knownEvents = {
-        use: "_use",
+        leak: "_leak",
         leave: "_leave"
     };
 
@@ -66,10 +66,10 @@ function SetPrototype() {
         }
     };
 
-    ReducedList.prototype._use = function(event) {
-        BaseCell.prototype._use.apply(this, [event]);
+    ReducedList.prototype._leak = function(event) {
+        BaseCell.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
-            this.list.use(this.cellId);
+            this.list.leak(this.cellId);
             this.unsubscribe = this.list.onEvent(List.handler({
                 data: function(data) {
                     if (this.reducer!=null) {

@@ -61,7 +61,7 @@ function Element(tag) {
                             set: function(e) { jq.css(view, property, e); },
                             unset: function() { jq.css(view, property, null); }
                         }));
-                        value.use(this.elementId);
+                        value.leak(this.elementId);
                         this.disposes.push(function(){
                             unsubscribe();
                             value.leave(this.elementId);
@@ -102,7 +102,7 @@ function Element(tag) {
             if (typeof value==="object" && value.type == Cell) {
                 self.cells[value.cellId] = value;
                 var unsubscribe = value.onEvent(Cell.handler(template));
-                value.use(self.elementId);
+                value.leak(self.elementId);
                 self.disposes.push(function(){
                     unsubscribe();
                     value.leave(self.elementId);

@@ -40,7 +40,7 @@ exports.subscribeEmptyChange = function(test) {
     cell.set(marker);
     test.equal(event, null);
 
-    cell.fix();
+    cell.leak();
     test.equal(event[0], marker);
 
     test.done();
@@ -50,7 +50,7 @@ exports.subscribeValueChange = function(test) {
     test.expect(2);
     var event = null;
     var cell = new Cell();
-    cell.fix();
+    cell.leak();
     cell.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
         unset: function() { event = []; }
@@ -73,7 +73,7 @@ exports.subscribeUse = function(test) {
     }));
     test.equal(event, null);
 
-    cell.fix();
+    cell.leak();
     test.equal(event[0], 42);
 
     test.done();
@@ -83,7 +83,7 @@ exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
     test.expect(6);
 
     var cell = new Cell(42);
-    cell.fix();
+    cell.leak();
 
     var sink = new EventSink(cell);
     test.equal(sink.changes, 1);
@@ -104,7 +104,7 @@ exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
     test.expect(6);
 
     var cell = new Cell(42);
-    cell.fix();
+    cell.leak();
 
     var sink = new EventSink(cell);
     test.equal(sink.changes, 1);

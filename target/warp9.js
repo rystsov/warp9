@@ -156,7 +156,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             set: "_set",
                             unset: "_unset"
                         };
@@ -170,8 +170,8 @@ var warp9 = (function(){
                             }
                         };
                     
-                        Cell.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        Cell.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
                                 this.__raise();
                             }
@@ -285,7 +285,7 @@ var warp9 = (function(){
                             remove: "_remove",
                             forEach: "_forEach",
                             removeWhich: "_removeWhich",
-                            use: "_use"
+                            leak: "_leak"
                         };
                     
                         List.prototype.send = function(event) {
@@ -342,8 +342,8 @@ var warp9 = (function(){
                             }.bind(this));
                         };
                     
-                        List.prototype._use = function(event) {
-                            BaseList.prototype._use.apply(this, [event]);
+                        List.prototype._leak = function(event) {
+                            BaseList.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
                                 this.__raise(["data", this.data.slice()]);
                             }
@@ -417,7 +417,7 @@ var warp9 = (function(){
                         var isReported = false;
                         var last = null;
                     
-                        value.use(self.id);
+                        value.leak(self.id);
                         var dispose = value.onEvent(function(e) {
                             if (!isActive || !self.isActive) return;
                             if (!isReported) {
@@ -571,7 +571,7 @@ var warp9 = (function(){
                         var isReported = false;
                         //var last = null;
                     
-                        value.use(self.id);
+                        value.leak(self.id);
                         var dispose = value.onEvent(function(e) {
                             if (!isActive || !self.isActive) return;
                             if (!isReported) {
@@ -881,27 +881,25 @@ var warp9 = (function(){
                         };
                     };
                     
-                    BaseCell.prototype.use = function(id) {
+                    BaseCell.prototype.leak = function(id) {
+                        if (arguments.length==0) {
+                            return this.leak(this.cellId);
+                        }
                         root.reactive.event_broker.issue(this, {
-                            name: "use",
+                            name: "leak",
                             id: id
                         });
+                        return this;
                     };
                     
                     BaseCell.prototype.leave = function(id) {
+                        if (arguments.length==0) {
+                            return this.leave(this.cellId);
+                        }
                         root.reactive.event_broker.issue(this, {
                             name: "leave",
                             id: id
                         });
-                    };
-                    
-                    BaseCell.prototype.fix = function() {
-                        this.use(this.cellId);
-                        return this;
-                    };
-                    
-                    BaseCell.prototype.unfix = function() {
-                        this.leave(this.cellId);
                         return this;
                     };
                     
@@ -954,10 +952,10 @@ var warp9 = (function(){
                     
                     BaseCell.prototype.fireOnceOn = function(value, action) {
                         var self = this;
-                        return self.fix().onEvent(Cell.handler({
+                        return self.leak().onEvent(Cell.handler({
                             set: function(x) {
                                 if (x===value) {
-                                    self.unfix();
+                                    self.leave();
                                     action();
                                 }
                             },
@@ -967,7 +965,7 @@ var warp9 = (function(){
                     
                     var knownEvents = {
                         leave: "_leave",
-                        use: "_use",
+                        leak: "_leak",
                         onEvent: "_onEvent"
                     };
                     
@@ -1007,8 +1005,8 @@ var warp9 = (function(){
                         }
                     };
                     
-                    BaseCell.prototype._use = function(event) {
-                        if (event.name!="use") throw new Error();
+                    BaseCell.prototype._leak = function(event) {
+                        if (event.name!="leak") throw new Error();
                         if (!event.hasOwnProperty("id")) throw new Error();
                         var id = event.id;
                         if (!this.users.hasOwnProperty(id)) {
@@ -1098,7 +1096,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1111,10 +1109,10 @@ var warp9 = (function(){
                             }
                         };
                     
-                        BindedCell.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        BindedCell.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
-                                this.source.use(this.cellId);
+                                this.source.leak(this.cellId);
                                 this.unsource = this.source.onEvent(Cell.handler({
                                     set: function(value) {
                                         this.unmap();
@@ -1122,7 +1120,7 @@ var warp9 = (function(){
                                         if (this.source == this.mapped) {
                                             throw new Error();
                                         }
-                                        this.mapped.use(this.cellId);
+                                        this.mapped.leak(this.cellId);
                                         var dispose = this.mapped.onEvent(Cell.handler({
                                             set: function(value) {
                                                 this.content = new Some(value);
@@ -1190,7 +1188,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1203,10 +1201,10 @@ var warp9 = (function(){
                             }
                         };
                     
-                        CoalesceCell.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        CoalesceCell.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
-                                this.source.use(this.cellId);
+                                this.source.leak(this.cellId);
                                 this.unsubscribe = this.source.onEvent(Cell.handler({
                                     set: function(value) {
                                         this.content = new Some(value);
@@ -1266,7 +1264,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1279,11 +1277,11 @@ var warp9 = (function(){
                             }
                         };
                     
-                        LiftedCell.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        LiftedCell.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                     
                             if (this.usersCount === 1) {
-                                this.source.use(this.cellId);
+                                this.source.leak(this.cellId);
                                 this.unsubscribe = this.source.onEvent(Cell.handler({
                                     set: function(value) {
                                         this.content = new Some(this.f(value));
@@ -1361,7 +1359,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1374,10 +1372,10 @@ var warp9 = (function(){
                             }
                         };
                     
-                        WhenCell.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        WhenCell.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
-                                this.source.use(this.cellId);
+                                this.source.leak(this.cellId);
                                 this.unsubscribe = this.source.onEvent(Cell.handler({
                                     set: function(value) {
                                         if (this.condition(value)) {
@@ -1554,27 +1552,25 @@ var warp9 = (function(){
                         };
                     };
                     
-                    BaseList.prototype.use = function(id) {
+                    BaseList.prototype.leak = function(id) {
+                        if (arguments.length==0) {
+                            return this.leak(this.listId);
+                        }
                         root.reactive.event_broker.issue(this, {
-                            name: "use",
+                            name: "leak",
                             id: id
                         });
+                        return this;
                     };
                     
                     BaseList.prototype.leave = function(id) {
+                        if (arguments.length==0) {
+                            return this.leave(this.listId);
+                        }
                         root.reactive.event_broker.issue(this, {
                             name: "leave",
                             id: id
                         });
-                    };
-                    
-                    BaseList.prototype.fix = function() {
-                        this.use(this.listId);
-                        return this;
-                    };
-                    
-                    BaseList.prototype.unfix = function() {
-                        this.leave(this.listId);
                         return this;
                     };
                     
@@ -1636,7 +1632,7 @@ var warp9 = (function(){
                     
                     var knownEvents = {
                         leave: "_leave",
-                        use: "_use",
+                        leak: "_leak",
                         onEvent: "_onEvent"
                     };
                     
@@ -1672,8 +1668,8 @@ var warp9 = (function(){
                         }
                     };
                     
-                    BaseList.prototype._use = function(event) {
-                        if (event.name!="use") throw new Error();
+                    BaseList.prototype._leak = function(event) {
+                        if (event.name!="leak") throw new Error();
                         if (!event.hasOwnProperty("id")) throw new Error();
                         var id = event.id;
                         if (!this.users.hasOwnProperty(id)) {
@@ -1744,7 +1740,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1757,10 +1753,10 @@ var warp9 = (function(){
                             }
                         };
                     
-                        LiftedList.prototype._use = function(event) {
-                            BaseList.prototype._use.apply(this, [event]);
+                        LiftedList.prototype._leak = function(event) {
+                            BaseList.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
-                                this.source.use(this.listId);
+                                this.source.leak(this.listId);
                                 this.unsubscribe = this.source.onEvent(List.handler({
                                     data: function(data) {
                                         this.data = data.map(function(item){
@@ -1852,7 +1848,7 @@ var warp9 = (function(){
                         };
                     
                         var knownEvents = {
-                            use: "_use",
+                            leak: "_leak",
                             leave: "_leave"
                         };
                     
@@ -1865,10 +1861,10 @@ var warp9 = (function(){
                             }
                         };
                     
-                        ReducedList.prototype._use = function(event) {
-                            BaseCell.prototype._use.apply(this, [event]);
+                        ReducedList.prototype._leak = function(event) {
+                            BaseCell.prototype._leak.apply(this, [event]);
                             if (this.usersCount === 1) {
-                                this.list.use(this.cellId);
+                                this.list.leak(this.cellId);
                                 this.unsubscribe = this.list.onEvent(List.handler({
                                     data: function(data) {
                                         if (this.reducer!=null) {
@@ -2037,7 +2033,7 @@ var warp9 = (function(){
                                                 set: function(e) { jq.css(view, property, e); },
                                                 unset: function() { jq.css(view, property, null); }
                                             }));
-                                            value.use(this.elementId);
+                                            value.leak(this.elementId);
                                             this.disposes.push(function(){
                                                 unsubscribe();
                                                 value.leave(this.elementId);
@@ -2078,7 +2074,7 @@ var warp9 = (function(){
                                 if (typeof value==="object" && value.type == Cell) {
                                     self.cells[value.cellId] = value;
                                     var unsubscribe = value.onEvent(Cell.handler(template));
-                                    value.use(self.elementId);
+                                    value.leak(self.elementId);
                                     self.disposes.push(function(){
                                         unsubscribe();
                                         value.leave(self.elementId);
@@ -2415,7 +2411,7 @@ var warp9 = (function(){
                                 }
                             }));
                             var id = idgenerator();
-                            element.children.use(id);
+                            element.children.leak(id);
                             return hacks.once(function() {
                                 unsubscribe();
                                 stopChildren();
@@ -2446,7 +2442,7 @@ var warp9 = (function(){
                             }
                         }));
                         var id = idgenerator();
-                        cell.use(id);
+                        cell.leak(id);
                         return hacks.once(function() {
                             unsubscribe();
                             clean();

@@ -14,7 +14,7 @@ function ReducerTests(reduce) {
 
         var list = new List();
         var sum = reduce(list);
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
 
         var sink = new EventSink(sum);
         test.equal(sink.unwrap(), 0);
@@ -54,7 +54,7 @@ function ReducerTests(reduce) {
     
         var list = new List();
         var sum = reduce(list);
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
     
         var sink = new EventSink(sum);
         test.equal(sink.unwrap(), 0);
@@ -75,7 +75,7 @@ function ReducerTests(reduce) {
         test.equal(sink.changes, 0);
     
         var id = idgenerator();
-        sum.use(id);
+        sum.leak(id);
         test.equal(list.dependants.length, 1);
         test.equal(sink.unwrap(), 0);
     
@@ -106,7 +106,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(), 6);
         test.done();
     };
@@ -126,7 +126,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), -1);
         test.done();
     };
@@ -146,7 +146,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), 1);
         test.done();
     };
@@ -161,7 +161,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
 
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.changes, 1);
         test.equal(sink.unwrap(-1), -1);
 
@@ -177,7 +177,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
 
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), 3);
         test.equal(sink.changes, 1);
 
@@ -211,7 +211,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
 
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), 3);
 
         cell.unset();
@@ -239,7 +239,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), 1);
     
         cell.set(2);
@@ -266,7 +266,7 @@ function ReducerTests(reduce) {
         var sink = new EventSink(sum);
         test.equal(sink.changes, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(sink.unwrap(-1), 3);
     
         cell.set(6);
@@ -288,7 +288,7 @@ function ReducerTests(reduce) {
         test.equal(cell1.dependants.length, 0);
         test.equal(cell2.dependants.length, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(list.dependants.length, 1);
         test.equal(cell1.dependants.length, 1);
         test.equal(cell2.dependants.length, 1);
@@ -316,7 +316,7 @@ function ReducerTests(reduce) {
         test.equal(cell1.dependants.length, 0);
         test.equal(cell2.dependants.length, 0);
     
-        sum.use(idgenerator());
+        sum.leak(idgenerator());
         test.equal(list.dependants.length, 1);
         test.equal(cell1.dependants.length, 1);
         test.equal(cell2.dependants.length, 1);

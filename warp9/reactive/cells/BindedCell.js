@@ -37,7 +37,7 @@ function SetBindedPrototype() {
     };
 
     var knownEvents = {
-        use: "_use",
+        leak: "_leak",
         leave: "_leave"
     };
 
@@ -50,10 +50,10 @@ function SetBindedPrototype() {
         }
     };
 
-    BindedCell.prototype._use = function(event) {
-        BaseCell.prototype._use.apply(this, [event]);
+    BindedCell.prototype._leak = function(event) {
+        BaseCell.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
-            this.source.use(this.cellId);
+            this.source.leak(this.cellId);
             this.unsource = this.source.onEvent(Cell.handler({
                 set: function(value) {
                     this.unmap();
@@ -61,7 +61,7 @@ function SetBindedPrototype() {
                     if (this.source == this.mapped) {
                         throw new Error();
                     }
-                    this.mapped.use(this.cellId);
+                    this.mapped.leak(this.cellId);
                     var dispose = this.mapped.onEvent(Cell.handler({
                         set: function(value) {
                             this.content = new Some(value);

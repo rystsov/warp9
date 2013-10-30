@@ -40,27 +40,25 @@ BaseList.prototype.onEvent = function(f) {
     };
 };
 
-BaseList.prototype.use = function(id) {
+BaseList.prototype.leak = function(id) {
+    if (arguments.length==0) {
+        return this.leak(this.listId);
+    }
     root.reactive.event_broker.issue(this, {
-        name: "use",
+        name: "leak",
         id: id
     });
+    return this;
 };
 
 BaseList.prototype.leave = function(id) {
+    if (arguments.length==0) {
+        return this.leave(this.listId);
+    }
     root.reactive.event_broker.issue(this, {
         name: "leave",
         id: id
     });
-};
-
-BaseList.prototype.fix = function() {
-    this.use(this.listId);
-    return this;
-};
-
-BaseList.prototype.unfix = function() {
-    this.leave(this.listId);
     return this;
 };
 
@@ -122,7 +120,7 @@ BaseList.prototype.count = function() {
 
 var knownEvents = {
     leave: "_leave",
-    use: "_use",
+    leak: "_leak",
     onEvent: "_onEvent"
 };
 
@@ -158,8 +156,8 @@ BaseList.prototype._onEvent = function(event) {
     }
 };
 
-BaseList.prototype._use = function(event) {
-    if (event.name!="use") throw new Error();
+BaseList.prototype._leak = function(event) {
+    if (event.name!="leak") throw new Error();
     if (!event.hasOwnProperty("id")) throw new Error();
     var id = event.id;
     if (!this.users.hasOwnProperty(id)) {

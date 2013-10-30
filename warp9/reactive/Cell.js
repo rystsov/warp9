@@ -47,7 +47,7 @@ function SetCellPrototype() {
     };
 
     var knownEvents = {
-        use: "_use",
+        leak: "_leak",
         set: "_set",
         unset: "_unset"
     };
@@ -61,8 +61,8 @@ function SetCellPrototype() {
         }
     };
 
-    Cell.prototype._use = function(event) {
-        BaseCell.prototype._use.apply(this, [event]);
+    Cell.prototype._leak = function(event) {
+        BaseCell.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
             this.__raise();
         }

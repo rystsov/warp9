@@ -23,7 +23,7 @@ function SetLiftedPrototype() {
     };
 
     var knownEvents = {
-        use: "_use",
+        leak: "_leak",
         leave: "_leave"
     };
 
@@ -36,10 +36,10 @@ function SetLiftedPrototype() {
         }
     };
 
-    LiftedList.prototype._use = function(event) {
-        BaseList.prototype._use.apply(this, [event]);
+    LiftedList.prototype._leak = function(event) {
+        BaseList.prototype._leak.apply(this, [event]);
         if (this.usersCount === 1) {
-            this.source.use(this.listId);
+            this.source.leak(this.listId);
             this.unsubscribe = this.source.onEvent(List.handler({
                 data: function(data) {
                     this.data = data.map(function(item){

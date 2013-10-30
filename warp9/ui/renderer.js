@@ -127,7 +127,7 @@ function bindElementTo(place, element) {
             }
         }));
         var id = idgenerator();
-        element.children.use(id);
+        element.children.leak(id);
         return hacks.once(function() {
             unsubscribe();
             stopChildren();
@@ -158,7 +158,7 @@ function bindCellTo(place, cell) {
         }
     }));
     var id = idgenerator();
-    cell.use(id);
+    cell.leak(id);
     return hacks.once(function() {
         unsubscribe();
         clean();

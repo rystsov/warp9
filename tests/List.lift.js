@@ -45,7 +45,7 @@ exports.subscribeUsed = function(test) {
     var add2 = list.lift(function(x){
         return x+2;
     });
-    add2.use(idgenerator());
+    add2.leak(idgenerator());
     var store = new EventStore();
     add2.onEvent(List.handler(store));
     test.equal(store.play().length, 0);
@@ -66,7 +66,7 @@ exports.subscribeUseLeave = function(test) {
     });
     test.equal(list.dependants.length, 0);
     var id = idgenerator();
-    add2.use(id);
+    add2.leak(id);
     test.equal(list.dependants.length, 1);
     var store = new EventStore();
     add2.onEvent(List.handler(store));
@@ -95,7 +95,7 @@ exports.doubleLift = function(test) {
     });
     test.equal(list.dependants.length, 0);
     var id = idgenerator();
-    add3.use(id);
+    add3.leak(id);
     test.equal(list.dependants.length, 1);
     var store = new EventStore();
     add3.onEvent(List.handler(store));

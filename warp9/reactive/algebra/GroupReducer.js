@@ -48,7 +48,7 @@ Sigma.prototype._add = function(key, value) {
     var isReported = false;
     var last = null;
 
-    value.use(self.id);
+    value.leak(self.id);
     var dispose = value.onEvent(function(e) {
         if (!isActive || !self.isActive) return;
         if (!isReported) {

@@ -31,7 +31,7 @@ exports.subscribeUsed = function(test) {
     var add2 = cell.lift(function(x){
         return x+2;
     });
-    add2.use(idgenerator());
+    add2.leak(idgenerator());
     var event = null;
     add2.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
@@ -53,7 +53,7 @@ exports.subscribeUseLeave = function(test) {
     });
     test.equal(cell.dependants.length, 0);
     var id = idgenerator();
-    add2.use(id);
+    add2.leak(id);
     test.equal(cell.dependants.length, 1);
     var event = null;
     add2.onEvent(Cell.handler({
@@ -84,7 +84,7 @@ exports.doubleLift = function(test) {
     });
     test.equal(cell.dependants.length, 0);
     var id = idgenerator();
-    add3.use(id);
+    add3.leak(id);
     test.equal(cell.dependants.length, 1);
     var event = null;
     add3.onEvent(Cell.handler({

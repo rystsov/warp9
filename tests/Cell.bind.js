@@ -31,7 +31,7 @@ exports.dag1 = function(test) {
         if (hasItem) return left;
         return new Cell();
     });
-    dag.fix();
+    dag.leak();
     var event = null;
     dag.onEvent(Cell.handler({
         set: function(x) { event = [x]; },
@@ -53,7 +53,7 @@ exports.unary = function(test) {
         return new Cell(x+3);
     });
     var id = idgenerator();
-    add3.use(id);
+    add3.leak(id);
     var event = null;
     add3.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
@@ -81,7 +81,7 @@ exports.binary = function(test) {
     test.equal(b.dependants.length, 0);
 
     var id = idgenerator();
-    c.use(id);
+    c.leak(id);
     var event = null;
     c.onEvent(Cell.handler({
         set: function(value) { event = [value]; },
@@ -117,7 +117,7 @@ exports.binaryIntensive = function(test) {
     test.equal(b.usersCount, 0);
     test.equal(event, null);
 
-    c.use(id);
+    c.leak(id);
     test.equal(a.usersCount, 1);
     test.equal(b.usersCount, 1);
     test.equal(event[0], 0);
@@ -162,7 +162,7 @@ exports.binaryLeakless = function(test) {
     test.equal(b.usersCount, 0);
     test.equal(event, null);
 
-    c.use(id);
+    c.leak(id);
     test.equal(a.usersCount, 1);
     test.equal(b.usersCount, 1);
     test.equal(event[0], 0);
