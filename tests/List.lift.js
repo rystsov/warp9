@@ -75,7 +75,7 @@ exports.subscribeUseLeave = function(test) {
     var data = store.play();
     test.equal(data.length, 1);
     test.ok(data.has(3));
-    add2.leave(id);
+    add2.seal(id);
     test.equal(list.dependants.length, 0);
     list.add(2);
     test.equal(store.play().length, 1);
@@ -102,7 +102,7 @@ exports.doubleLift = function(test) {
     var data = store.play();
     test.equal(data.length, 1);
     test.ok(data.has(7));
-    add3.leave(id);
+    add3.seal(id);
     test.equal(list.dependants.length, 0);
     store.clear();
     list.add(2);

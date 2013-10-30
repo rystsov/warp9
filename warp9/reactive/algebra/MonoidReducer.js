@@ -72,7 +72,7 @@ ReduceTree.prototype._add = function(key, value) {
         removeNode(self, key);
         isActive = false;
         dispose();
-        value.leave(self.id);
+        value.seal(self.id);
         if (isBlocked) {
             isBlocked = false;
             self.blocks--;

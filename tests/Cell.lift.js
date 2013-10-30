@@ -63,7 +63,7 @@ exports.subscribeUseLeave = function(test) {
     test.equal(event.length, 0);
     cell.set(1);
     test.equal(event[0], 3);
-    add2.leave(id);
+    add2.seal(id);
     test.equal(cell.dependants.length, 0);
     event = null;
     cell.set(2);
@@ -92,7 +92,7 @@ exports.doubleLift = function(test) {
         unset: function() { event = []; }
     }));
     test.equal(event[0], 7);
-    add3.leave(id);
+    add3.seal(id);
     test.equal(cell.dependants.length, 0);
     event = null;
     cell.set(2);

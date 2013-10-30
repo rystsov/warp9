@@ -49,7 +49,7 @@ function SetWhenPrototype() {
 
     var knownEvents = {
         leak: "_leak",
-        leave: "_leave"
+        seal: "_seal"
     };
 
     WhenCell.prototype.send = function(event) {
@@ -97,12 +97,12 @@ function SetWhenPrototype() {
         }
     };
 
-    WhenCell.prototype._leave = function(event) {
-        BaseCell.prototype._leave.apply(this, [event]);
+    WhenCell.prototype._seal = function(event) {
+        BaseCell.prototype._seal.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
-            this.source.leave(this.cellId);
+            this.source.seal(this.cellId);
         }
     };
 

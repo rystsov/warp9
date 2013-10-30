@@ -62,7 +62,7 @@ exports.unary = function(test) {
     test.equal(event.length, 0);
     cell.set(2);
     test.equal(event[0], 5);
-    add3.leave(id);
+    add3.seal(id);
     test.equal(cell.dependants.length, 0);
     test.done();
 };
@@ -89,7 +89,7 @@ exports.binary = function(test) {
     }));
     test.equal(event[0], 5);
 
-    c.leave(id);
+    c.seal(id);
     test.equal(a.dependants.length, 0);
     test.equal(b.dependants.length, 0);
     test.done();
@@ -130,7 +130,7 @@ exports.binaryIntensive = function(test) {
         }
     }
 
-    c.leave(id);
+    c.seal(id);
     test.equal(a.dependants.length, 0);
     test.equal(b.dependants.length, 0);
     test.done();
@@ -178,7 +178,7 @@ exports.binaryLeakless = function(test) {
         }
     }
 
-    c.leave(id);
+    c.seal(id);
     test.equal(a.dependants.length, 0);
     test.equal(b.dependants.length, 0);
     test.done();

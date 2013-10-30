@@ -74,7 +74,7 @@ Sigma.prototype._add = function(key, value) {
         //////////////////////
         isActive = false;
         dispose();
-        value.leave(self.id);
+        value.seal(self.id);
         if (isBlocked) {
             isBlocked = false;
             self.blocks--;

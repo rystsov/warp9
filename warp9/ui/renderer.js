@@ -133,7 +133,7 @@ function bindElementTo(place, element) {
             stopChildren();
             jq.remove(html);
             element.dispose();
-            element.children.leave(id);
+            element.children.seal(id);
         });
     }
     throw new Error();
@@ -162,6 +162,6 @@ function bindCellTo(place, cell) {
     return hacks.once(function() {
         unsubscribe();
         clean();
-        cell.leave(id);
+        cell.seal(id);
     });
 }

@@ -51,12 +51,12 @@ BaseList.prototype.leak = function(id) {
     return this;
 };
 
-BaseList.prototype.leave = function(id) {
+BaseList.prototype.seal = function(id) {
     if (arguments.length==0) {
-        return this.leave(this.listId);
+        return this.seal(this.listId);
     }
     root.reactive.event_broker.issue(this, {
-        name: "leave",
+        name: "seal",
         id: id
     });
     return this;
@@ -119,7 +119,7 @@ BaseList.prototype.count = function() {
 };
 
 var knownEvents = {
-    leave: "_leave",
+    seal: "_seal",
     leak: "_leak",
     onEvent: "_onEvent"
 };
@@ -167,8 +167,8 @@ BaseList.prototype._leak = function(event) {
     this.usersCount++;
 };
 
-BaseList.prototype._leave = function(event) {
-    if (event.name!="leave") throw new Error();
+BaseList.prototype._seal = function(event) {
+    if (event.name!="seal") throw new Error();
     if (!event.hasOwnProperty("id")) throw new Error();
     var id = event.id;
     if (!this.users.hasOwnProperty(id)) {

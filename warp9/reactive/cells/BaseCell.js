@@ -50,12 +50,12 @@ BaseCell.prototype.leak = function(id) {
     return this;
 };
 
-BaseCell.prototype.leave = function(id) {
+BaseCell.prototype.seal = function(id) {
     if (arguments.length==0) {
-        return this.leave(this.cellId);
+        return this.seal(this.cellId);
     }
     root.reactive.event_broker.issue(this, {
-        name: "leave",
+        name: "seal",
         id: id
     });
     return this;
@@ -113,7 +113,7 @@ BaseCell.prototype.fireOnceOn = function(value, action) {
     return self.leak().onEvent(Cell.handler({
         set: function(x) {
             if (x===value) {
-                self.leave();
+                self.seal();
                 action();
             }
         },
@@ -122,7 +122,7 @@ BaseCell.prototype.fireOnceOn = function(value, action) {
 };
 
 var knownEvents = {
-    leave: "_leave",
+    seal: "_seal",
     leak: "_leak",
     onEvent: "_onEvent"
 };
@@ -174,8 +174,8 @@ BaseCell.prototype._leak = function(event) {
     this.usersCount++;
 };
 
-BaseCell.prototype._leave = function(event) {
-    if (event.name!="leave") throw new Error();
+BaseCell.prototype._seal = function(event) {
+    if (event.name!="seal") throw new Error();
     if (!event.hasOwnProperty("id")) throw new Error();
     var id = event.id;
     if (!this.users.hasOwnProperty(id)) {

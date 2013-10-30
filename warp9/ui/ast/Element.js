@@ -64,7 +64,7 @@ function Element(tag) {
                         value.leak(this.elementId);
                         this.disposes.push(function(){
                             unsubscribe();
-                            value.leave(this.elementId);
+                            value.seal(this.elementId);
                         }.bind(this));
                     } else {
                         jq.css(view, property, value);
@@ -105,7 +105,7 @@ function Element(tag) {
                 value.leak(self.elementId);
                 self.disposes.push(function(){
                     unsubscribe();
-                    value.leave(self.elementId);
+                    value.seal(self.elementId);
                 }.bind(this));
             } else {
                 template.set(value);

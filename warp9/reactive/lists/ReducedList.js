@@ -54,7 +54,7 @@ function SetPrototype() {
 
     var knownEvents = {
         leak: "_leak",
-        leave: "_leave"
+        seal: "_seal"
     };
 
     ReducedList.prototype.send = function(event) {
@@ -97,8 +97,8 @@ function SetPrototype() {
         }
     };
 
-    ReducedList.prototype._leave = function(event) {
-        BaseCell.prototype._leave.apply(this, [event]);
+    ReducedList.prototype._seal = function(event) {
+        BaseCell.prototype._seal.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
@@ -106,7 +106,7 @@ function SetPrototype() {
             this.reducer.dispose();
             this.reducer = null;
 
-            this.list.leave(this.cellId);
+            this.list.seal(this.cellId);
         }
     };
 }

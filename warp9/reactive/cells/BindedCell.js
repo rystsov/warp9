@@ -38,7 +38,7 @@ function SetBindedPrototype() {
 
     var knownEvents = {
         leak: "_leak",
-        leave: "_leave"
+        seal: "_seal"
     };
 
     BindedCell.prototype.send = function(event) {
@@ -74,7 +74,7 @@ function SetBindedPrototype() {
                     }));
                     this.unmap = function(){
                         dispose();
-                        this.mapped.leave(this.cellId);
+                        this.mapped.seal(this.cellId);
                         this.mapped = null;
                         this.unmap = empty;
                     }.bind(this);
@@ -88,14 +88,14 @@ function SetBindedPrototype() {
         }
     };
 
-    BindedCell.prototype._leave = function(event) {
-        BaseCell.prototype._leave.apply(this, [event]);
+    BindedCell.prototype._seal = function(event) {
+        BaseCell.prototype._seal.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsource();
             this.unmap();
             this.unsource = null;
             this.content = null;
-            this.source.leave(this.cellId);
+            this.source.seal(this.cellId);
         }
     };
 }

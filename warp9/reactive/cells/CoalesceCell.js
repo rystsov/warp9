@@ -24,7 +24,7 @@ function SetCoalescePrototype() {
 
     var knownEvents = {
         leak: "_leak",
-        leave: "_leave"
+        seal: "_seal"
     };
 
     CoalesceCell.prototype.send = function(event) {
@@ -53,12 +53,12 @@ function SetCoalescePrototype() {
         }
     };
 
-    CoalesceCell.prototype._leave = function(event) {
-        BaseCell.prototype._leave.apply(this, [event]);
+    CoalesceCell.prototype._seal = function(event) {
+        BaseCell.prototype._seal.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
-            this.source.leave(this.cellId);
+            this.source.seal(this.cellId);
         }
     };
 }

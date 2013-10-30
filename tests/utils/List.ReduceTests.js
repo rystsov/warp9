@@ -82,7 +82,7 @@ function ReducerTests(reduce) {
         list.add(13);
         test.equal(sink.unwrap(), 13);
     
-        sum.leave(id);
+        sum.seal(id);
         test.equal(list.dependants.length, 0);
     
         list.add(2);

@@ -24,7 +24,7 @@ function SetLiftedPrototype() {
 
     var knownEvents = {
         leak: "_leak",
-        leave: "_leave"
+        seal: "_seal"
     };
 
     LiftedList.prototype.send = function(event) {
@@ -62,12 +62,12 @@ function SetLiftedPrototype() {
         }
     };
 
-    LiftedList.prototype._leave = function(event) {
-        BaseList.prototype._leave.apply(this, [event]);
+    LiftedList.prototype._seal = function(event) {
+        BaseList.prototype._seal.apply(this, [event]);
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
-            this.source.leave(this.listId);
+            this.source.seal(this.listId);
         }
     };
 }

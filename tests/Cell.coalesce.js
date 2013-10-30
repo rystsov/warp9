@@ -57,7 +57,7 @@ exports.subscribeUseLeave = function(test) {
     test.equal(event[0], 2);
     cell.set(1);
     test.equal(event[0], 1);
-    or2.leave(id);
+    or2.seal(id);
     test.equal(cell.dependants.length, 0);
     event = null;
     cell.set(2);
@@ -84,7 +84,7 @@ exports.coalesceLift = function(test) {
         unset: function() { event = []; }
     }));
     test.equal(event[0], 5);
-    add3.leave(id);
+    add3.seal(id);
     test.equal(cell.dependants.length, 0);
     event = null;
     cell.set(2);

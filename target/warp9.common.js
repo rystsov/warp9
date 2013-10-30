@@ -443,7 +443,7 @@ var warp9 = (function(){
                             //////////////////////
                             isActive = false;
                             dispose();
-                            value.leave(self.id);
+                            value.seal(self.id);
                             if (isBlocked) {
                                 isBlocked = false;
                                 self.blocks--;
@@ -592,7 +592,7 @@ var warp9 = (function(){
                             removeNode(self, key);
                             isActive = false;
                             dispose();
-                            value.leave(self.id);
+                            value.seal(self.id);
                             if (isBlocked) {
                                 isBlocked = false;
                                 self.blocks--;
@@ -892,12 +892,12 @@ var warp9 = (function(){
                         return this;
                     };
                     
-                    BaseCell.prototype.leave = function(id) {
+                    BaseCell.prototype.seal = function(id) {
                         if (arguments.length==0) {
-                            return this.leave(this.cellId);
+                            return this.seal(this.cellId);
                         }
                         root.reactive.event_broker.issue(this, {
-                            name: "leave",
+                            name: "seal",
                             id: id
                         });
                         return this;
@@ -955,7 +955,7 @@ var warp9 = (function(){
                         return self.leak().onEvent(Cell.handler({
                             set: function(x) {
                                 if (x===value) {
-                                    self.leave();
+                                    self.seal();
                                     action();
                                 }
                             },
@@ -964,7 +964,7 @@ var warp9 = (function(){
                     };
                     
                     var knownEvents = {
-                        leave: "_leave",
+                        seal: "_seal",
                         leak: "_leak",
                         onEvent: "_onEvent"
                     };
@@ -1016,8 +1016,8 @@ var warp9 = (function(){
                         this.usersCount++;
                     };
                     
-                    BaseCell.prototype._leave = function(event) {
-                        if (event.name!="leave") throw new Error();
+                    BaseCell.prototype._seal = function(event) {
+                        if (event.name!="seal") throw new Error();
                         if (!event.hasOwnProperty("id")) throw new Error();
                         var id = event.id;
                         if (!this.users.hasOwnProperty(id)) {
@@ -1097,7 +1097,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         BindedCell.prototype.send = function(event) {
@@ -1133,7 +1133,7 @@ var warp9 = (function(){
                                         }));
                                         this.unmap = function(){
                                             dispose();
-                                            this.mapped.leave(this.cellId);
+                                            this.mapped.seal(this.cellId);
                                             this.mapped = null;
                                             this.unmap = empty;
                                         }.bind(this);
@@ -1147,14 +1147,14 @@ var warp9 = (function(){
                             }
                         };
                     
-                        BindedCell.prototype._leave = function(event) {
-                            BaseCell.prototype._leave.apply(this, [event]);
+                        BindedCell.prototype._seal = function(event) {
+                            BaseCell.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsource();
                                 this.unmap();
                                 this.unsource = null;
                                 this.content = null;
-                                this.source.leave(this.cellId);
+                                this.source.seal(this.cellId);
                             }
                         };
                     }
@@ -1189,7 +1189,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         CoalesceCell.prototype.send = function(event) {
@@ -1218,12 +1218,12 @@ var warp9 = (function(){
                             }
                         };
                     
-                        CoalesceCell.prototype._leave = function(event) {
-                            BaseCell.prototype._leave.apply(this, [event]);
+                        CoalesceCell.prototype._seal = function(event) {
+                            BaseCell.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsubscribe();
                                 this.unsubscribe = null;
-                                this.source.leave(this.cellId);
+                                this.source.seal(this.cellId);
                             }
                         };
                     }
@@ -1265,7 +1265,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         LiftedCell.prototype.send = function(event) {
@@ -1295,12 +1295,12 @@ var warp9 = (function(){
                             }
                         };
                     
-                        LiftedCell.prototype._leave = function(event) {
-                            BaseCell.prototype._leave.apply(this, [event]);
+                        LiftedCell.prototype._seal = function(event) {
+                            BaseCell.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsubscribe();
                                 this.unsubscribe = null;
-                                this.source.leave(this.cellId);
+                                this.source.seal(this.cellId);
                             }
                         };
                     }
@@ -1360,7 +1360,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         WhenCell.prototype.send = function(event) {
@@ -1408,12 +1408,12 @@ var warp9 = (function(){
                             }
                         };
                     
-                        WhenCell.prototype._leave = function(event) {
-                            BaseCell.prototype._leave.apply(this, [event]);
+                        WhenCell.prototype._seal = function(event) {
+                            BaseCell.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsubscribe();
                                 this.unsubscribe = null;
-                                this.source.leave(this.cellId);
+                                this.source.seal(this.cellId);
                             }
                         };
                     
@@ -1563,12 +1563,12 @@ var warp9 = (function(){
                         return this;
                     };
                     
-                    BaseList.prototype.leave = function(id) {
+                    BaseList.prototype.seal = function(id) {
                         if (arguments.length==0) {
-                            return this.leave(this.listId);
+                            return this.seal(this.listId);
                         }
                         root.reactive.event_broker.issue(this, {
-                            name: "leave",
+                            name: "seal",
                             id: id
                         });
                         return this;
@@ -1631,7 +1631,7 @@ var warp9 = (function(){
                     };
                     
                     var knownEvents = {
-                        leave: "_leave",
+                        seal: "_seal",
                         leak: "_leak",
                         onEvent: "_onEvent"
                     };
@@ -1679,8 +1679,8 @@ var warp9 = (function(){
                         this.usersCount++;
                     };
                     
-                    BaseList.prototype._leave = function(event) {
-                        if (event.name!="leave") throw new Error();
+                    BaseList.prototype._seal = function(event) {
+                        if (event.name!="seal") throw new Error();
                         if (!event.hasOwnProperty("id")) throw new Error();
                         var id = event.id;
                         if (!this.users.hasOwnProperty(id)) {
@@ -1741,7 +1741,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         LiftedList.prototype.send = function(event) {
@@ -1779,12 +1779,12 @@ var warp9 = (function(){
                             }
                         };
                     
-                        LiftedList.prototype._leave = function(event) {
-                            BaseList.prototype._leave.apply(this, [event]);
+                        LiftedList.prototype._seal = function(event) {
+                            BaseList.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsubscribe();
                                 this.unsubscribe = null;
-                                this.source.leave(this.listId);
+                                this.source.seal(this.listId);
                             }
                         };
                     }
@@ -1849,7 +1849,7 @@ var warp9 = (function(){
                     
                         var knownEvents = {
                             leak: "_leak",
-                            leave: "_leave"
+                            seal: "_seal"
                         };
                     
                         ReducedList.prototype.send = function(event) {
@@ -1892,8 +1892,8 @@ var warp9 = (function(){
                             }
                         };
                     
-                        ReducedList.prototype._leave = function(event) {
-                            BaseCell.prototype._leave.apply(this, [event]);
+                        ReducedList.prototype._seal = function(event) {
+                            BaseCell.prototype._seal.apply(this, [event]);
                             if (this.usersCount === 0) {
                                 this.unsubscribe();
                                 this.unsubscribe = null;
@@ -1901,7 +1901,7 @@ var warp9 = (function(){
                                 this.reducer.dispose();
                                 this.reducer = null;
                     
-                                this.list.leave(this.cellId);
+                                this.list.seal(this.cellId);
                             }
                         };
                     }
@@ -2036,7 +2036,7 @@ var warp9 = (function(){
                                             value.leak(this.elementId);
                                             this.disposes.push(function(){
                                                 unsubscribe();
-                                                value.leave(this.elementId);
+                                                value.seal(this.elementId);
                                             }.bind(this));
                                         } else {
                                             jq.css(view, property, value);
@@ -2077,7 +2077,7 @@ var warp9 = (function(){
                                     value.leak(self.elementId);
                                     self.disposes.push(function(){
                                         unsubscribe();
-                                        value.leave(self.elementId);
+                                        value.seal(self.elementId);
                                     }.bind(this));
                                 } else {
                                     template.set(value);
@@ -2417,7 +2417,7 @@ var warp9 = (function(){
                                 stopChildren();
                                 jq.remove(html);
                                 element.dispose();
-                                element.children.leave(id);
+                                element.children.seal(id);
                             });
                         }
                         throw new Error();
@@ -2446,7 +2446,7 @@ var warp9 = (function(){
                         return hacks.once(function() {
                             unsubscribe();
                             clean();
-                            cell.leave(id);
+                            cell.seal(id);
                         });
                     }
                 }
