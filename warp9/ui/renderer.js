@@ -98,6 +98,9 @@ function bindElementTo(place, element) {
         element.children.forEach(function(dom){
             dispose.push(bindDomTo(appendToHtml, dom));
         });
+        element.onDraw.forEach(function(handler) {
+            handler(element, html);
+        });
         return hacks.once(function() {
             dispose.forEach(function(f){ f(); });
             jq.remove(html);
@@ -128,6 +131,9 @@ function bindElementTo(place, element) {
         }));
         var id = idgenerator();
         element.children.leak(id);
+        element.onDraw.forEach(function(handler) {
+            handler(element, html);
+        });
         return hacks.once(function() {
             unsubscribe();
             stopChildren();

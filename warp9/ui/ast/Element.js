@@ -9,6 +9,7 @@ function Element(tag) {
     this.type = Element;
     this.tag = tag;
     this.attributes = {};
+    this.onDraw = [];
     this.events = {};
     this.children = [];
     this.elementId = "warp9/" + (id++);
@@ -35,7 +36,6 @@ function Element(tag) {
         for (var name in this.events) {
             if (!this.events.hasOwnProperty(name)) continue;
             (function(name){
-                if (name == "control:draw") return;
                 if (name == "key:enter") {
                     view.addEventListener("keypress", function(event) {
                         if (event.keyCode == 13) {

@@ -1981,6 +1981,7 @@ var warp9 = (function(){
                         this.type = Element;
                         this.tag = tag;
                         this.attributes = {};
+                        this.onDraw = [];
                         this.events = {};
                         this.children = [];
                         this.elementId = "warp9/" + (id++);
@@ -2007,7 +2008,6 @@ var warp9 = (function(){
                             for (var name in this.events) {
                                 if (!this.events.hasOwnProperty(name)) continue;
                                 (function(name){
-                                    if (name == "control:draw") return;
                                     if (name == "key:enter") {
                                         view.addEventListener("keypress", function(event) {
                                             if (event.keyCode == 13) {
@@ -2149,6 +2149,7 @@ var warp9 = (function(){
                         this.children = [];
                         this.events = {};
                         this.cells = {};
+                        this.onDraw = [];
                         this.view = function() {
                             this.view = function() {
                                 throw new Error();
@@ -2168,6 +2169,7 @@ var warp9 = (function(){
                         this.type = TextNode;
                         this.dispose = function() {};
                         this.children = [];
+                        this.onDraw = [];
                         this.events = {};
                         this.cells = {};
                         this.view = function() {
@@ -2382,6 +2384,9 @@ var warp9 = (function(){
                             element.children.forEach(function(dom){
                                 dispose.push(bindDomTo(appendToHtml, dom));
                             });
+                            element.onDraw.forEach(function(handler) {
+                                handler(element, html);
+                            });
                             return hacks.once(function() {
                                 dispose.forEach(function(f){ f(); });
                                 jq.remove(html);
@@ -2412,6 +2417,9 @@ var warp9 = (function(){
                             }));
                             var id = idgenerator();
                             element.children.leak(id);
+                            element.onDraw.forEach(function(handler) {
+                                handler(element, html);
+                            });
                             return hacks.once(function() {
                                 unsubscribe();
                                 stopChildren();
@@ -2479,10 +2487,14 @@ var warp9 = (function(){
                             var element = new root.ui.ast.Element("input");
                             var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
                             element.events = attr.events;
+                            if (element.events.hasOwnProperty("warp9:draw")) {
+                                element.onDraw.push(element.events["warp9:draw"]);
+                                delete element.events["warp9:draw"];
+                            }
+                    
                             element.attributes = attr.attributes;
                             element.attributes.type = type;
                             element.attributes.checked = state.coalesce(false);
-                            element.attributes.checked = state;
                     
                             var isViewOnly = element.attributes["warp9:role"]==="view";
                             var change = element.events.change || function(){};
@@ -2520,6 +2532,11 @@ var warp9 = (function(){
                         var element = new root.ui.ast.Element("input");
                         var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
                         element.events = attr.events;
+                        if (element.events.hasOwnProperty("warp9:draw")) {
+                            element.onDraw.push(element.events["warp9:draw"]);
+                            delete element.events["warp9:draw"];
+                        }
+                    
                         element.attributes = attr.attributes;
                     
                         element.attributes.type = "text";
@@ -2546,11 +2563,17 @@ var warp9 = (function(){
                     
                     function TagParserFactory(tagName) {
                         return function(args) {
-                            var args = root.ui.tags.utils.parseTagArgs(args);
+                            args = root.ui.tags.utils.parseTagArgs(args);
                             var element = new root.ui.ast.Element(tagName);
                             var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
                             element.events = attr.events;
+                            if (element.events.hasOwnProperty("warp9:draw")) {
+                                element.onDraw.push(element.events["warp9:draw"]);
+                                delete element.events["warp9:draw"];
+                            }
+                    
                             element.attributes = attr.attributes;
+                    
                             element.children = [];
                             var hasCollection = false;
                             for (var i in args.children) {

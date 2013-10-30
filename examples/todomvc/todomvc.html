@@ -114,7 +114,9 @@
                         todo.name.set("");
                     }}]
                 ], ["li", {"class": "editing"},
-                    ["input-text", {"class": "edit", "!control:draw": function(c,v) { v.focus(); },
+                    ["input-text", {"class": "edit", "!warp9:draw": function(c,v) {
+                        v.focus();
+                    },
                         "!blur": function() { type.set("view"); },
                         "!key:enter": function() { type.set("view"); }
                     }, todo.name]

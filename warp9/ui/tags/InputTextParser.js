@@ -10,6 +10,11 @@ function InputTextParser(args) {
     var element = new root.ui.ast.Element("input");
     var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
     element.events = attr.events;
+    if (element.events.hasOwnProperty("warp9:draw")) {
+        element.onDraw.push(element.events["warp9:draw"]);
+        delete element.events["warp9:draw"];
+    }
+
     element.attributes = attr.attributes;
 
     element.attributes.type = "text";
