@@ -1,0 +1,34 @@
+<html>
+<head>
+    <script src="../../../lib/warp9/warp9.js"></script>
+</head>
+<body>
+    <div id="placeholder"></div>
+</body>
+<script language="javascript" type="text/javascript">
+    var List = warp9.reactive.List;
+
+    // создаем реактивную модель (в данном случае список)
+    var model = new List();
+    // отображаем её в реактивный DOM
+    var dom = TRANSFORM(model);
+    // отображаем реактивный DOM
+    warp9.ui.renderer.render(placeholder, dom);
+
+    // изменяем модель
+    // и изменения отображаются на экране
+    model.add("React.js");
+    model.add("Warp9");
+
+    function TRANSFORM(model) {
+        var hasItems = model.count().when(function(count) { return count>0 }, true);
+        return hasItems.when(true, ["div",
+            ["div", "Reactive libraries:"],
+            ["div", {"css/margin-left": "10px"},
+                model.lift(function(item){
+                    return ["div", item]
+                })]
+        ]);
+    }
+</script>
+</html>
