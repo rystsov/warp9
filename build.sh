@@ -7,5 +7,6 @@ mkdir target
 pushd target > /dev/null
 yamd ../warp9
 yamd -c ../warp9
+yamd -a ../warp9
 popd > /dev/null
 nodeunit tests
