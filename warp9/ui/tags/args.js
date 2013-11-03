@@ -1,18 +1,18 @@
 expose({
-    parseTagArgs: parseTagArgs,
-    normalizeAttributes: normalizeAttributes,
-    denormalizeAttributes: denormalizeAttributes,
-    tryEnrich: tryEnrich,
+    parse: parse,
     H: H
+}, function(){
+    Cell = root.reactive.Cell;
+    List = root.reactive.List;
 });
+
+var Cell, List;
 
 function H(element) {
     this.element = element
 }
 
-function parseTagArgs(args) {
-    var Cell = root.reactive.Cell;
-    var List = root.reactive.List;
+function parse(args) {
     if (args.length==0) throw new Error();
 
     var children = [args[0]];
@@ -39,26 +39,23 @@ function parseTagArgs(args) {
         }
     }
 
-    return {attr: attr, children: children};
+    var element = normalizeAttributes(attr);
+
+    var onDraw = [];
+    if (element.events.hasOwnProperty("warp9:draw")) {
+        onDraw.push(element.events["warp9:draw"]);
+        delete element.events["warp9:draw"];
+    }
+
+    return {
+        events: element.events,
+        onDraw: onDraw,
+        attributes: element.attributes,
+        children: children
+    };
 }
 
-function tryEnrich(target, supplement) {
-    if (!supplement) return;
-    for(var key in supplement) {
-        if (!supplement.hasOwnProperty(key)) continue;
-        if (key in target) {
-            if (typeof target[key]==="object") {
-                if (typeof supplement[key]!=="object") {
-                    throw new Error();
-                }
-                tryEnrich(target[key], supplement[key]);
-            } else {
-                continue;
-            }
-        }
-        target[key] = supplement[key];
-    }
-}
+
 
 function normalizeAttributes(attr) {
     var element = {
@@ -93,17 +90,4 @@ function normalizeAttributes(attr) {
         }
     }
     return element;
-}
-
-function denormalizeAttributes(attr) {
-    var result = {};
-    for (var attrKey in attr.attributes) {
-        if (!attr.attributes.hasOwnProperty(attrKey)) continue;
-        result[attrKey] = attr.attributes[attrKey];
-    }
-    for (var eventKey in attr.events) {
-        if (!attr.events.hasOwnProperty(eventKey)) continue;
-        result["!"+eventKey] = attr.events[eventKey];
-    }
-    return result;
 }

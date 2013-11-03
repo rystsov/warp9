@@ -1,28 +1,26 @@
-expose(InputTextParser);
+expose(InputTextParser, function() {
+    Cell = root.reactive.Cell;
+});
+
+var Cell;
 
 function InputTextParser(args) {
-    var Cell = root.reactive.Cell;
-    args = root.ui.tags.utils.parseTagArgs(args);
+    args = root.ui.tags.args.parse(args);
+
     if (args.children.length != 1) throw new Error();
-    var value = args.children[0];
-    if (!(typeof value==="object" && value.type==Cell)) throw new Error();
+    if (!Cell.instanceof(args.children[0])) throw new Error();
 
     var element = new root.ui.ast.Element("input");
-    var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
-    element.events = attr.events;
-    if (element.events.hasOwnProperty("warp9:draw")) {
-        element.onDraw.push(element.events["warp9:draw"]);
-        delete element.events["warp9:draw"];
-    }
-
-    element.attributes = attr.attributes;
-
+    element.events = args.events;
+    element.attributes = args.attributes;
+    element.onDraw = args.onDraw;
     element.attributes.type = "text";
-    element.attributes.value = value;
+    element.attributes.value = args.children[0];
+
     var input = "input" in element.events ? element.events.input : function(){};
     element.events.input = function(control, view) {
         input.apply(element.events, [control, view]);
-        value.set(view.value);
+        element.attributes.value.set(view.value);
     };
 
     return element;

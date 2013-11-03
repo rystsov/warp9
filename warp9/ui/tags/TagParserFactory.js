@@ -6,31 +6,26 @@ var List;
 
 function TagParserFactory(tagName) {
     return function(args) {
-        args = root.ui.tags.utils.parseTagArgs(args);
+        args = root.ui.tags.args.parse(args);
+
         var element = new root.ui.ast.Element(tagName);
-        var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
-        element.events = attr.events;
-        if (element.events.hasOwnProperty("warp9:draw")) {
-            element.onDraw.push(element.events["warp9:draw"]);
-            delete element.events["warp9:draw"];
-        }
+        element.events = args.events;
+        element.attributes = args.attributes;
+        element.onDraw = args.onDraw;
 
-        element.attributes = attr.attributes;
-
-        element.children = [];
-        var hasCollection = false;
-        for (var i in args.children) {
-            var child = args.children[i];
-            child = root.ui.renderer.parse(child);
-            if (typeof child==="object" && child.type == List) {
-                hasCollection = true;
+        if (args.children.length==1) {
+            element.children = [root.ui.renderer.parse(args.children[0])];
+            if (List.instanceof(element.children[0])) {
+                element.children = element.children[0]
             }
-            element.children.push(child);
+        } else {
+            element.children = args.children.map(function(child) {
+                child = root.ui.renderer.parse(child);
+                if (List.instanceof(child)) throw new Error();
+                return child;
+            });
         }
-        if (hasCollection) {
-            if (element.children.length>1) throw new Error();
-            element.children = element.children[0];
-        }
+
         return element;
     };
 }

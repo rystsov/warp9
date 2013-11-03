@@ -150,3 +150,7 @@ List.handler = function(handlers) {
         handlers[e[0]].call(handlers, e[1]);
     };
 };
+
+List.instanceof = function(obj) {
+    return typeof obj==="object" && obj.type == List;
+};

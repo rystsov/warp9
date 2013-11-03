@@ -1,17 +1,21 @@
-expose(Element);
+expose(Element, function(){
+    jq = root.ui.jq;
+    Cell = root.reactive.Cell;
+});
+
+var jq, Cell;
 
 var id = 0;
 
 function Element(tag) {
-    var jq = root.ui.jq;
-    var Cell = root.reactive.Cell;
-
     this.type = Element;
+
     this.tag = tag;
-    this.attributes = {};
-    this.onDraw = [];
     this.events = {};
     this.children = [];
+    this.attributes = {};
+    this.onDraw = [];
+
     this.elementId = "warp9/" + (id++);
 
     this.attributeSetters = defaultAttributeSetters();

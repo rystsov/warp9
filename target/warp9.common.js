@@ -204,6 +204,10 @@ var warp9 = (function(){
                         };
                     };
                     
+                    Cell.instanceof = function(obj) {
+                        return typeof obj==="object" && obj.type == Cell;
+                    };
+                    
                 }
             },
             {
@@ -362,6 +366,9 @@ var warp9 = (function(){
                         };
                     };
                     
+                    List.instanceof = function(obj) {
+                        return typeof obj==="object" && obj.type == List;
+                    };
                 }
             },
             {
@@ -1946,20 +1953,24 @@ var warp9 = (function(){
             {
                 path: ["ui","ast","Element"],
                 content: function(root, expose) {
-                    expose(Element);
+                    expose(Element, function(){
+                        jq = root.ui.jq;
+                        Cell = root.reactive.Cell;
+                    });
+                    
+                    var jq, Cell;
                     
                     var id = 0;
                     
                     function Element(tag) {
-                        var jq = root.ui.jq;
-                        var Cell = root.reactive.Cell;
-                    
                         this.type = Element;
+                    
                         this.tag = tag;
-                        this.attributes = {};
-                        this.onDraw = [];
                         this.events = {};
                         this.children = [];
+                        this.attributes = {};
+                        this.onDraw = [];
+                    
                         this.elementId = "warp9/" + (id++);
                     
                         this.attributeSetters = defaultAttributeSetters();
@@ -2450,27 +2461,25 @@ var warp9 = (function(){
                         }
                         if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
                         return function(args) {
-                            args = root.ui.tags.utils.parseTagArgs(args);
+                            args = root.ui.tags.args.parse(args);
+                    
+                            var element = new root.ui.ast.Element("input");
+                            element.events = args.events;
+                            element.attributes = args.attributes;
+                            element.onDraw = args.onDraw;
+                    
                             var state;
                             if (args.children.length == 0) {
                                 state = new Cell();
                             } else {
                                 if (args.children.length != 1) throw new Error();
+                                if (!Cell.instanceof(args.children[0])) throw new Error();
                                 state = args.children[0];
-                                if (!(typeof state==="object" && state.type==Cell)) throw new Error();
                             }
                     
-                            var element = new root.ui.ast.Element("input");
-                            var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
-                            element.events = attr.events;
-                            if (element.events.hasOwnProperty("warp9:draw")) {
-                                element.onDraw.push(element.events["warp9:draw"]);
-                                delete element.events["warp9:draw"];
-                            }
-                    
-                            element.attributes = attr.attributes;
                             element.attributes.type = type;
                             element.attributes.checked = state.coalesce(false);
+                    
                     
                             var isViewOnly = element.attributes["warp9:role"]==="view";
                             var change = element.events.change || function(){};
@@ -2496,31 +2505,29 @@ var warp9 = (function(){
             {
                 path: ["ui","tags","InputTextParser"],
                 content: function(root, expose) {
-                    expose(InputTextParser);
+                    expose(InputTextParser, function() {
+                        Cell = root.reactive.Cell;
+                    });
+                    
+                    var Cell;
                     
                     function InputTextParser(args) {
-                        var Cell = root.reactive.Cell;
-                        args = root.ui.tags.utils.parseTagArgs(args);
+                        args = root.ui.tags.args.parse(args);
+                    
                         if (args.children.length != 1) throw new Error();
-                        var value = args.children[0];
-                        if (!(typeof value==="object" && value.type==Cell)) throw new Error();
+                        if (!Cell.instanceof(args.children[0])) throw new Error();
                     
                         var element = new root.ui.ast.Element("input");
-                        var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
-                        element.events = attr.events;
-                        if (element.events.hasOwnProperty("warp9:draw")) {
-                            element.onDraw.push(element.events["warp9:draw"]);
-                            delete element.events["warp9:draw"];
-                        }
-                    
-                        element.attributes = attr.attributes;
-                    
+                        element.events = args.events;
+                        element.attributes = args.attributes;
+                        element.onDraw = args.onDraw;
                         element.attributes.type = "text";
-                        element.attributes.value = value;
+                        element.attributes.value = args.children[0];
+                    
                         var input = "input" in element.events ? element.events.input : function(){};
                         element.events.input = function(control, view) {
                             input.apply(element.events, [control, view]);
-                            value.set(view.value);
+                            element.attributes.value.set(view.value);
                         };
                     
                         return element;
@@ -2539,54 +2546,49 @@ var warp9 = (function(){
                     
                     function TagParserFactory(tagName) {
                         return function(args) {
-                            args = root.ui.tags.utils.parseTagArgs(args);
+                            args = root.ui.tags.args.parse(args);
+                    
                             var element = new root.ui.ast.Element(tagName);
-                            var attr = root.ui.tags.utils.normalizeAttributes(args.attr);
-                            element.events = attr.events;
-                            if (element.events.hasOwnProperty("warp9:draw")) {
-                                element.onDraw.push(element.events["warp9:draw"]);
-                                delete element.events["warp9:draw"];
-                            }
+                            element.events = args.events;
+                            element.attributes = args.attributes;
+                            element.onDraw = args.onDraw;
                     
-                            element.attributes = attr.attributes;
-                    
-                            element.children = [];
-                            var hasCollection = false;
-                            for (var i in args.children) {
-                                var child = args.children[i];
-                                child = root.ui.renderer.parse(child);
-                                if (typeof child==="object" && child.type == List) {
-                                    hasCollection = true;
+                            if (args.children.length==1) {
+                                element.children = [root.ui.renderer.parse(args.children[0])];
+                                if (List.instanceof(element.children[0])) {
+                                    element.children = element.children[0]
                                 }
-                                element.children.push(child);
+                            } else {
+                                element.children = args.children.map(function(child) {
+                                    child = root.ui.renderer.parse(child);
+                                    if (List.instanceof(child)) throw new Error();
+                                    return child;
+                                });
                             }
-                            if (hasCollection) {
-                                if (element.children.length>1) throw new Error();
-                                element.children = element.children[0];
-                            }
+                    
                             return element;
                         };
                     }
                 }
             },
             {
-                path: ["ui","tags","utils"],
+                path: ["ui","tags","args"],
                 content: function(root, expose) {
                     expose({
-                        parseTagArgs: parseTagArgs,
-                        normalizeAttributes: normalizeAttributes,
-                        denormalizeAttributes: denormalizeAttributes,
-                        tryEnrich: tryEnrich,
+                        parse: parse,
                         H: H
+                    }, function(){
+                        Cell = root.reactive.Cell;
+                        List = root.reactive.List;
                     });
+                    
+                    var Cell, List;
                     
                     function H(element) {
                         this.element = element
                     }
                     
-                    function parseTagArgs(args) {
-                        var Cell = root.reactive.Cell;
-                        var List = root.reactive.List;
+                    function parse(args) {
                         if (args.length==0) throw new Error();
                     
                         var children = [args[0]];
@@ -2613,26 +2615,23 @@ var warp9 = (function(){
                             }
                         }
                     
-                        return {attr: attr, children: children};
+                        var element = normalizeAttributes(attr);
+                    
+                        var onDraw = [];
+                        if (element.events.hasOwnProperty("warp9:draw")) {
+                            onDraw.push(element.events["warp9:draw"]);
+                            delete element.events["warp9:draw"];
+                        }
+                    
+                        return {
+                            events: element.events,
+                            onDraw: onDraw,
+                            attributes: element.attributes,
+                            children: children
+                        };
                     }
                     
-                    function tryEnrich(target, supplement) {
-                        if (!supplement) return;
-                        for(var key in supplement) {
-                            if (!supplement.hasOwnProperty(key)) continue;
-                            if (key in target) {
-                                if (typeof target[key]==="object") {
-                                    if (typeof supplement[key]!=="object") {
-                                        throw new Error();
-                                    }
-                                    tryEnrich(target[key], supplement[key]);
-                                } else {
-                                    continue;
-                                }
-                            }
-                            target[key] = supplement[key];
-                        }
-                    }
+                    
                     
                     function normalizeAttributes(attr) {
                         var element = {
@@ -2669,18 +2668,6 @@ var warp9 = (function(){
                         return element;
                     }
                     
-                    function denormalizeAttributes(attr) {
-                        var result = {};
-                        for (var attrKey in attr.attributes) {
-                            if (!attr.attributes.hasOwnProperty(attrKey)) continue;
-                            result[attrKey] = attr.attributes[attrKey];
-                        }
-                        for (var eventKey in attr.events) {
-                            if (!attr.events.hasOwnProperty(eventKey)) continue;
-                            result["!"+eventKey] = attr.events[eventKey];
-                        }
-                        return result;
-                    }
                 }
             },
             {

@@ -94,3 +94,7 @@ Cell.handler = function(handler) {
         }
     };
 };
+
+Cell.instanceof = function(obj) {
+    return typeof obj==="object" && obj.type == Cell;
+};
