@@ -1,8 +1,9 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <link rel="stylesheet" href="base.css">
+        <link rel="stylesheet" href="bower_components/todomvc-common/base.css">
         <script src="../../target/warp9.js"></script>
+        <script src="bower_components/director/build/director.js"></script>
     </head>
     <body>
         <div id="canvas"></div>
@@ -38,6 +39,8 @@
             var toggleAll = todos.all(function(x) { return x.mark; });
             var left      = todos.count(function(x) { return x.mark.lift(function(x) { return !x; }); });
             var completed = todos.count(function(x) { return x.mark; });
+
+            Router({'/:filter': activeTab.set.bind(activeTab)}).init();
 
             return ["section", {id: "todoapp"},
                 ["header", {id:"header"},
@@ -91,8 +94,7 @@
 
             function tabSwitch(tabName) {
                 return ["a", {
-                    "href": "#", "class": activeTab.when(tabName, "selected"),
-                    "!click": function() { activeTab.set(tabName); }
+                    "href": "#/" + tabName, "class": activeTab.when(tabName, "selected")
                 }, tabName];
             }
 
