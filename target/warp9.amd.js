@@ -995,7 +995,7 @@ define([], function() {
                             if (this.usersCount>0 && this.content!=null) {
                                 var content = this.content;
                         
-                                root.reactive.lazy_run.run(function(){
+                                root.reactive.event_broker.call(function(){
                                     if (event.disposed) return;
                                     if (content.isEmpty()) {
                                         event.f(["unset"]);
@@ -1044,12 +1044,12 @@ define([], function() {
                                 return;
                             }
                             if (this.usersCount==0) return;
-                            this.dependants.forEach(function(d){
-                                root.reactive.lazy_run.postpone(function(){
+                        
+                            root.reactive.event_broker.call(this.dependants.map(function(d){
+                                return function(){
                                     d.f(e);
-                                });
-                            });
-                            root.reactive.lazy_run.run();
+                                }
+                            }));
                         };
                         
                         
@@ -1431,78 +1431,53 @@ define([], function() {
                         expose(new EventBroker());
                         
                         function EventBroker() {
-                            this.messages = [];
+                            this.events = [];
                             this.isActive = false;
                         
                             this.issue = function(reciever, event) {
-                                this.messages.push([reciever, event]);
-                                if (this.isActive) return;
-                                this.isActive = true;
-                                while(this.messages.length!=0) {
-                                    var message = this.messages.shift();
-                                    message[0].send(message[1]);
-                                }
-                                this.isActive = false;
-                            };
-                        }
-                        
-                    }
-                },
-                {
-                    path: ["reactive","lazy_run"],
-                    content: function(root, expose) {
-                        expose(new LazyRun());
-                        
-                        function LazyRun() {
-                            this.functions = [];
-                            this.isActive = false;
-                            this.isCallback = false;
-                            this.root = null;
-                        
-                            this.postpone = function(f) {
-                                if (this.isCallback) throw new Error("Can't postpone or run a task during callback");
-                                var item = {
-                                    f: f,
-                                    father: this.root,
-                                    children: 0,
-                                    callback: arguments.length==1 ? null : arguments[1]
-                                };
-                                if (this.isActive) {
-                                    this.root.children++;
-                                }
-                                this.functions.push(item);
+                                this.events.push({
+                                    type: "message",
+                                    body: [reciever, event]
+                                });
+                                this.process();
                             };
                         
-                            this.run = function() {
-                                if (this.isCallback) throw new Error("Can't postpone or run a task during callback");
-                                if (arguments.length>0) {
-                                    this.postpone.apply(this, arguments);
-                                }
-                        
-                                if (this.isActive) return;
-                                this.isActive = true;
-                                while(this.functions.length!=0) {
-                                    var item = this.functions.shift();
-                                    this.root = item;
-                                    item.f();
-                                    this.finalize(item);
-                                }
-                                this.root = null;
-                                this.isActive = false;
-                            };
-                        
-                            this.finalize = function(item) {
-                                if (item.children<0) throw new Error("Inconsistent internal state");
-                                if (item.children==0) {
-                                    if (item.callback != null) {
-                                        this.isCallback = true;
-                                        item.callback();
-                                        this.isCallback = false;
+                            this.call = function(f) {
+                                if (f instanceof Array) {
+                                    for (var i=0;i < f.length;i++) {
+                                        if (typeof f[i] != "function") throw new Error();
+                                        this.events.push({
+                                            type: "call",
+                                            f: f[i]
+                                        });
                                     }
-                                    if (item.father==null) return;
-                                    item.father.children--;
-                                    this.finalize(item.father);
+                                } else if (typeof f == "function") {
+                                    this.events.push({
+                                        type: "call",
+                                        f: f
+                                    });
+                                } else {
+                                    throw new Error();
                                 }
+                        
+                                this.process();
+                            };
+                        
+                            this.process = function() {
+                                if (this.isActive) return;
+                                this.isActive = true;
+                                while(this.events.length!=0) {
+                                    var event = this.events.shift();
+                                    if (event.type=="message") {
+                                        var message = event.body;
+                                        message[0].send(message[1]);
+                                    } else if (event.type=="call") {
+                                        event.f();
+                                    } else {
+                                        throw new Error();
+                                    }
+                                }
+                                this.isActive = false;
                             };
                         }
                         
@@ -1662,7 +1637,7 @@ define([], function() {
                             if (this.usersCount>0) {
                                 var data = this.data.slice();
                         
-                                root.reactive.lazy_run.run(function(){
+                                root.reactive.event_broker.call(function(){
                                     if (event.disposed) return;
                                     event.f(["data", data]);
                                 });
@@ -1700,12 +1675,12 @@ define([], function() {
                         
                         BaseList.prototype.__raise = function(e) {
                             if (this.usersCount>0) {
-                                this.dependants.forEach(function(d){
-                                    root.reactive.lazy_run.postpone(function(){
+                        
+                                root.reactive.event_broker.call(this.dependants.map(function(d){
+                                    return function() {
                                         d.f(e);
-                                    });
-                                });
-                                root.reactive.lazy_run.run();
+                                    };
+                                }));
                             }
                         };
                         

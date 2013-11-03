@@ -149,7 +149,7 @@ BaseList.prototype._onEvent = function(event) {
     if (this.usersCount>0) {
         var data = this.data.slice();
 
-        root.reactive.lazy_run.run(function(){
+        root.reactive.event_broker.call(function(){
             if (event.disposed) return;
             event.f(["data", data]);
         });
@@ -187,12 +187,12 @@ BaseList.prototype._seal = function(event) {
 
 BaseList.prototype.__raise = function(e) {
     if (this.usersCount>0) {
-        this.dependants.forEach(function(d){
-            root.reactive.lazy_run.postpone(function(){
+
+        root.reactive.event_broker.call(this.dependants.map(function(d){
+            return function() {
                 d.f(e);
-            });
-        });
-        root.reactive.lazy_run.run();
+            };
+        }));
     }
 };
 

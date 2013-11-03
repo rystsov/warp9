@@ -152,7 +152,7 @@ BaseCell.prototype._onEvent = function(event) {
     if (this.usersCount>0 && this.content!=null) {
         var content = this.content;
 
-        root.reactive.lazy_run.run(function(){
+        root.reactive.event_broker.call(function(){
             if (event.disposed) return;
             if (content.isEmpty()) {
                 event.f(["unset"]);
@@ -201,11 +201,11 @@ BaseCell.prototype.__raise = function(e) {
         return;
     }
     if (this.usersCount==0) return;
-    this.dependants.forEach(function(d){
-        root.reactive.lazy_run.postpone(function(){
+
+    root.reactive.event_broker.call(this.dependants.map(function(d){
+        return function(){
             d.f(e);
-        });
-    });
-    root.reactive.lazy_run.run();
+        }
+    }));
 };
 
