@@ -102,6 +102,7 @@ function SetWhenPrototype() {
         if (this.usersCount === 0) {
             this.unsubscribe();
             this.unsubscribe = null;
+            this.content = null;
             this.source.seal(this.cellId);
         }
     };

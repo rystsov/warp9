@@ -4,6 +4,28 @@ var EventSink = require('./utils/Cell.EventSink');
 
 var Cell = warp9.reactive.Cell;
 
+exports.repeatEventOnLeak = function(test) {
+    test.expect(4);
+
+    var activeTab = new Cell("All");
+
+    var completed = activeTab.when("Completed", "selected");
+
+    var sink = new EventSink(completed);
+
+    completed.leak();
+    test.equal(sink.changes, 0); // ignore "unset" since it is a default state
+
+    activeTab.set("Completed");
+    test.equal(sink.changes, 1); // "set" event
+    completed.seal();
+    test.equal(sink.changes, 1);
+    completed.leak();
+    test.equal(sink.changes, 2); // "set" event
+
+    test.done();
+};
+
 exports.when1 = function(test) {
     test.expect(6);
 
