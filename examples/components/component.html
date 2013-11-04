@@ -1,0 +1,34 @@
+<html>
+    <head>
+        <script src="../../target/warp9.js"></script>
+    </head>
+    <body>
+        <div id="canvas"></div>
+    </body>
+    <script type="text/javascript">
+        var Cell = warp9.reactive.Cell;
+        var Component = warp9.ui.Component;
+
+        function COMPONENT() {
+            var trigger = new Cell(false);
+            return ["div",
+                ["div",
+                    ["button", {
+                        "!click": function() {
+                            trigger.set(!trigger.unwrap());
+                        }
+                    }, "Click me!"]],
+                trigger.when(true, new Component(function(){
+                    console.info("processing component");
+                    this.dispose = function() {
+                        console.info("disposing component");
+                    };
+                    return ["div", "Clicked odd times!"]
+                }))
+            ];
+        }
+
+        var renderer = warp9.ui.renderer;
+        renderer.render(canvas, COMPONENT());
+    </script>
+</html>

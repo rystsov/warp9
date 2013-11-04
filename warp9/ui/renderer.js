@@ -7,6 +7,7 @@ expose({
     Cell = root.reactive.Cell;
     List = root.reactive.List;
     Element = root.ui.ast.Element;
+    Component = root.ui.ast.Component;
     Fragment = root.ui.ast.Fragment;
     TextNode = root.ui.ast.TextNode;
     jq = root.ui.jq;
@@ -30,7 +31,7 @@ expose({
     addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));
 });
 
-var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;
+var Cell, List, Element, Component, Fragment, TextNode, jq, hacks, idgenerator;
 
 var tags = {};
 
@@ -60,6 +61,14 @@ function parse(element) {
         if (element.type==List) {
             return element.lift(parse);
         }
+        if (element.type==root.ui.Component) {
+            element = element.builder;
+        }
+    }
+    if (typeof element==="function") {
+        var component = new Component();
+        component.value = parse(element.apply(component, []));
+        return component;
     }
     throw new Error();
 }
@@ -79,6 +88,8 @@ function bindDomTo(place, dom) {
         return bindElementTo(place, dom);
     } else if (dom instanceof TextNode) {
         return bindElementTo(place, dom);
+    } else if (dom instanceof Component) {
+        return bindComponentTo(place, dom);
     } else if (typeof dom==="object" && dom.type == Cell) {
         return bindCellTo(place, dom);
     }
@@ -165,9 +176,18 @@ function bindCellTo(place, cell) {
     }));
     var id = idgenerator();
     cell.leak(id);
+    // TODO: why hacks.once, is it needed?
     return hacks.once(function() {
         unsubscribe();
         clean();
         cell.seal(id);
+    });
+}
+
+function bindComponentTo(place, component) {
+    var dispose = bindDomTo(place, component.value);
+    return hacks.once(function() {
+        dispose();
+        component.dispose();
     });
 }

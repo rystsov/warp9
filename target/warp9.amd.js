@@ -1952,6 +1952,31 @@ define([], function() {
                     }
                 },
                 {
+                    path: ["ui","Component"],
+                    content: function(root, expose) {
+                        expose(Component);
+                        
+                        function Component(builder) {
+                            this.type = Component;
+                        
+                            this.builder = builder;
+                        }
+                        
+                    }
+                },
+                {
+                    path: ["ui","ast","Component"],
+                    content: function(root, expose) {
+                        expose(Component);
+                        
+                        function Component() {
+                            this.type = Component;
+                        }
+                        
+                        Component.prototype.dispose = function() {};
+                    }
+                },
+                {
                     path: ["ui","ast","Element"],
                     content: function(root, expose) {
                         expose(Element, function(){
@@ -2443,6 +2468,7 @@ define([], function() {
                             Cell = root.reactive.Cell;
                             List = root.reactive.List;
                             Element = root.ui.ast.Element;
+                            Component = root.ui.ast.Component;
                             Fragment = root.ui.ast.Fragment;
                             TextNode = root.ui.ast.TextNode;
                             jq = root.ui.jq;
@@ -2466,7 +2492,7 @@ define([], function() {
                             addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));
                         });
                         
-                        var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;
+                        var Cell, List, Element, Component, Fragment, TextNode, jq, hacks, idgenerator;
                         
                         var tags = {};
                         
@@ -2496,6 +2522,14 @@ define([], function() {
                                 if (element.type==List) {
                                     return element.lift(parse);
                                 }
+                                if (element.type==root.ui.Component) {
+                                    element = element.builder;
+                                }
+                            }
+                            if (typeof element==="function") {
+                                var component = new Component();
+                                component.value = parse(element.apply(component, []));
+                                return component;
                             }
                             throw new Error();
                         }
@@ -2515,6 +2549,8 @@ define([], function() {
                                 return bindElementTo(place, dom);
                             } else if (dom instanceof TextNode) {
                                 return bindElementTo(place, dom);
+                            } else if (dom instanceof Component) {
+                                return bindComponentTo(place, dom);
                             } else if (typeof dom==="object" && dom.type == Cell) {
                                 return bindCellTo(place, dom);
                             }
@@ -2601,10 +2637,19 @@ define([], function() {
                             }));
                             var id = idgenerator();
                             cell.leak(id);
+                            // TODO: why hacks.once, is it needed?
                             return hacks.once(function() {
                                 unsubscribe();
                                 clean();
                                 cell.seal(id);
+                            });
+                        }
+                        
+                        function bindComponentTo(place, component) {
+                            var dispose = bindDomTo(place, component.value);
+                            return hacks.once(function() {
+                                dispose();
+                                component.dispose();
                             });
                         }
                     }
