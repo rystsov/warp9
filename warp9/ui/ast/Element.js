@@ -1,9 +1,10 @@
 expose(Element, function(){
     jq = root.ui.jq;
     Cell = root.reactive.Cell;
+    register = root.ui.attributes.register;
 });
 
-var jq, Cell;
+var jq, Cell, register;
 
 var id = 0;
 
@@ -17,8 +18,6 @@ function Element(tag) {
     this.onDraw = [];
 
     this.elementId = "warp9/" + (id++);
-
-    this.attributeSetters = defaultAttributeSetters();
 
     this.disposes = [];
     this.cells = {};
@@ -34,7 +33,9 @@ function Element(tag) {
         for (var name in this.attributes) {
             if (!this.attributes.hasOwnProperty(name)) continue;
             if (name=="css") continue;
-            this.setAttribute(view, name, this.attributes[name])
+
+            var setter = register.findAttributeSetter(this.tag, name);
+            this.disposes.push(setter.apply(name, this, view, this.attributes[name]));
         }
 
         for (var name in this.events) {
@@ -82,89 +83,5 @@ function Element(tag) {
         };
 
         return view;
-    };
-    this.setAttribute = function(view, name, value) {
-        var self = this;
-        if (name in this.attributeSetters) {
-            wrapRv(value, this.attributeSetters[name](view));
-        } else {
-            wrapRv(value, defaultMap(view, name));
-        }
-
-        function defaultMap(view, name) {
-            return {
-                set: function(v) { view.setAttribute(name, v); },
-                unset: function() {
-                    if (view.hasAttribute(name)) {
-                        view.removeAttribute(name);
-                    }
-                }
-            }
-        }
-
-        function wrapRv(value, template) {
-            if (typeof value==="object" && value.type == Cell) {
-                self.cells[value.cellId] = value;
-                var unsubscribe = value.onEvent(Cell.handler(template));
-                value.leak(self.elementId);
-                self.disposes.push(function(){
-                    unsubscribe();
-                    value.seal(self.elementId);
-                }.bind(this));
-            } else {
-                template.set(value);
-            }
-        }
-    };
-}
-
-function defaultAttributeSetters() {
-    return {
-        checked: function(view) {
-            return {
-                set: function(v) {
-                    view.checked = v;
-                },
-                unset: function() {
-                    view.checked = false;
-                }
-            };
-        },
-        value: function(view) {
-            return {
-                set: function(v) {
-                    if (view.value!=v) view.value = v;
-                },
-                unset: function() {
-                    if (view.value!="") view.value = "";
-                }
-            };
-        },
-        disabled: function(view) {
-            return {
-                set: function(v) {
-                    if (v) {
-                        view.setAttribute("disabled", "")
-                    } else {
-                        if (view.hasAttribute("disabled")) view.removeAttribute("disabled");
-                    }
-                },
-                unset: function() {
-                    view.removeAttribute("disabled");
-                }
-            };
-        },
-        "class": function(view) {
-            var jq = root.ui.jq;
-            return {
-                set: function(v) {
-                    jq.removeClass(view);
-                    view.classList.add(v);
-                },
-                unset: function() {
-                    jq.removeClass(view);
-                }
-            };
-        }
     };
 }
