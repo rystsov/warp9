@@ -26,8 +26,8 @@ expose({
     addTag("label", root.ui.tags.TagParserFactory("label"));
     addTag("button", root.ui.tags.TagParserFactory("button"));
 
-    addTag("input-text", root.ui.tags.InputTextParser);
-    addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
+    addTag(root.ui.tags.InputTextParser.TAG, root.ui.tags.InputTextParser);
+    addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));
 });
 
 var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;

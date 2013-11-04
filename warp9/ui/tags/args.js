@@ -1,15 +1,25 @@
 expose({
     parse: parse,
+    tryIntercept: tryIntercept,
     H: H
 }, function(){
     Cell = root.reactive.Cell;
     List = root.reactive.List;
+    register = root.ui.attributes.register;
 });
 
-var Cell, List;
+var Cell, List, register;
 
 function H(element) {
     this.element = element
+}
+
+function tryIntercept(tag, args) {
+    var interceptors = register.findAttributeInterceptors(tag);
+    for (var i=0;i<interceptors.length;i++) {
+        args = interceptors[i](tag, args);
+    }
+    return args;
 }
 
 function parse(args) {

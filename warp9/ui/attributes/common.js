@@ -4,16 +4,39 @@ expose(null, function(){
     DefaultAttributeSetter = root.ui.attributes.DefaultAttributeSetter;
     register = root.ui.attributes.register;
 
+    registerDefaultInterceptors();
     registerDefaultAttributeSetters();
 });
 
 var jq, register, CelledAttributeSetter, DefaultAttributeSetter;
 
+function registerDefaultInterceptors() {
+    register.registerAttributeInterceptor("input-text", function(tag, args) {
+        if (!args.events.hasOwnProperty("key:enter")) {
+            return args;
+        }
+        var keypress = null;
+        if (args.events.hasOwnProperty("keypress")) {
+            keypress = args.events["keypress"];
+        }
+        var enter = args.events["key:enter"];
+        args.events["keypress"] = function (element, view, event) {
+            if (keypress!=null) {
+                keypress(element, view, event);
+            }
+            if (event.keyCode == 13) {
+                enter(element, view, event);
+            }
+        };
+        delete args.events["key:enter"];
+        return args;
+    });
+}
 
 function registerDefaultAttributeSetters() {
-    register.register("*", "*", new DefaultAttributeSetter());
+    register.registerAttributeSetter("*", "*", new DefaultAttributeSetter());
 
-    register.register("*", "checked", new CelledAttributeSetter({
+    register.registerAttributeSetter("*", "checked", new CelledAttributeSetter({
         set: function(view, value) {
             view.checked = value;
         },
@@ -22,7 +45,7 @@ function registerDefaultAttributeSetters() {
         }
     }));
 
-    register.register("*", "value", new CelledAttributeSetter({
+    register.registerAttributeSetter("*", "value", new CelledAttributeSetter({
         set: function(view, v) {
             if (view.value != v) view.value = v;
         },
@@ -31,7 +54,7 @@ function registerDefaultAttributeSetters() {
         }
     }));
 
-    register.register("*", "disabled", new CelledAttributeSetter({
+    register.registerAttributeSetter("*", "disabled", new CelledAttributeSetter({
         set: function(view, v) {
             if (v) {
                 view.setAttribute("disabled", "")
@@ -45,7 +68,7 @@ function registerDefaultAttributeSetters() {
     }));
 
     // TODO: adds list support for class attribute
-    register.register("*", "class", new CelledAttributeSetter({
+    register.registerAttributeSetter("*", "class", new CelledAttributeSetter({
         set: function(view, v) {
             jq.removeClass(view);
             view.classList.add(v);

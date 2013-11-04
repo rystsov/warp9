@@ -6,9 +6,14 @@ var Cell;
 
 function InputTextParser(args) {
     args = root.ui.tags.args.parse(args);
+    args = root.ui.tags.args.tryIntercept(InputTextParser.TAG, args);
 
-    if (args.children.length != 1) throw new Error();
-    if (!Cell.instanceof(args.children[0])) throw new Error();
+    if (args.children.length != 1) {
+        throw new Error();
+    }
+    if (!Cell.instanceof(args.children[0])) {
+        throw new Error();
+    }
 
     var element = new root.ui.ast.Element("input");
     element.events = args.events;
@@ -25,3 +30,5 @@ function InputTextParser(args) {
 
     return element;
 }
+
+InputTextParser.TAG = "input-text";

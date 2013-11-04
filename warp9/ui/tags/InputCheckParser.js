@@ -8,9 +8,12 @@ function InputCheckParser(type) {
     if (!type) {
         throw new Error("type must be provided");
     }
-    if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
+    if (!(type in {checkbox: 0, radio: 0})) {
+        throw new Error("type must be checkbox or radio");
+    }
     return function(args) {
         args = root.ui.tags.args.parse(args);
+        args = root.ui.tags.args.tryIntercept(InputCheckParser.TAG, args);
 
         var element = new root.ui.ast.Element("input");
         element.events = args.events;
@@ -48,3 +51,5 @@ function InputCheckParser(type) {
         return element;
     };
 }
+
+InputCheckParser.TAG = "input-check";

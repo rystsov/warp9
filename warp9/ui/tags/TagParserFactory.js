@@ -7,6 +7,7 @@ var List;
 function TagParserFactory(tagName) {
     return function(args) {
         args = root.ui.tags.args.parse(args);
+        args = root.ui.tags.args.tryIntercept(tagName, args);
 
         var element = new root.ui.ast.Element(tagName);
         element.events = args.events;

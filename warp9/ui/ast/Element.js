@@ -41,17 +41,9 @@ function Element(tag) {
         for (var name in this.events) {
             if (!this.events.hasOwnProperty(name)) continue;
             (function(name){
-                if (name == "key:enter") {
-                    view.addEventListener("keypress", function(event) {
-                        if (event.keyCode == 13) {
-                            this.events[name](this, view, event);
-                        }
-                    }.bind(this), false);
-                } else {
-                    view.addEventListener(name, function(event) {
-                        this.events[name](this, view, event);
-                    }.bind(this), false);
-                }
+                view.addEventListener(name, function(event) {
+                    this.events[name](this, view, event);
+                }.bind(this), false);
             }.bind(this))(name);
         }
         if ("css" in this.attributes) {

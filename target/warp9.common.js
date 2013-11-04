@@ -1996,17 +1996,9 @@ var warp9 = (function(){
                             for (var name in this.events) {
                                 if (!this.events.hasOwnProperty(name)) continue;
                                 (function(name){
-                                    if (name == "key:enter") {
-                                        view.addEventListener("keypress", function(event) {
-                                            if (event.keyCode == 13) {
-                                                this.events[name](this, view, event);
-                                            }
-                                        }.bind(this), false);
-                                    } else {
-                                        view.addEventListener(name, function(event) {
-                                            this.events[name](this, view, event);
-                                        }.bind(this), false);
-                                    }
+                                    view.addEventListener(name, function(event) {
+                                        this.events[name](this, view, event);
+                                    }.bind(this), false);
                                 }.bind(this))(name);
                             }
                             if ("css" in this.attributes) {
@@ -2189,18 +2181,39 @@ var warp9 = (function(){
                         DefaultAttributeSetter = root.ui.attributes.DefaultAttributeSetter;
                         register = root.ui.attributes.register;
                     
+                        registerDefaultInterceptors();
                         registerDefaultAttributeSetters();
                     });
                     
                     var jq, register, CelledAttributeSetter, DefaultAttributeSetter;
                     
+                    function registerDefaultInterceptors() {
+                        register.registerAttributeInterceptor("input-text", function(tag, args) {
+                            if (!args.events.hasOwnProperty("key:enter")) {
+                                return args;
+                            }
+                            var keypress = null;
+                            if (args.events.hasOwnProperty("keypress")) {
+                                keypress = args.events["keypress"];
+                            }
+                            var enter = args.events["key:enter"];
+                            args.events["keypress"] = function (element, view, event) {
+                                if (keypress!=null) {
+                                    keypress(element, view, event);
+                                }
+                                if (event.keyCode == 13) {
+                                    enter(element, view, event);
+                                }
+                            };
+                            delete args.events["key:enter"];
+                            return args;
+                        });
+                    }
                     
                     function registerDefaultAttributeSetters() {
-                        console.info("registering");
+                        register.registerAttributeSetter("*", "*", new DefaultAttributeSetter());
                     
-                        register.register("*", "*", new DefaultAttributeSetter());
-                    
-                        register.register("*", "checked", new CelledAttributeSetter({
+                        register.registerAttributeSetter("*", "checked", new CelledAttributeSetter({
                             set: function(view, value) {
                                 view.checked = value;
                             },
@@ -2209,7 +2222,7 @@ var warp9 = (function(){
                             }
                         }));
                     
-                        register.register("*", "value", new CelledAttributeSetter({
+                        register.registerAttributeSetter("*", "value", new CelledAttributeSetter({
                             set: function(view, v) {
                                 if (view.value != v) view.value = v;
                             },
@@ -2218,7 +2231,7 @@ var warp9 = (function(){
                             }
                         }));
                     
-                        register.register("*", "disabled", new CelledAttributeSetter({
+                        register.registerAttributeSetter("*", "disabled", new CelledAttributeSetter({
                             set: function(view, v) {
                                 if (v) {
                                     view.setAttribute("disabled", "")
@@ -2232,7 +2245,7 @@ var warp9 = (function(){
                         }));
                     
                         // TODO: adds list support for class attribute
-                        register.register("*", "class", new CelledAttributeSetter({
+                        register.registerAttributeSetter("*", "class", new CelledAttributeSetter({
                             set: function(view, v) {
                                 jq.removeClass(view);
                                 view.classList.add(v);
@@ -2254,7 +2267,31 @@ var warp9 = (function(){
                         this._tags = {};
                         this._common = {};
                         this._fallback = null;
+                    
+                        this._interceptors = {
+                            tags: {},
+                            common: []
+                        };
                     }
+                    
+                    Register.prototype.findAttributeInterceptors = function(tagName) {
+                        if (this._interceptors.tags.hasOwnProperty(tagName)) {
+                            return this._interceptors.tags[tagName].concat(this._interceptors.common);
+                        }
+                        return this._interceptors.common;
+                    };
+                    
+                    Register.prototype.registerAttributeInterceptor = function(tagName, interceptor) {
+                        if (tagName === "*") {
+                            this._interceptors.common.push(interceptor);
+                        } else {
+                            if (!this._interceptors.tags.hasOwnProperty(tagName)) {
+                                this._interceptors.tags[tagName] = [];
+                            }
+                            this._interceptors.tags[tagName].push(interceptor);
+                        }
+                    };
+                    
                     
                     // may return null
                     Register.prototype.findAttributeSetter = function(tagName, attributeName) {
@@ -2269,7 +2306,7 @@ var warp9 = (function(){
                         return this._fallback;
                     };
                     
-                    Register.prototype.register = function(tagName, attributeName, setter) {
+                    Register.prototype.registerAttributeSetter = function(tagName, attributeName, setter) {
                         if (tagName === "*") {
                             if (attributeName === "*") {
                                 if (this._fallback != null) {
@@ -2424,8 +2461,8 @@ var warp9 = (function(){
                         addTag("label", root.ui.tags.TagParserFactory("label"));
                         addTag("button", root.ui.tags.TagParserFactory("button"));
                     
-                        addTag("input-text", root.ui.tags.InputTextParser);
-                        addTag("input-check", root.ui.tags.InputCheckParser("checkbox"));
+                        addTag(root.ui.tags.InputTextParser.TAG, root.ui.tags.InputTextParser);
+                        addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));
                     });
                     
                     var Cell, List, Element, Fragment, TextNode, jq, hacks, idgenerator;
@@ -2584,9 +2621,12 @@ var warp9 = (function(){
                         if (!type) {
                             throw new Error("type must be provided");
                         }
-                        if (!(type in {checkbox: 0, radio: 0})) throw new Error("type must be checkbox or radio")
+                        if (!(type in {checkbox: 0, radio: 0})) {
+                            throw new Error("type must be checkbox or radio");
+                        }
                         return function(args) {
                             args = root.ui.tags.args.parse(args);
+                            args = root.ui.tags.args.tryIntercept(InputCheckParser.TAG, args);
                     
                             var element = new root.ui.ast.Element("input");
                             element.events = args.events;
@@ -2625,6 +2665,7 @@ var warp9 = (function(){
                         };
                     }
                     
+                    InputCheckParser.TAG = "input-check";
                 }
             },
             {
@@ -2638,9 +2679,14 @@ var warp9 = (function(){
                     
                     function InputTextParser(args) {
                         args = root.ui.tags.args.parse(args);
+                        args = root.ui.tags.args.tryIntercept(InputTextParser.TAG, args);
                     
-                        if (args.children.length != 1) throw new Error();
-                        if (!Cell.instanceof(args.children[0])) throw new Error();
+                        if (args.children.length != 1) {
+                            throw new Error();
+                        }
+                        if (!Cell.instanceof(args.children[0])) {
+                            throw new Error();
+                        }
                     
                         var element = new root.ui.ast.Element("input");
                         element.events = args.events;
@@ -2658,6 +2704,7 @@ var warp9 = (function(){
                         return element;
                     }
                     
+                    InputTextParser.TAG = "input-text";
                 }
             },
             {
@@ -2672,6 +2719,7 @@ var warp9 = (function(){
                     function TagParserFactory(tagName) {
                         return function(args) {
                             args = root.ui.tags.args.parse(args);
+                            args = root.ui.tags.args.tryIntercept(tagName, args);
                     
                             var element = new root.ui.ast.Element(tagName);
                             element.events = args.events;
@@ -2701,16 +2749,26 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose({
                         parse: parse,
+                        tryIntercept: tryIntercept,
                         H: H
                     }, function(){
                         Cell = root.reactive.Cell;
                         List = root.reactive.List;
+                        register = root.ui.attributes.register;
                     });
                     
-                    var Cell, List;
+                    var Cell, List, register;
                     
                     function H(element) {
                         this.element = element
+                    }
+                    
+                    function tryIntercept(tag, args) {
+                        var interceptors = register.findAttributeInterceptors(tag);
+                        for (var i=0;i<interceptors.length;i++) {
+                            args = interceptors[i](tag, args);
+                        }
+                        return args;
                     }
                     
                     function parse(args) {
