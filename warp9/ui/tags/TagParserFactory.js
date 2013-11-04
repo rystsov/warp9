@@ -13,6 +13,7 @@ function TagParserFactory(tagName) {
         element.events = args.events;
         element.attributes = args.attributes;
         element.onDraw = args.onDraw;
+        element.css = args.css;
 
         if (args.children.length==1) {
             element.children = [root.ui.renderer.parse(args.children[0])];

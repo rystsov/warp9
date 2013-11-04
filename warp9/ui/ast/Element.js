@@ -15,6 +15,7 @@ function Element(tag) {
     this.events = {};
     this.children = [];
     this.attributes = {};
+    this.css = {};
     this.onDraw = [];
 
     this.elementId = "warp9/" + (id++);
@@ -32,8 +33,6 @@ function Element(tag) {
 
         for (var name in this.attributes) {
             if (!this.attributes.hasOwnProperty(name)) continue;
-            if (name=="css") continue;
-
             var setter = register.findAttributeSetter(this.tag, name);
             this.disposes.push(setter.apply(name, this, view, this.attributes[name]));
         }
@@ -46,28 +45,27 @@ function Element(tag) {
                 }.bind(this), false);
             }.bind(this))(name);
         }
-        if ("css" in this.attributes) {
-            for (var property in this.attributes["css"]) {
-                if (!this.attributes["css"].hasOwnProperty(property)) continue;
-                // TODO: unnecessary condition?!
-                if (property.indexOf("warp9:")==0) continue;
-                (function(property, value){
-                    if (typeof value==="object" && value.type == Cell) {
-                        this.cells[value.cellId] = value;
-                        var unsubscribe = value.onEvent(Cell.handler({
-                            set: function(e) { jq.css(view, property, e); },
-                            unset: function() { jq.css(view, property, null); }
-                        }));
-                        value.leak(this.elementId);
-                        this.disposes.push(function(){
-                            unsubscribe();
-                            value.seal(this.elementId);
-                        }.bind(this));
-                    } else {
-                        jq.css(view, property, value);
-                    }
-                }.bind(this))(property, this.attributes["css"][property]);
-            }
+
+        for (var name in this.css) {
+            if (!this.css.hasOwnProperty(name)) continue;
+            // TODO: unnecessary condition?!
+            if (name.indexOf("warp9:")==0) continue;
+            (function(name, value){
+                if (typeof value==="object" && value.type == Cell) {
+                    this.cells[value.cellId] = value;
+                    var unsubscribe = value.onEvent(Cell.handler({
+                        set: function(e) { jq.css(view, name, e); },
+                        unset: function() { jq.css(view, name, null); }
+                    }));
+                    value.leak(this.elementId);
+                    this.disposes.push(function(){
+                        unsubscribe();
+                        value.seal(this.elementId);
+                    }.bind(this));
+                } else {
+                    jq.css(view, name, value);
+                }
+            }.bind(this))(name, this.css[name]);
         }
 
         this.view = function() {

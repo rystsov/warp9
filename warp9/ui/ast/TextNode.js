@@ -5,6 +5,7 @@ function TextNode(text) {
     this.dispose = function() {};
     this.children = [];
     this.onDraw = [];
+    this.css = {};
     this.events = {};
     this.cells = {};
     this.view = function() {

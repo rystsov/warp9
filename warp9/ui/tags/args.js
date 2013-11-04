@@ -61,6 +61,7 @@ function parse(args) {
         events: element.events,
         onDraw: onDraw,
         attributes: element.attributes,
+        css: element.css,
         children: children
     };
 }
@@ -70,7 +71,8 @@ function parse(args) {
 function normalizeAttributes(attr) {
     var element = {
         events: {},
-        attributes: {}
+        attributes: {},
+        css: {}
     };
     if (attr!=null) {
         for (var name in attr) {
@@ -81,20 +83,15 @@ function normalizeAttributes(attr) {
                 continue;
             }
             if (name.indexOf("css/")===0) {
-                if (!element.attributes.css) {
-                    element.attributes.css = {};
-                }
-                element.attributes.css[name.substring(4)] = attr[name];
+                element.css[name.substring(4)] = attr[name];
                 continue;
             }
             if (name==="css") {
-                if (!element.attributes.css) {
-                    element.attributes.css = {};
-                }
                 for (var key in attr[name]) {
                     if (!attr[name].hasOwnProperty(key)) continue;
-                    element.attributes.css[key] = attr[name][key];
+                    element.css[key] = attr[name][key];
                 }
+                continue;
             }
             element.attributes[name] = attr[name];
         }

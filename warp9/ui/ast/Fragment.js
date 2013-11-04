@@ -6,6 +6,7 @@ function Fragment(html) {
     this.children = [];
     this.events = {};
     this.cells = {};
+    this.css = {};
     this.onDraw = [];
     this.view = function() {
         this.view = function() {

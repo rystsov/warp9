@@ -1971,6 +1971,7 @@ define([], function() {
                             this.events = {};
                             this.children = [];
                             this.attributes = {};
+                            this.css = {};
                             this.onDraw = [];
                         
                             this.elementId = "warp9/" + (id++);
@@ -1988,8 +1989,6 @@ define([], function() {
                         
                                 for (var name in this.attributes) {
                                     if (!this.attributes.hasOwnProperty(name)) continue;
-                                    if (name=="css") continue;
-                        
                                     var setter = register.findAttributeSetter(this.tag, name);
                                     this.disposes.push(setter.apply(name, this, view, this.attributes[name]));
                                 }
@@ -2002,28 +2001,27 @@ define([], function() {
                                         }.bind(this), false);
                                     }.bind(this))(name);
                                 }
-                                if ("css" in this.attributes) {
-                                    for (var property in this.attributes["css"]) {
-                                        if (!this.attributes["css"].hasOwnProperty(property)) continue;
-                                        // TODO: unnecessary condition?!
-                                        if (property.indexOf("warp9:")==0) continue;
-                                        (function(property, value){
-                                            if (typeof value==="object" && value.type == Cell) {
-                                                this.cells[value.cellId] = value;
-                                                var unsubscribe = value.onEvent(Cell.handler({
-                                                    set: function(e) { jq.css(view, property, e); },
-                                                    unset: function() { jq.css(view, property, null); }
-                                                }));
-                                                value.leak(this.elementId);
-                                                this.disposes.push(function(){
-                                                    unsubscribe();
-                                                    value.seal(this.elementId);
-                                                }.bind(this));
-                                            } else {
-                                                jq.css(view, property, value);
-                                            }
-                                        }.bind(this))(property, this.attributes["css"][property]);
-                                    }
+                        
+                                for (var name in this.css) {
+                                    if (!this.css.hasOwnProperty(name)) continue;
+                                    // TODO: unnecessary condition?!
+                                    if (name.indexOf("warp9:")==0) continue;
+                                    (function(name, value){
+                                        if (typeof value==="object" && value.type == Cell) {
+                                            this.cells[value.cellId] = value;
+                                            var unsubscribe = value.onEvent(Cell.handler({
+                                                set: function(e) { jq.css(view, name, e); },
+                                                unset: function() { jq.css(view, name, null); }
+                                            }));
+                                            value.leak(this.elementId);
+                                            this.disposes.push(function(){
+                                                unsubscribe();
+                                                value.seal(this.elementId);
+                                            }.bind(this));
+                                        } else {
+                                            jq.css(view, name, value);
+                                        }
+                                    }.bind(this))(name, this.css[name]);
                                 }
                         
                                 this.view = function() {
@@ -2047,6 +2045,7 @@ define([], function() {
                             this.children = [];
                             this.events = {};
                             this.cells = {};
+                            this.css = {};
                             this.onDraw = [];
                             this.view = function() {
                                 this.view = function() {
@@ -2068,6 +2067,7 @@ define([], function() {
                             this.dispose = function() {};
                             this.children = [];
                             this.onDraw = [];
+                            this.css = {};
                             this.events = {};
                             this.cells = {};
                             this.view = function() {
@@ -2632,6 +2632,7 @@ define([], function() {
                                 var element = new root.ui.ast.Element("input");
                                 element.events = args.events;
                                 element.attributes = args.attributes;
+                                element.css = args.css;
                                 element.onDraw = args.onDraw;
                         
                                 var state;
@@ -2693,6 +2694,7 @@ define([], function() {
                             element.events = args.events;
                             element.attributes = args.attributes;
                             element.onDraw = args.onDraw;
+                            element.css = args.css;
                             element.attributes.type = "text";
                             element.attributes.value = args.children[0];
                         
@@ -2726,6 +2728,7 @@ define([], function() {
                                 element.events = args.events;
                                 element.attributes = args.attributes;
                                 element.onDraw = args.onDraw;
+                                element.css = args.css;
                         
                                 if (args.children.length==1) {
                                     element.children = [root.ui.renderer.parse(args.children[0])];
@@ -2811,6 +2814,7 @@ define([], function() {
                                 events: element.events,
                                 onDraw: onDraw,
                                 attributes: element.attributes,
+                                css: element.css,
                                 children: children
                             };
                         }
@@ -2820,7 +2824,8 @@ define([], function() {
                         function normalizeAttributes(attr) {
                             var element = {
                                 events: {},
-                                attributes: {}
+                                attributes: {},
+                                css: {}
                             };
                             if (attr!=null) {
                                 for (var name in attr) {
@@ -2831,20 +2836,15 @@ define([], function() {
                                         continue;
                                     }
                                     if (name.indexOf("css/")===0) {
-                                        if (!element.attributes.css) {
-                                            element.attributes.css = {};
-                                        }
-                                        element.attributes.css[name.substring(4)] = attr[name];
+                                        element.css[name.substring(4)] = attr[name];
                                         continue;
                                     }
                                     if (name==="css") {
-                                        if (!element.attributes.css) {
-                                            element.attributes.css = {};
-                                        }
                                         for (var key in attr[name]) {
                                             if (!attr[name].hasOwnProperty(key)) continue;
-                                            element.attributes.css[key] = attr[name][key];
+                                            element.css[key] = attr[name][key];
                                         }
+                                        continue;
                                     }
                                     element.attributes[name] = attr[name];
                                 }

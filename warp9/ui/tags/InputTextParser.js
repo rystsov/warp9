@@ -19,6 +19,7 @@ function InputTextParser(args) {
     element.events = args.events;
     element.attributes = args.attributes;
     element.onDraw = args.onDraw;
+    element.css = args.css;
     element.attributes.type = "text";
     element.attributes.value = args.children[0];
 

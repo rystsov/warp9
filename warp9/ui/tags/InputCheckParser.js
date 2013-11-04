@@ -18,6 +18,7 @@ function InputCheckParser(type) {
         var element = new root.ui.ast.Element("input");
         element.events = args.events;
         element.attributes = args.attributes;
+        element.css = args.css;
         element.onDraw = args.onDraw;
 
         var state;
