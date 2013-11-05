@@ -11,10 +11,9 @@ Project's pages: http://rystsov.github.io/warp9
 An [article](http://habrahabr.ru/post/198158/) (in russian) about warp9.
 
 ###Roadmap
-  * Add ability to define custom tags
-  * Add ability to define custom attributes
-    * via intercept and rewrite before processing casual attributes
-    * via first class attributes
+  * Documentation
+  * Avoid reactive's version of diamond problem
+  * Server side html generation
 
 ###Author
 Denis Rystsov (@rystsov) - rystsov.denis@gmail.com
