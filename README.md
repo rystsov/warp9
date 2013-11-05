@@ -13,7 +13,7 @@ An [article](http://habrahabr.ru/post/198158/) (in russian) about warp9.
 ###Roadmap
   * Documentation
   * Avoid reactive's version of diamond problem
-  * Server side html generation
+  * Adds server side html generation
 
 ###Author
 Denis Rystsov (@rystsov) - rystsov.denis@gmail.com
