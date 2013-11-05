@@ -13,6 +13,8 @@ An [article](http://habrahabr.ru/post/198158/) (in russian) about warp9.
 ###Roadmap
   * Documentation
   * Avoid reactive's version of diamond problem
+    * poor's man solution to reduce multiple exernal calls to one as a reaction to one update
+    * implicit dag and pull model
   * Adds server side html generation
 
 ###Author
