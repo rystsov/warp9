@@ -13,6 +13,7 @@
 
     <!-- Custom styles for this template -->
     <link href="../../css/common.css" rel="stylesheet">
+    <link href="../../css/matrix.css" rel="stylesheet">
 </head>
 
 <body>
@@ -24,7 +25,7 @@
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
-                <li><a href="../about.html">About</a></li>
+                <li><a href="../docs/docs.html">Docs</a></li>
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
                     <ul class="dropdown-menu">
@@ -46,11 +47,345 @@
     </div>
 </div>
 
-<div class="container">
-    <div class="starter-template">
-        <h1>Matrix</h1>
-        <p class="lead">todo</p>
-    </div>
+<div id="matrix" class="container">
+    <h1>Matrix</h1>
+    <table>
+        <tr>
+            <th></th>
+            <th>AngularJS</th>
+            <th>Knockout</th>
+            <th>React</th>
+            <th>Elm</th>
+            <th>RxJS, Bacon</th>
+            <th>ReactiveCoffee</th>
+            <th>Warp9</th>
+        </tr>
+        <tr>
+            <td><a href="#template_based">template based</a></td>
+            <td>yes/no<a href="#ref_1">[1]</a></td>
+            <td>yes</td>
+            <td>no</td>
+            <td>no</td>
+            <td></td>
+            <td>no</td>
+            <td>no</td>
+        </tr>
+        <tr>
+            <td><a href="#controls_composability">controls composability</a></td>
+            <td>no<a href="#ref_2">[2]</a><a href="#ref_3">[3]</a></td>
+            <td>no<a href="#ref_2">[2]</a></td>
+            <td>yes</td>
+            <td>yes</td>
+            <td></td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#modularization_of_controls">modularization of controls</a></td>
+            <td>yes/no<a href="#ref_4">[4]</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>maybe</td>
+            <td></td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#2_way_binding">2 way binding</a></td>
+            <td>yes/no<a href="#ref_5">[5]</a></td>
+            <td>yes</td>
+            <td>no</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#accidental_memory_leaks">accidental memory leaks</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>no</td>
+            <td>no</td>
+            <td>no</td>
+            <td>yes</td>
+            <td>no</td>
+        </tr>
+        <tr>
+            <td><a href="#todomvc">todomvc</a></td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>no</td>
+            <td>maybe</td>
+            <td>yes/no<a href="#ref_6">[6]</a></td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#headless">headless</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>no</td>
+            <td>no</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#pure_js">pure js</a></td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes<a href="#ref_7">[7]</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>no</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#mixing_markup_and_logic">mixing markup and logic</a></td>
+            <td>yes/no<a href="#ref_8">[8]</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td></td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#simplicity">simplicity</a></td>
+            <td>no</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+            <td>yes</td>
+        </tr>
+        <tr>
+            <td><a href="#rich_reactive_list">rich reactive list</a></td>
+            <td>no</td>
+            <td>no</td>
+            <td>no</td>
+            <td>no</td>
+            <td>no</td>
+            <td>no</td>
+            <td>yes</td>
+        </tr>
+    </table>
+
+    <p class="matrix_note">RxJS and Bacon are great libraries to compose events, but to build UI you need an ability to compose
+    not only events, but a UI primitives too. So you can't pick one and build an UI using this library only
+    (actually you can, but you end with dealing with DOM from event handler). I included them only to highlight
+    difference between reactive UI libraries and reactive libraries "to compose asynchronous and event-based
+    programs".</p>
+
+    <h2>Legend and notes</h2>
+
+    <section id="template_based" class="property">
+        <h3>template based</h3>
+        Whether the templates are primary method for building UI
+        <section id="ref_1" class="note"><b>[1]</b> if you look through tutorials and examples you'll find that Angular is
+        definitely template based, but when you decide to define a custom directive you'll meet an another side
+        of Angular (unless you use templateUrl of cause).
+        </section>
+    </section>
+
+    <section id="controls_composability" class="property">
+        <h3>controls composability</h3>
+        Whether the library provides building controls (view) via composing existing ones (divide and
+        conquer principle).
+
+        <section id="ref_2" class="note">
+            <p><b>[2]</b> Angular and Knockout allow to break templates into sub templates, place
+            them to different files and include via provided mechanisms (ng-include, template-binding). But it doesn't
+            imply that angular and knockout support modularization and composability of controls.</p>
+
+            <p>Don't forget that a complex UI isn't static - it has a behaviour.
+            From semantic perspective this behaviour is high coupled with view, but Angular and Knockout separate
+            behaviour from templates and place it to comptrollers, so if we do something with templates (like
+            composing) we have to keep in mind the behaviour. Does it look familiar? If it were code we would
+            call it side-effect. No matter the nature but any side-effect kills composability, this is the reason why I
+            can't say Angular and Knockout provide it.</p>
+
+            <p>I'm not the only one who notices it, the creators of React write:</p>
+            <blockquote>“React doesn't use templates... ...React is a library for building composable user interfaces.”</blockquote>
+
+
+            <p>
+            If you are still in doubt, think about why the are so few template engine for creating desktop
+            application if the templates are so great.</p>
+        </section>
+
+        <section id="ref_3" class="note">
+            <b>[3]</b> The only way to create a composable Angular application is to implement
+            it using only custom directive.
+        </section>
+    </section>
+
+
+    <section id="modularization_of_controls" class="property">
+        <h3>modularization of controls</h3>
+        <p>Whether it is possible to pack control (component or combination of template and controller) in a
+        form which is appropriate for distribution and easy to attach to an application.</p>
+
+        <section id="ref_4" class="note">
+            <b>[4]</b> It is possible with Angular to use AMD to achieve modularization
+            as long as your control is directive created without us of 'templateUrl'.
+        </section>
+    </section>
+
+
+    <section id="2_way_binding" class="property">
+        <h3>binding & 2 way binding</h3>
+        <p>Whether it is possible to bind one reactive variable to another and to use bidirectional binding between
+        control and variable.</p>
+
+        <section id="ref_5" class="note">
+            <b>[5]</b> Angular has a way to bind controls and variable, but it can't bind variable and
+            variable.
+        </section>
+    </section>
+
+
+    <section id="accidental_memory_leaks" class="property">
+        <h3>accidental memory leaks</h3>
+        <p>
+            Whether it is easy to write code that looks fine but leaks with the library. It happens that for all library
+            for which it is true it is also true that code with leaks looks significantly easy than equivalent code without
+            leaks. That means that if you are using such libraries well they lose its elegance.
+        </p>
+        <p>
+            I've written simple application using Knockout and ReactiveCoffee to demonstrate how easy a leaks can be
+            achieved:
+            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/knockout.html">app on Knockout</a> и
+            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/reactive_coffee.html">app on ReactiveCoffee</a>.
+            And of cause the same
+            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/warp9.html">app on Warp9 without leaks</a>.
+        </p>
+    </section>
+
+
+    <section id="todomvc" class="property">
+        <h3>todomvc</h3>
+        <p>
+            TodoMVC is a standard 'hello word application' for various web UI libraries, it is rule of etiquette for
+            library's author to provide an TodoMVC among examples.
+        </p>
+
+        <section id="ref_6" class="note">
+            <b>[6]</b> TodoMVC on ReactiveCoffee isn't follow the spec properly, it lacks for
+            tabs ('All', 'Active', 'Completed') and work with local storage (at least on 5 Nov 2013).
+        </section>
+    </section>
+
+
+    <section id="headless" class="property">
+        <h3>headless</h3>
+        <p>
+            Whether it is possible to use application on server side for dealing, for example, with events.
+        </p>
+    </section>
+
+
+    <section id="pure_js" class="property">
+        <h3>pure js</h3>
+        <p>
+            Has author assumed that the library would be used basically with javascript language?
+        </p>
+
+        <section id="ref_7" class="note">
+            <b>[7]</b> React offer to use javascript's dialect with build in support for xml literals
+            and compile it to javascript, nevertheless it is possible to use pure javascript.
+        </section>
+    </section>
+
+    <section id="mixing_markup_and_logic" class="property">
+        <h3>mixing markup and logic</h3>
+        <p>
+            Does library suggest to mix markup and logic.
+        </p>
+
+        <p>
+            It is a common thought that it isn't good and we should separate them. But such approach introduces more
+            problem then solves when we build complex application.
+        </p>
+
+        <p>
+            Since UI is a behaviour and behaviour is described by markup and logic, it should be obvious that markup and logic
+            are highly coupled - when we edit markup we should think about code and when we edit code we should think
+            about markup, especially when we store them separately, sounds like side-effect, right? Another point against the
+            separation is complexity of tools. If we store markup and logic separately and our application is big enough we
+            need ways for composition/modularization of markup and ways for composition/modularization of code - we double
+            the count of entities, which is bad, according to Occam.
+        </p>
+
+        <p>
+            There is another way to fight complexity - to extract independent behaviour (mix of markup & logic) to controls
+            (abstraction) and to apply use the composition principle to those base controls to build a new one, more complex
+            up to the needed application. There is an analogy to complexity theory: dividing application into markup and
+            code reduce the complexity by factor of 2 (n -> n/2), but abstraction and composition (divide and conquer) reduce
+            it logarithmically (n -> ln (n)).
+        </p>
+
+        <p>
+            It is a interesting to notice that libraries forcing you to mix markup and code provide composition and
+            modularization.
+        </p>
+
+        <section id="ref_8" class="note">
+            <b>[8]</b> You may meet the need of mixing markup and code during developing a directive
+            in Angular.
+        </section>
+    </section>
+
+
+    <section id="simplicity" class="property">
+        <h3>simplicity</h3>
+        <p>
+            Is the number of entities which the library introduces few?
+        </p>
+        <p>
+            This is very subjective but I think that are a lot of entities in Angular.
+            By the way the developers of React <a href="http://www.quora.com/Pete-Hunt/Posts/Facebooks-React-vs-AngularJS-A-Closer-Look">shares</a> this opinion:
+        </p>
+        <blockquote>
+            <b>Number of concepts to learn</b><br>
+            <ul>
+                <li> React: <b>2</b> (everything is a component, some components have state). As your app grows, there's nothing more to learn; just build more modular components.
+                <li> AngularJS: <b>6</b> (modules, controllers, directives, scopes, templates, linking functions). As your app grows, you'll need to learn more concepts.
+            </ul>
+        </blockquote>
+    </section>
+
+
+    <section id="rich_reactive_list" class="property">
+        <h3>rich reactive list</h3>
+        <p>
+            Almost all reactive libraries provides primitives for working with reactive variables, such as
+            creation of new reactive variable bound with function to another. In knockout you can do it this way:
+        </p>
+
+        <pre><code>var a = ko.observable(0);
+var b = ko.compute(function() { return a() + 2 });</code></pre>
+
+        In warp9:
+
+        <pre><code>var a = new Cell(0);
+var b = a.lift(function(a) { return a+2; });</code></pre>
+
+        <p>
+            But when we look at lists, its support is limited in Knockout and ReactiveCoffee, if we omit some
+            details we find that in those libraries reactive list is just a reactive variable which contains a
+            list. So if you need to do list aggregation and you want this aggregated value to be a reactive
+            variable, you have to redo whole aggregation on each update. For example, if you make a sum aggregation
+            of list and add n values to it then you end with O(n<sup>2</sup>/2) computations with Knockout or ReactiveCoffee,
+            but only with O(n) with Warp9. Moreover Knockout or ReactiveCoffee don't provide method to do aggregation over reactive
+            list filled with reactive variables, but Warp9 does and your aggregated value will be automatically updated
+            when a reactive list changes or any its reactive variable changes. Example:
+        </p>
+
+        <pre><code>var list = new List([new Cell(0), new Cell(1), new Cell(2)]);
+var sum = list.reduce(0, function(a,b) { return a + b; });</code></pre>
+    </section>
 </div>
 
 

@@ -1,0 +1,17 @@
+#docs {
+    margin-top: 50px;
+}
+
+p {
+    font-size: 17px;
+    font-weight: 200;
+}
+
+.sub-stacked-nav {
+    margin-left: 20px;
+}
+
+.nav > li > span {
+    display: block;
+    padding: 10px 15px;
+}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Wapr9 / Docs</title>
+
+    <link href="../../lib/highlight.js/styles/default.css" rel="stylesheet" >
+    <script src="../../lib/highlight.js/highlight.pack.js"></script>
+
+    <!-- Bootstrap core CSS -->
+    <link href="../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="../../css/common.css" rel="stylesheet">
+    <link href="../../css/docs.css" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="../../index.html">WARP9</a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="docs.html">Docs</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="../competitors/matrix.html">Matrix</a></li>
+                        <li class="divider"></li>
+                        <li><a href="../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="../../examples/todomvc/todomvc.html">TodoMVC</a></li>
+                    </ul>
+                </li>
+                <li><a href="../download.html">Download</a></li>
+                <li><a href="https://github.com/rystsov/warp9">Sources</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="docs" class="container">
+    <div class="row">
+        <div class="col-md-3">
+            <ul class="nav nav-pills nav-stacked">
+                <li class="active"><a href="docs.html">Basic idea</a></li>
+                <li><a href="reactive_primitives.html">Reactive primitives</a></li>
+                <li><a href="templates.html">Templates</a></li>
+                <li><span>Special elements</span>
+                    <ul class="nav nav-pills nav-stacked sub-stacked-nav">
+                        <li><a href="elements/input-text.html">input-text</a></li>
+                        <li><a href="elements/input-check.html">input-check</a></li>
+                    </ul>
+                </li>
+                <li><a href="components.html">Components</a></li>
+                <li><a href="custom_tags.html">Custom tags</a></li>
+                <li><a href="custom_attributes.html">Custom attributes</a></li>
+            </ul>
+        </div>
+        <div class="col-md-9">
+            <p>
+                Warp9 is based on very simple idea: lets take reactive model (observable viewmodel) and map it to observable
+                DOM, then when model is changed the dom would be updated automatically. If the map is a simple js function,
+                the we get familiar way for composition (function composition) and modularization/distribution (requirejs)
+                out of the box.
+            </p>
+
+            <p>
+                Example of mapping of reactive model to reactive DOM with Warp9 -
+                <a href="http://rystsov.github.io/warp9/articles/habr/examples/reactive_dom.html">app itself</a>
+                (<a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/examples/reactive_dom.html">its source</a>):
+            </p>
+        <pre><code>// creates a reactive model (in this case it is just a list)
+var model = new List();
+// maps it to DOM
+var dom = TRANSFORM(model);
+// render the reactive DOM to screen
+warp9.ui.renderer.render(placeholder, dom);
+
+// when we change the model and have a screen updated
+model.add("React.js");
+model.add("Warp9");
+
+// here is the map itself
+function TRANSFORM(model) {
+    var hasItems = model.count().when(function(count) { return count>0 }, true);
+    return hasItems.when(true, ["div",
+        ["div", "Reactive libraries:"],
+        ["div", {"css/margin-left": "10px"},
+        model.lift(function(item){
+            return ["div", item]
+        })]
+    ]);
+}</code></pre>
+        </div>
+    </div>
+</div>
+
+
+<script src="../../lib/jquery/jquery-2.0.3.min.js"></script>
+<script src="../../lib/bootstrap/js/bootstrap.min.js"></script>
+<script language="JavaScript">
+    hljs.initHighlightingOnLoad();
+</script>
+</body>
+</html>

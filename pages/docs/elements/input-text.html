@@ -6,13 +6,17 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Accidental memory leaks</title>
+    <title>Wapr9 / Docs / input-text</title>
+
+    <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
+    <script src="../../../lib/highlight.js/highlight.pack.js"></script>
 
     <!-- Bootstrap core CSS -->
     <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
     <link href="../../../css/common.css" rel="stylesheet">
+    <link href="../../../css/docs.css" rel="stylesheet">
 </head>
 
 <body>
@@ -24,13 +28,13 @@
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
-                <li><a href="../../docs/docs.html">Docs</a></li>
+                <li><a href="../docs.html">Docs</a></li>
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
                     <ul class="dropdown-menu">
-                        <li><a href="../matrix.html">Matrix</a></li>
+                        <li><a href="../../competitors/matrix.html">Matrix</a></li>
                         <li class="divider"></li>
-                        <li><a href="leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -46,35 +50,37 @@
     </div>
 </div>
 
-<div class="container">
-    <!-- Main component for a primary marketing message or call to action -->
-    <div class="jumbotron">
-        <h1>Accidental memory leaks</h1>
-        <p>
-            The common pitfalls of applications that use reactive libraries are accidental memory leaks.
-            Usually, they are caused by someone who didn't remove a event handler or it's equivalent.
-            This results in a application which works, its source code looks good, but the app has a
-            leak, that is hard to find.
-        </p>
-        <p>
-            Warp9 follows two idea to eliminate such leaks: code that <b>may</b> leak <b>must</b> look
-            suspicious or doesn't work.
-        </p>
-        <p>
-            Those pages illustrate leaks in knockout and reactive coffee on the same application where
-            warp9 works great.
-        </p>
-        <p>
-            <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
-            <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>
-            <a class="btn btn-lg btn-primary" href="warp9.html">Warp9</a>
-        </p>
+<div id="docs" class="container">
+    <div class="row">
+        <div class="col-md-3">
+            <ul class="nav nav-pills nav-stacked">
+                <li><a href="../docs.html">Basic idea</a></li>
+                <li><a href="../reactive_primitives.html">Reactive primitives</a></li>
+                <li><a href="../templates.html">Templates</a></li>
+                <li><span>Special elements</span>
+                    <ul class="nav nav-pills nav-stacked sub-stacked-nav">
+                        <li class="active"><a href="elements/input-text.html">input-text</a></li>
+                        <li><a href="input-check.html">input-check</a></li>
+                    </ul>
+                </li>
+                <li><a href="../components.html">Components</a></li>
+                <li><a href="../custom_tags.html">Custom tags</a></li>
+                <li><a href="../custom_attributes.html">Custom attributes</a></li>
+            </ul>
+        </div>
+        <div class="col-md-9">
+            <p>
+                TODO
+            </p>
+        </div>
     </div>
-
 </div>
 
 
 <script src="../../../lib/jquery/jquery-2.0.3.min.js"></script>
 <script src="../../../lib/bootstrap/js/bootstrap.min.js"></script>
+<script language="JavaScript">
+    hljs.initHighlightingOnLoad();
+</script>
 </body>
 </html>
