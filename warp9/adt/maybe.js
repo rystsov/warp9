@@ -13,6 +13,9 @@ function Some(value) {
     this.lift = function(f) {
         return new Some(f(value));
     };
+    this.isEqualTo = function(brother) {
+        return !brother.isEmpty() && brother.value() === value;
+    }
 }
 
 function None() {
@@ -25,4 +28,7 @@ function None() {
     this.lift = function() {
         return this;
     };
+    this.isEqualTo = function(brother) {
+        return brother.isEmpty();
+    }
 }

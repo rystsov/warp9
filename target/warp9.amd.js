@@ -60,6 +60,57 @@ define([], function() {
             }
             return [
                 {
+                    path: ["adt","Set"],
+                    content: function(root, expose) {
+                        expose(Set);
+                        
+                        function Set() {
+                            this.length = 0;
+                            this._items = [];
+                        }
+                        
+                        Set.prototype.push = function(item) {
+                            if (this._items.indexOf(item)>=0) return;
+                            this._items.push(item);
+                            this.length++;
+                        };
+                        
+                        Set.prototype.toList = function() {
+                            return this._items.map(function(item){ return item; });
+                        };
+                        
+                    }
+                },
+                {
+                    path: ["adt","SortedList"],
+                    content: function(root, expose) {
+                        expose(SortedList);
+                        
+                        // TODO: rewrite to SortedSet
+                        function SortedList(comparator) {
+                            // TODO: implement http://en.wikipedia.org/wiki/Treap
+                            this.length = 0;
+                            this.comparator = comparator;
+                            this._items = [];
+                        }
+                        
+                        SortedList.prototype.push = function(item) {
+                            this._items.push(item);
+                            this.length++;
+                        };
+                        
+                        SortedList.prototype.pop = function(item) {
+                            if (this.length==0) {
+                                throw new Error();
+                            }
+                            this._items = this._items.sort(this.comparator);
+                            this.length--;
+                            return this._items.shift();
+                        };
+                        
+                    }
+                },
+                {
                     path: ["adt","maybe"],
                     content: function(root, expose) {
                         expose({
@@ -77,6 +128,9 @@ define([], function() {
                             this.lift = function(f) {
                                 return new Some(f(value));
                             };
+                            this.isEqualTo = function(brother) {
+                                return !brother.isEmpty() && brother.value() === value;
+                            }
                         }
                         
                         function None() {
@@ -89,6 +143,9 @@ define([], function() {
                             this.lift = function() {
                                 return this;
                             };
+                            this.isEqualTo = function(brother) {
+                                return brother.isEmpty();
+                            }
                         }
                         
                     }
@@ -1948,6 +2005,1350 @@ define([], function() {
                         function Skip(value) {
                             this.value = value;
                         }
+                        
+                    }
+                },
+                {
+                    path: ["tng","Matter"],
+                    content: function(root, expose) {
+                        expose(Matter);
+                        
+                        
+                        function Matter() {
+                            this._atoms = [];
+                            this.instanceof = of;
+                            this.attach = attach;
+                        }
+                        
+                        function attach(atom) {
+                            if (this.instanceof(atom)) {
+                                return;
+                            }
+                            this._atoms.push(atom);
+                        }
+                        
+                        function of(atom) {
+                            for (var i=0;i<this._atoms.length;i++) {
+                                if (this._atoms[i]===atom) return true;
+                            }
+                            return false;
+                        }
+                    }
+                },
+                {
+                    path: ["tng","dag","DAG"],
+                    content: function(root, expose) {
+                        var dag = new DAG();
+                        
+                        expose(dag, function(){
+                            Node = root.tng.dag.Node;
+                            Set = root.adt.Set;
+                            SortedList = root.adt.SortedList;
+                            event_broker = root.tng.event_broker;
+                        
+                            dag.reset();
+                        });
+                        
+                        var Node, SortedList, Set, event_broker;
+                        
+                        function DAG() {}
+                        
+                        DAG.prototype.reset = function() {
+                            this.nodes = {};
+                            this.length = 0;
+                            this.dependencies = {};
+                            this.dependants = {};
+                            this.changed = new SortedList(function(a,b){
+                                return a.nodeRank - b.nodeRank;
+                            });
+                        };
+                        
+                        DAG.prototype.addNode = function(node) {
+                            if (knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            this.nodes[node.nodeId] = node;
+                            this.dependencies[node.nodeId] = [];
+                            this.dependants[node.nodeId] = [];
+                            this.length++;
+                        };
+                        
+                        DAG.prototype.removeNode = function(node) {
+                            if (!knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            if (this.dependants[node.nodeId].length!=0) {
+                                throw new Error();
+                            }
+                            if (this.dependencies[node.nodeId].length!=0) {
+                                throw new Error();
+                            }
+                            delete this.nodes[node.nodeId];
+                            delete this.dependants[node.nodeId];
+                            delete this.dependencies[node.nodeId];
+                            this.length--;
+                        };
+                        
+                        DAG.prototype.addRelation = function(from, to) {
+                            if (inRelation(this, from, to) || inRelation(this, to, from)) {
+                                throw new Error();
+                            }
+                            this.dependencies[to.nodeId].push(from.nodeId);
+                            this.dependants[from.nodeId].push(to.nodeId);
+                            calcRank(this, to);
+                        };
+                        
+                        DAG.prototype.removeRelation = function(from, to) {
+                            if (!inRelation(this, from, to)) {
+                                throw new Error();
+                            }
+                        
+                            var len = this.dependencies[to.nodeId].length;
+                            this.dependencies[to.nodeId] = this.dependencies[to.nodeId].filter(function(item){
+                                return item != from.nodeId;
+                            });
+                            if (len != this.dependencies[to.nodeId].length+1) throw new Error();
+                        
+                            len = this.dependants[from.nodeId].length;
+                            this.dependants[from.nodeId] = this.dependants[from.nodeId].filter(function(item){
+                                return item != to.nodeId;
+                            });
+                            if (len != this.dependants[from.nodeId].length+1) throw new Error();
+                        
+                            calcRank(this, to);
+                        };
+                        
+                        DAG.prototype.notifyChanged = function(node) {
+                            if (!knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            this.changed.push(node);
+                        };
+                        
+                        DAG.prototype.propagate = function() {
+                            var dirty = {};
+                        
+                            while (this.changed.length>0) {
+                                var front = this.changed.pop();
+                                if (!front.dependenciesChanged()) continue;
+                                dirty[front.nodeId] = true;
+                        
+                                for (var i=0;i<this.dependants[front.nodeId].length;i++) {
+                                    var node = this.nodes[this.dependants[front.nodeId][i]];
+                                    node.changed[front.nodeId] = true;
+                                    this.changed.push(node);
+                                }
+                            }
+                        
+                            for (var nodeId in dirty) {
+                                if (!dirty.hasOwnProperty(nodeId)) continue;
+                                event_broker.emitNotify(this.nodes[nodeId]);
+                            }
+                        };
+                        
+                        function knownNode(dag, node) {
+                            if (!node.instanceof(Node)) {
+                                throw new Error();
+                            }
+                            return dag.nodes.hasOwnProperty(node.nodeId);
+                        }
+                        
+                        function inRelation(dag, from, to) {
+                            if (!knownNode(dag, from) || !knownNode(dag, to)) {
+                                throw new Error();
+                            }
+                            if (dag.dependencies[to.nodeId].indexOf(from.nodeId) >= 0) {
+                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)<0) {
+                                    throw new Error();
+                                }
+                                return true;
+                            } else {
+                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)>=0) {
+                                    throw new Error();
+                                }
+                            }
+                            return false;
+                        }
+                        
+                        function calcRank(dag, node) {
+                            var rank = 0;
+                            dag.dependencies[node.nodeId].forEach(function(nodeId){
+                                rank = Math.max(dag.nodes[nodeId].nodeRank+1, rank);
+                            });
+                            node.nodeRank = rank;
+                        }
+                    }
+                },
+                {
+                    path: ["tng","dag","Node"],
+                    content: function(root, expose) {
+                        expose(Node, function(){});
+                        
+                        
+                        function Node() {
+                            this.attach(Node);
+                            this.nodeId = root.idgenerator();
+                            this.changed = {};
+                            this.nodeRank = 0;
+                        }
+                        
+                    }
+                },
+                {
+                    path: ["tng","do"],
+                    content: function(root, expose) {
+                        expose(_do, function(){
+                            DependentCell = root.tng.reactive.DependentCell;
+                        });
+                        
+                        var DependentCell;
+                        
+                        function _do(f) {
+                            return new DependentCell(f);
+                        }
+                    }
+                },
+                {
+                    path: ["tng","event_broker"],
+                    content: function(root, expose) {
+                        expose(new EventBroker());
+                        
+                        var
+                            CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single";
+                        
+                        function EventBroker() {
+                            this.events = [];
+                            this.active = false;
+                            this.isOnProcessCall = false;
+                        }
+                        
+                        EventBroker.prototype.emitChanged = function(node) {
+                            this.events.push({
+                                type: CHANGED,
+                                node: node
+                            });
+                            this.process();
+                        };
+                        
+                        EventBroker.prototype.emitCall = function(fn) {
+                            if (this.active) {
+                                fn()
+                            } else {
+                                this.events.push({
+                                    type: CALL,
+                                    fn: fn
+                                });
+                                this.process();
+                            }
+                        };
+                        
+                        EventBroker.prototype.emitNotify = function(node) {
+                            this.events.push({
+                                type: NOTIFY,
+                                node: node
+                            });
+                            this.process();
+                        };
+                        
+                        EventBroker.prototype.emitNotifySingle = function(node, f) {
+                            this.events.push({
+                                type: NOTIFY_SINGLE,
+                                node: node,
+                                f: f
+                            });
+                            this.process();
+                        };
+                        
+                        EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
+                            if (this.isOnProcessCall) {
+                                return f.apply(obj, args);
+                            } else {
+                                this.isOnProcessCall = true;
+                                var result = f.apply(obj, args);
+                                this.isOnProcessCall = false;
+                                this.process();
+                                return result;
+                            }
+                        };
+                        
+                        EventBroker.prototype.process = function() {
+                            if (this.active) return;
+                        
+                            this.active = true;
+                            this.isOnProcessCall = true;
+                            while (this.events.length>0) {
+                                var event = this.events.shift();
+                                if (event.type === CHANGED) {
+                                    root.tng.dag.DAG.notifyChanged(event.node);
+                                    root.tng.dag.DAG.propagate();
+                                } else if (event.type === CALL) {
+                                    event.fn();
+                                } else if (event.type === NOTIFY) {
+                                    event.node.dependants.forEach(function(d){
+                                        d.f(event.node);
+                                    });
+                                } else if (event.type === NOTIFY_SINGLE) {
+                                    event.f(event.node);
+                                } else {
+                                    throw new Error();
+                                }
+                            }
+                            this.active = false;
+                            this.isOnProcessCall = false;
+                        };
+                    }
+                },
+                {
+                    path: ["tng","reactive","AggregatedCell"],
+                    content: function(root, expose) {
+                        expose(AggregatedCell, function(){
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                            BaseCell = root.tng.reactive.BaseCell;
+                            List = root.tng.reactive.lists.List;
+                            DAG = root.tng.dag.DAG;
+                            event_broker = root.tng.event_broker;
+                            tracker = root.tng.tracker;
+                        
+                            SetPrototype();
+                        });
+                        
+                        var DAG, None, Some, BaseCell, List, event_broker, tracker;
+                        
+                        function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
+                            BaseCell.apply(this);
+                            this.attach(AggregatedCell);
+                        
+                            this.handler = null;
+                            this.list = list;
+                            this.Reducer = Reducer;
+                        
+                            this.itemIdToNodeId = {};
+                            this.nodeIdToItemIds = {};
+                            this.dependencies = {};
+                            this.reducer = null;
+                        
+                            this._monoid = algebraicStructure;
+                            this._wrap = wrap;
+                            this._unwrap = unwrap;
+                            this._ignoreUnset = ignoreUnset;
+                        }
+                        
+                        
+                        function SetPrototype() {
+                            AggregatedCell.prototype = new BaseCell();
+                        
+                        
+                            AggregatedCell.prototype.dependenciesChanged = function() {
+                                for (var nodeId in this.changed) {
+                                    if (!this.changed.hasOwnProperty(nodeId)) continue;
+                                    if (!this.dependencies.hasOwnProperty(nodeId)) {
+                                        throw new Error();
+                                    }
+                                    if (!this.nodeIdToItemIds.hasOwnProperty(nodeId)) {
+                                        throw new Error();
+                                    }
+                                    for (var j=0;j<this.nodeIdToItemIds[nodeId].length;j++) {
+                                        var itemId = this.nodeIdToItemIds[nodeId][j];
+                                        this.reducer.update(itemId, this.dependencies[nodeId].content);
+                                    }
+                                }
+                        
+                                this.changed = {};
+                        
+                                var value = this.reducer.value.lift(this._unwrap);
+                                if (!value.isEqualTo(this.content)) {
+                                    this.content = value;
+                                    return true;
+                                }
+                                return false;
+                            };
+                        
+                            AggregatedCell.prototype.leak = function(id) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                        
+                                if (!event_broker.isOnProcessCall) {
+                                    event_broker.invokeOnProcess(this, this.leak, [id]);
+                                    return;
+                                }
+                        
+                                BaseCell.prototype._leak.apply(this, [id]);
+                        
+                                if (this.usersCount === 1) {
+                                    this.list.leak(this.nodeId);
+                                    DAG.addNode(this);
+                                    this.unsubscribe = this.list.onEvent(List.handler({
+                                        data: function(data) {
+                                            this._dispose();
+                                            this.reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+                                            for (var i=0;i<data.length;i++) {
+                                                this._addItem(data[i].key, data[i].value);
+                                            }
+                                            this.content = this._unwrap(this.reducer.value);
+                                            event_broker.emitChanged(this);
+                                        }.bind(this),
+                                        add: function(item) {
+                                            this._addItem(item.key, item.value);
+                                            var value = this.reducer.value.lift(this._unwrap);
+                                            if (!value.isEqualTo(this.content)) {
+                                                this.content = value;
+                                                event_broker.emitChanged(this);
+                                            }
+                                        }.bind(this),
+                                        remove: function(key) {
+                                            this._removeItem(key);
+                                            var value = this.reducer.value.lift(this._unwrap);
+                                            if (!value.isEqualTo(this.content)) {
+                                                this.content = value;
+                                                event_broker.emitChanged(this);
+                                            }
+                                        }.bind(this)
+                                    }));
+                                }
+                            };
+                        
+                            AggregatedCell.prototype.seal = function(id) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                                BaseCell.prototype.seal.apply(this, [id]);
+                        
+                                if (this.usersCount === 0) {
+                                    this.unsubscribe();
+                                    this.unsubscribe = null;
+                        
+                                    this.dispose();
+                        
+                                    this.list.seal(this.nodeId);
+                                    DAG.removeNode(this);
+                                }
+                            };
+                        
+                        
+                            AggregatedCell.prototype._dispose = function() {
+                                for (var nodeId in this.dependencies) {
+                                    if (!this.dependencies.hasOwnProperty(nodeId)) continue;
+                                    DAG.removeRelation(this.dependencies[nodeId], this);
+                                    this.dependencies[nodeId].seal(this.nodeId);
+                                }
+                                this.itemIdToNodeId = {};
+                                this.nodeIdToItemIds = {};
+                                this.dependencies = {};
+                                this.reducer = null;
+                                this.content = null;
+                            };
+                        
+                            AggregatedCell.prototype._addItem = function(key, value) {
+                                if (value.instanceof(BaseCell)) {
+                                    if (this.itemIdToNodeId.hasOwnProperty(key)) {
+                                        throw new Error();
+                                    }
+                                    this.itemIdToNodeId[key] = value.nodeId;
+                                    if (!this.nodeIdToItemIds.hasOwnProperty(value.nodeId)) {
+                                        this.nodeIdToItemIds[value.nodeId] = [];
+                                    }
+                                    this.nodeIdToItemIds[value.nodeId].push(key);
+                        
+                                    if (this.nodeIdToItemIds[value.nodeId].length==1) {
+                                        this.dependencies[value.nodeId] = value;
+                                        value.leak(this.nodeId);
+                                        DAG.addRelation(value, this);
+                                    }
+                        
+                                    this.reducer.add(key, value.content);
+                                } else {
+                                    this.reducer.add(key, new Some(value));
+                                }
+                            };
+                        
+                            AggregatedCell.prototype._removeItem = function(key) {
+                                this.reducer.remove(key);
+                                if (this.itemIdToNodeId.hasOwnProperty(key)) {
+                                    var nodeId = this.itemIdToNodeId[key];
+                                    if (!this.nodeIdToItemIds.hasOwnProperty(nodeId)) {
+                                        throw new Error();
+                                    }
+                                    this.nodeIdToItemIds[nodeId] = this.nodeIdToItemIds[nodeId].filter(function(item){
+                                        return item != key;
+                                    });
+                                    if (this.nodeIdToItemIds[nodeId].length==0) {
+                                        var node = this.dependencies[nodeId];
+                                        DAG.removeRelation(node, this);
+                                        node.seal(this.nodeId);
+                                        delete this.dependencies[nodeId];
+                                        delete this.nodeIdToItemIds[nodeId];
+                                    }
+                                }
+                                delete this.itemIdToNodeId[key];
+                            };
+                        
+                            AggregatedCell.prototype.hasValue = function() {
+                                if (this.usersCount==0) throw new Error();
+                        
+                                tracker.track(this);
+                                return !this.content.isEmpty();
+                            };
+                        
+                            AggregatedCell.prototype.unwrap = function(alt) {
+                                if (this.usersCount==0) throw new Error();
+                        
+                                tracker.track(this);
+                                if (arguments.length==0 && this.content.isEmpty()) {
+                                    throw new EmptyError();
+                                }
+                                return this.content.isEmpty() ? alt : this.content.value();
+                            };
+                        
+                        //    AggregatedCell.prototype.unwrap = function() {
+                        //        var blocked = false;
+                        //        var data = this.list.unwrap().map(function(value){
+                        //            if (typeof value === "object" && value.type === Cell) {
+                        //                var marker = {};
+                        //                value = value.unwrap(marker);
+                        //                if (marker===value) {
+                        //                    blocked = true;
+                        //                    return this._monoid.identity();
+                        //                }
+                        //                return value;
+                        //            }
+                        //            return value;
+                        //        }.bind(this));
+                        //        if (!this._ignoreUnset && blocked) {
+                        //            if (arguments.length === 0) throw new Error();
+                        //            return arguments[0];
+                        //        }
+                        //
+                        //        var sum = this._monoid.identity();
+                        //        data.forEach(function(item){
+                        //            sum = this._monoid.add(sum, this._wrap(item));
+                        //        }.bind(this));
+                        //        return this._unwrap(sum);
+                        //    };
+                        }
+                        
+                    }
+                },
+                {
+                    path: ["tng","reactive","BaseCell"],
+                    content: function(root, expose) {
+                        expose(BaseCell, function(){
+                            Matter = root.tng.Matter;
+                            Node = root.tng.dag.Node;
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                            event_broker = root.tng.event_broker;
+                            tracker = root.tng.tracker;
+                            EmptyError = root.tng.reactive.EmptyError;
+                            DAG = root.tng.dag.DAG;
+                        });
+                        
+                        var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker;
+                        
+                        function BaseCell() {
+                            root.tng.Matter.apply(this, []);
+                            root.tng.dag.Node.apply(this, []);
+                            this.attach(BaseCell);
+                        
+                            this.dependants = [];
+                            this.users = {};
+                            this.usersCount = 0;
+                        }
+                        
+                        BaseCell.prototype.onChange = function(f) {
+                            if (!event_broker.isOnProcessCall) {
+                                return event_broker.invokeOnProcess(this, this.onChange, [f]);
+                            }
+                        
+                            var self = this;
+                            var active = true;
+                            
+                            var dependant = {
+                                key: root.idgenerator(),
+                                f: function(obj) {
+                                    if (active && obj.usersCount>0) {
+                                        f(obj);
+                                    }
+                                }
+                            };
+                        
+                            this.dependants.push(dependant);
+                            
+                            event_broker.emitNotifySingle(this, dependant.f);
+                        
+                            return function() {
+                                active = false;
+                                self.dependants = self.dependants.filter(function(d) {
+                                    return d.key != id;
+                                });
+                            };
+                        };
+                        
+                        BaseCell.prototype._leak = function(id) {
+                            id = arguments.length==0 ? this.nodeId : id;
+                        
+                            if (this.users.hasOwnProperty(id)) {
+                                this.users[id] = 0;
+                            }
+                            this.users[id]++;
+                            this.usersCount++;
+                        };
+                        
+                        BaseCell.prototype.seal = function(id) {
+                            id = arguments.length==0 ? this.nodeId : id;
+                        
+                            if (!this.users.hasOwnProperty(id)) {
+                                throw new Error();
+                            }
+                            if (this.users[id]===0) {
+                                throw new Error();
+                            }
+                            this.users[id]--;
+                            this.usersCount--;
+                            if (this.users[id]===0) {
+                                delete this.users[id];
+                            }
+                        };
+                    }
+                },
+                {
+                    path: ["tng","reactive","Cell"],
+                    content: function(root, expose) {
+                        expose(Cell, function(){
+                            BaseCell = root.tng.reactive.BaseCell;
+                            Matter = root.tng.Matter;
+                            Node = root.tng.dag.Node;
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                            event_broker = root.tng.event_broker;
+                            tracker = root.tng.tracker;
+                            EmptyError = root.tng.reactive.EmptyError;
+                            DAG = root.tng.dag.DAG;
+                        
+                            SetCellPrototype();
+                        });
+                        
+                        var BaseCell, Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker;
+                        
+                        function Cell() {
+                            BaseCell.apply(this, []);
+                            this.attach(Cell);
+                        
+                            if (arguments.length===0) {
+                                this.content = new None();
+                            } else {
+                                this.content = new Some(arguments[0]);
+                            }
+                        }
+                        
+                        function SetCellPrototype() {
+                            Cell.prototype = new BaseCell();
+                        
+                            Cell.prototype.dependenciesChanged = function() {
+                                return true;
+                            };
+                        
+                            Cell.prototype.set = function(value) {
+                                this.content = new Some(value);
+                                if (this.usersCount>0) {
+                                    event_broker.emitChanged(this);
+                                }
+                            };
+                        
+                            Cell.prototype.unset = function() {
+                                this.content = new None();
+                                if (this.usersCount>0) {
+                                    event_broker.emitChanged(this);
+                                }
+                            };
+                        
+                            Cell.prototype.leak = function(id) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                        
+                                if (!event_broker.isOnProcessCall) {
+                                    event_broker.invokeOnProcess(this, this.leak, [id]);
+                                    return;
+                                }
+                        
+                                BaseCell.prototype._leak.apply(this, [id]);
+                        
+                                if (this.usersCount===1) {
+                                    DAG.addNode(this);
+                                    event_broker.emitNotify(this);
+                                }
+                            };
+                        
+                            Cell.prototype.seal = function(id) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                                BaseCell.prototype.seal.apply(this, [id]);
+                        
+                                if (this.usersCount===0) {
+                                    DAG.removeNode(this);
+                                }
+                            };
+                        
+                            Cell.prototype.hasValue = function() {
+                                tracker.track(this);
+                                return !this.content.isEmpty();
+                            };
+                        
+                            Cell.prototype.unwrap = function(alt) {
+                                tracker.track(this);
+                                if (arguments.length==0 && this.content.isEmpty()) {
+                                    throw new EmptyError();
+                                }
+                                return this.content.isEmpty() ? alt : this.content.value();
+                            };
+                        }
+                        
+                        
+                        
+                        // onChange, leak, seal may be called by user outside the event processing
+                        // onChange, leak, seal can't be called during propagating
+                        // onChange may emit NOTIFY-SINGLE (node, f)
+                        // leak, seal may change graph structure
+                        // graph structure changes emit NOTIFY (node)
+                        // NOTIFY aren't processed during onChange, leak, seal
+                        // All should SET, UNSET be are processed prior start processing NOTIFY
+                        // if more then one NOTIFY* for the same node
+                        
+                    }
+                },
+                {
+                    path: ["tng","reactive","DependentCell"],
+                    content: function(root, expose) {
+                        expose(DependentCell, function(){
+                            Matter = root.tng.Matter;
+                            Node = root.tng.dag.Node;
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                            event_broker = root.tng.event_broker;
+                            tracker = root.tng.tracker;
+                            EmptyError = root.tng.reactive.EmptyError;
+                            DAG = root.tng.dag.DAG;
+                            Cell = root.tng.reactive.Cell;
+                        });
+                        
+                        var Matter, Node, None, Some, event_broker, tracker, EmptyError, DAG, Cell;
+                        
+                        function DependentCell(f) {
+                            Matter.apply(this, []);
+                            Node.apply(this, []);
+                            this.attach(DependentCell);
+                            this.attach(Cell);
+                        
+                            this.dependants = [];
+                            this.users = {};
+                            this.usersCount = 0;
+                            this.f = f;
+                        }
+                        
+                        DependentCell.prototype.dependenciesChanged = function() {
+                            var i;
+                            var known = {};
+                            for (i=0;i<this.dependencies.length;i++) {
+                                known[this.dependencies[i].nodeId] = this.dependencies[i];
+                            }
+                        
+                            var value, tracked, nova = {};
+                            tracker.inScope(function(){
+                                try {
+                                    value = new Some(this.f());
+                                } catch (e) {
+                                    if (e instanceof EmptyError) {
+                                        value = new None();
+                                    } else {
+                                        throw e;
+                                    }
+                                }
+                                tracked = tracker.tracked;
+                            }, this);
+                        
+                            var deleted = [];
+                            var added = [];
+                            for (i=0;i<tracked.length;i++) {
+                                nova[tracked[i].nodeId] = tracked[i];
+                                if (!known.hasOwnProperty(tracked[i].nodeId)) {
+                                    added.push(tracked[i]);
+                                }
+                            }
+                            for (i=0;i<this.dependencies.length;i++) {
+                                if (!nova.hasOwnProperty(this.dependencies[i].nodeId)) {
+                                    deleted.push(this.dependencies[i]);
+                                }
+                            }
+                        
+                            for (i=0;i<deleted.length;i++) {
+                                DAG.removeRelation(deleted[i], this);
+                                deleted[i].seal(this.nodeId);
+                            }
+                            for (i=0;i<added.length;i++) {
+                                added[i].leak(this.nodeId);
+                                DAG.addRelation(added[i], this);
+                            }
+                        
+                            this.dependencies = tracked;
+                            this.changed = {};
+                        
+                            if (this.content.isEmpty() && value.isEmpty()) {
+                                return false;
+                            }
+                            if (!this.content.isEmpty() && !value.isEmpty()) {
+                                if (this.content.value() === value.value()) {
+                                    return false;
+                                }
+                            }
+                            this.content = value;
+                            return true;
+                        };
+                        
+                        
+                        /////
+                        
+                        DependentCell.prototype.onChange = function(f) {
+                            if (!event_broker.isOnProcessCall) {
+                                return event_broker.invokeOnProcess(this, this.onChange, [f]);
+                            }
+                        
+                            var self = this;
+                            var active = true;
+                        
+                            var dependant = {
+                                key: root.idgenerator(),
+                                f: function(obj) {
+                                    if (active && obj.usersCount>0) {
+                                        f(obj);
+                                    }
+                                }
+                            };
+                        
+                            this.dependants.push(dependant);
+                        
+                            event_broker.emitNotifySingle(this, dependant.f);
+                        
+                            return function() {
+                                active = false;
+                                self.dependants = self.dependants.filter(function(d) {
+                                    return d.key != id;
+                                });
+                            };
+                        };
+                        
+                        DependentCell.prototype.leak = function() {
+                            var id = arguments.length==0 ? this.nodeId : arguments[0];
+                        
+                            if (!event_broker.isOnProcessCall) {
+                                event_broker.invokeOnProcess(this, this.leak, [id]);
+                                return;
+                            }
+                        
+                            if (this.users.hasOwnProperty(id)) {
+                                this.users[id] = 0;
+                            }
+                            this.users[id]++;
+                            this.usersCount++;
+                            if (this.usersCount===1) {
+                                tracker.inScope(function(){
+                                    try {
+                                        this.content = new Some(this.f());
+                                    } catch (e) {
+                                        if (e instanceof EmptyError) {
+                                            this.content = new None();
+                                        } else {
+                                            throw e;
+                                        }
+                                    }
+                                    this.dependencies = tracker.tracked;
+                                }, this);
+                                DAG.addNode(this);
+                                for (var i=0;i<this.dependencies.length;i++) {
+                                    this.dependencies[i].leak(this.nodeId);
+                                    DAG.addRelation(this.dependencies[i], this);
+                                }
+                                event_broker.emitNotify(this);
+                            }
+                        };
+                        
+                        DependentCell.prototype.seal = function(event) {
+                            var id = arguments.length==0 ? this.nodeId : arguments[0];
+                        
+                            if (!this.users.hasOwnProperty(id)) {
+                                throw new Error();
+                            }
+                            if (this.users[id]===0) {
+                                throw new Error();
+                            }
+                            this.users[id]--;
+                            this.usersCount--;
+                            if (this.users[id]===0) {
+                                delete this.users[id];
+                            }
+                            if (this.usersCount===0) {
+                                for (var i=0;i<this.dependencies.length;i++) {
+                                    DAG.removeRelation(this.dependencies[i], this);
+                                    this.dependencies[i].seal(this.nodeId);
+                                }
+                                DAG.removeNode(this);
+                            }
+                        };
+                        
+                        ////
+                        
+                        
+                        DependentCell.prototype.hasValue = function() {
+                            var f = this.f;
+                            tracker.track(this);
+                        
+                            if (this.usersCount>0) {
+                                return !this.content.isEmpty();
+                            } else {
+                                return !tracker.outScope(function(){
+                                    try {
+                                        return new Some(f());
+                                    } catch (e) {
+                                        if (e instanceof EmptyError) {
+                                            return new None();
+                                        } else {
+                                            throw e;
+                                        }
+                                    }
+                                }).isEmpty();
+                            }
+                        };
+                        
+                        DependentCell.prototype.unwrap = function(alt) {
+                            var f = this.f;
+                            tracker.track(this);
+                        
+                            var args = arguments.length==0 ? [] : [alt];
+                        
+                            var content = this.content;
+                            if (this.usersCount==0) {
+                                content = tracker.outScope(function(){
+                                    try {
+                                        var value = f();
+                                        return new Some(value);
+                                    } catch (e) {
+                                        if (e instanceof EmptyError) {
+                                            return new None();
+                                        } else {
+                                            throw e;
+                                        }
+                                    }
+                                });
+                            }
+                        
+                            return unwrap.apply(content, args);
+                        };
+                        
+                        function unwrap(alt) {
+                            if (arguments.length==0 && this.isEmpty()) {
+                                throw new Error();
+                            }
+                            return this.isEmpty() ? alt : this.value();
+                        }
+                    }
+                },
+                {
+                    path: ["tng","reactive","EmptyError"],
+                    content: function(root, expose) {
+                        expose(EmptyError);
+                        
+                        function EmptyError() {
+                        }
+                        
+                    }
+                },
+                {
+                    path: ["tng","reactive","algebra","GroupReducer"],
+                    content: function(root, expose) {
+                        expose(GroupReducer, function() {
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                        });
+                        
+                        var None, Some;
+                        
+                        function GroupReducer(monoid, wrap, ignoreUnset) {
+                            this.monoid = monoid;
+                            this.wrap = wrap;
+                            this.ignoreUnset = ignoreUnset;
+                        
+                            this.sum = monoid.identity();
+                            this.value = new Some(this.sum);
+                        
+                            this.info = {};
+                            this.blocks = 0;
+                        }
+                        
+                        GroupReducer.prototype.add = function(key, value) {
+                            if (this.info.hasOwnProperty(key)) {
+                                throw new Error();
+                            }
+                            var info = {
+                                blocked: value.isEmpty(),
+                                last: value.isEmpty() ? this.monoid.identity() : this.wrap(value.value())
+                            };
+                            this.info[key] = info;
+                            this.sum = this.monoid.add(this.sum, info.last);
+                        
+                            if (info.blocked) {
+                                this.blocks++;
+                            }
+                        
+                            if (this.blocks==0) {
+                                this.value = new Some(this.sum);
+                            } else if (this.blocks==1) {
+                                this.value = new None();
+                            }
+                        };
+                        
+                        GroupReducer.prototype.update = function(key, value) {
+                            this.remove(key);
+                            this.add(key, value);
+                        };
+                        
+                        GroupReducer.prototype.remove = function(key) {
+                            if (!this.info.hasOwnProperty(key)) {
+                                throw new Error();
+                            }
+                            var info = this.info[key];
+                            delete this.info[key];
+                        
+                            this.sum = this.monoid.add(this.sum, this.monoid.invert(info.last));
+                        
+                            if (info.blocked) {
+                                this.blocks--;
+                            }
+                        
+                            if (this.blocks==0) {
+                                this.value = new Some(this.sum);
+                            }
+                        };
+                    }
+                },
+                {
+                    path: ["tng","reactive","algebra","Reducer"],
+                    content: function(root, expose) {
+                        expose(Reducer, function() {
+                            None = root.adt.maybe.None;
+                            Some = root.adt.maybe.Some;
+                        });
+                        
+                        var None, Some;
+                        
+                        function Reducer(monoid, wrap, ignoreUnset) {}
+                        
+                        Reducer.prototype.add = function(key, value) {
+                        
+                        };
+                        
+                        Reducer.prototype.update = function(key, value) {
+                        
+                        };
+                        
+                        Reducer.prototype.remove = function(key) {
+                        
+                        };
+                    }
+                },
+                {
+                    path: ["tng","reactive","lists","BaseList"],
+                    content: function(root, expose) {
+                        expose(BaseList, function() {
+                            uid = root.idgenerator;
+                            event_broker = root.tng.event_broker;
+                            Matter = root.tng.Matter;
+                            AggregatedCell = root.tng.reactive.AggregatedCell;
+                            GroupReducer = root.tng.reactive.algebra.GroupReducer;
+                        
+                        });
+                        
+                        var uid, event_broker, Matter, AggregatedCell, GroupReducer;
+                        
+                        function BaseList() {
+                            Matter.apply(this, []);
+                            this.attach(BaseList);
+                        
+                            this.listId = uid();
+                            this.dependants = [];
+                            this.data = [];
+                            this.users = {};
+                            this.usersCount = 0;
+                        }
+                        
+                        // TODO: separate user's onEvent and systems's onEvent
+                        // TODO: postpone user's via event_broker
+                        
+                        BaseList.prototype.unwrap = function(alt) {
+                            throw new Error("Not implemented");
+                        };
+                        
+                        BaseList.prototype.reduceGroup = function(group, opt) {
+                            if (!opt) opt = {};
+                            if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                            if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                            if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                        
+                            return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                        };
+                        
+                        BaseList.prototype.onEvent = function(f) {
+                            if (!event_broker.isOnProcessCall) {
+                                return event_broker.invokeOnProcess(this, this.onEvent, [f]);
+                            }
+                        
+                            var dependant = {
+                                key: uid(),
+                                f: function(list, event) {
+                                    if (this.disposed || list.usersCount==0) return;
+                                    f(event);
+                                },
+                                disposed: false
+                            };
+                        
+                            this.dependants.push(dependant);
+                        
+                            dependant.f(this, ["data", this.data.slice()]);
+                        
+                            return function() {
+                                dependant.disposed = true;
+                                this.dependants = this.dependants.filter(function(d) {
+                                    return d.key != id;
+                                });
+                            }.bind(this);
+                        };
+                        
+                        BaseList.prototype.leak = function(id) {
+                            if (arguments.length==0) {
+                                return this.leak(this.listId);
+                            }
+                            if (!this.users.hasOwnProperty(id)) {
+                                this.users[id] = 0;
+                            }
+                            this.users[id]++;
+                            this.usersCount++;
+                            return this;
+                        };
+                        
+                        BaseList.prototype.seal = function(id) {
+                            if (arguments.length==0) {
+                                return this.seal(this.listId);
+                            }
+                            if (!this.users.hasOwnProperty(id)) {
+                                throw new Error();
+                            }
+                            if (this.users[id]===0) {
+                                throw new Error();
+                            }
+                            this.users[id]--;
+                            this.usersCount--;
+                            if (this.users[id]===0) {
+                                delete this.users[id];
+                            }
+                            return this;
+                        };
+                        
+                        BaseList.prototype.__raise = function(e) {
+                            if (!event_broker.isOnProcessCall) {
+                                return event_broker.invokeOnProcess(this, this.__raise, [e]);
+                            }
+                        
+                            if (this.usersCount>0) {
+                                for (var i=0;i<this.dependants.length;i++) {
+                                    this.dependants[i].f(this, e);
+                                }
+                            }
+                        };
+                        
+                    }
+                },
+                {
+                    path: ["tng","reactive","lists","LiftedList"],
+                    content: function(root, expose) {
+                        expose(LiftedList, function(){
+                            BaseList = root.tng.reactive.lists.BaseList;
+                        
+                            SetLiftedPrototype();
+                        });
+                        
+                        var BaseList;
+                        
+                        function LiftedList(source, f) {
+                            BaseList.apply(this);
+                            this.attach(LiftedList);
+                        
+                            this.source = source;
+                            this.f = f;
+                        }
+                        
+                        function SetLiftedPrototype() {
+                            LiftedList.prototype = new BaseList();
+                        
+                            LiftedList.prototype.unwrap = function() {
+                                return this.source.unwrap().map(function(item){
+                                    return this.f(item);
+                                }.bind(this));
+                            };
+                        
+                            LiftedList.prototype.leak = function(id) {
+                                id = arguments.length==0 ? this.listId : id;
+                                BaseList.prototype.leak.apply(this, [id]);
+                                if (this.usersCount === 1) {
+                                    this.source.leak(this.listId);
+                                    this.unsubscribe = this.source.onEvent(List.handler({
+                                        data: function(data) {
+                                            this.data = data.map(function(item){
+                                                return {key: item.key, value: this.f(item.value)};
+                                            }.bind(this));
+                                            this.__raise(["data", this.data.slice()]);
+                                        }.bind(this),
+                                        add: function(item) {
+                                            item = {key: item.key, value: this.f(item.value)};
+                                            this.data.push(item);
+                                            this.__raise(["add", item]);
+                                        }.bind(this),
+                                        remove: function(key){
+                                            this.data = this.data.filter(function(item){
+                                                return item.key != key;
+                                            });
+                                            this.__raise(["remove", key]);
+                                        }.bind(this)
+                                    }))
+                                }
+                            };
+                        
+                            LiftedList.prototype.seal = function(id) {
+                                id = arguments.length==0 ? this.listId : id;
+                                BaseList.prototype.seal.apply(this, [id]);
+                                if (this.usersCount === 0) {
+                                    this.unsubscribe();
+                                    this.unsubscribe = null;
+                                    this.source.seal(this.listId);
+                                }
+                            };
+                        }
+                    }
+                },
+                {
+                    path: ["tng","reactive","lists","List"],
+                    content: function(root, expose) {
+                        expose(List, function(){
+                            BaseList = root.tng.reactive.lists.BaseList;
+                            uid = root.idgenerator;
+                        
+                            SetListPrototype();
+                        });
+                        
+                        var uid, BaseList;
+                        
+                        function List(data) {
+                            BaseList.apply(this);
+                            this.attach(List);
+                        
+                            this.setData(data ? data : []);
+                        }
+                        
+                        function SetListPrototype() {
+                            List.prototype = new BaseList();
+                        
+                            List.prototype.unwrap = function() {
+                                return this.data.map(function(item){
+                                    return item.value;
+                                });
+                            };
+                        
+                            List.prototype.add = function(f) {
+                                if (typeof(f) != "function") {
+                                    var item = f;
+                                    f = function(id) { return item; };
+                                }
+                        
+                                var key = uid();
+                                var value = {key: key, value: f(key)};
+                                this.data.push(value);
+                        
+                                this.__raise(["add", value]);
+                        
+                                return key;
+                            };
+                        
+                            List.prototype.setData = function(data) {
+                                this.data = data.map(function(item){
+                                    return {
+                                        key: uid(),
+                                        value: item
+                                    }
+                                });
+                                this.__raise(["data", this.data.slice()]);
+                            };
+                        
+                            List.prototype.remove = function(key) {
+                                var length = this.data.length;
+                                this.data = this.data.filter(function(item){
+                                    return item.key != key;
+                                });
+                                if (length!=this.data.length) {
+                                    this.__raise(["remove", key]);
+                                }
+                            };
+                        
+                            List.prototype.leak = function(id) {
+                                id = arguments.length==0 ? this.listId : id;
+                                BaseList.prototype.leak.apply(this, [id]);
+                                if (this.usersCount === 1) {
+                                    this.__raise(["data", this.data.slice()]);
+                                }
+                            };
+                        }
+                        
+                        List.handler = function(handlers) {
+                            return function(e) {
+                                while(true) {
+                                    if (e[0]==="data") break;
+                                    if (e[0]==="add") break;
+                                    if (e[0]==="remove") break;
+                                    throw new Error();
+                                }
+                                handlers[e[0]].call(handlers, e[1]);
+                            };
+                        };
+                        
+                    }
+                },
+                {
+                    path: ["tng","tracker"],
+                    content: function(root, expose) {
+                        expose(new Tracker());
+                        
+                        function Tracker() {
+                            this.active = false;
+                        }
+                        
+                        Tracker.prototype.track = function(cell) {
+                            if (!this.active) return;
+                            // TODO: optimize
+                            if (this.tracked.indexOf(cell)>=0) return;
+                            this.tracked.push(cell);
+                        };
+                        
+                        Tracker.prototype.inScope = function(fn, obj) {
+                            this.active = true;
+                            this.tracked = [];
+                            try {
+                                return fn.apply(obj, []);
+                            } finally {
+                                this.active = false;
+                                this.tracked = null;
+                            }
+                        };
+                        
+                        Tracker.prototype.outScope = function(fn) {
+                            var active = this.active;
+                            this.active = false;
+                            try {
+                                return fn();
+                            } finally {
+                                this.active = active;
+                            }
+                        };
                         
                     }
                 },

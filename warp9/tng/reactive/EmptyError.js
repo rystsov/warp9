@@ -1,0 +1,4 @@
+expose(EmptyError);
+
+function EmptyError() {
+}
