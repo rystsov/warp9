@@ -2142,6 +2142,7 @@ define([], function() {
                         
                             for (var nodeId in dirty) {
                                 if (!dirty.hasOwnProperty(nodeId)) continue;
+                                this.nodes[nodeId].commit();
                                 event_broker.emitNotify(this.nodes[nodeId]);
                             }
                         };
@@ -2189,6 +2190,7 @@ define([], function() {
                             this.attach(Node);
                             this.nodeId = root.idgenerator();
                             this.changed = {};
+                            this.delta = null;
                             this.nodeRank = 0;
                         }
                         
@@ -2338,6 +2340,10 @@ define([], function() {
                         function SetPrototype() {
                             AggregatedCell.prototype = new BaseCell();
                         
+                            AggregatedCell.prototype.commit = function() {
+                                this.content = this.delta.value;
+                                this.delta = null;
+                            };
                         
                             AggregatedCell.prototype.dependenciesChanged = function() {
                                 for (var nodeId in this.changed) {
@@ -2350,7 +2356,7 @@ define([], function() {
                                     }
                                     for (var j=0;j<this.nodeIdToItemIds[nodeId].length;j++) {
                                         var itemId = this.nodeIdToItemIds[nodeId][j];
-                                        this.reducer.update(itemId, this.dependencies[nodeId].content);
+                                        this.reducer.update(itemId, this.dependencies[nodeId].delta.value);
                                     }
                                 }
                         
@@ -2358,7 +2364,7 @@ define([], function() {
                         
                                 var value = this.reducer.value.lift(this._unwrap);
                                 if (!value.isEqualTo(this.content)) {
-                                    this.content = value;
+                                    this.delta = {value: value};
                                     return true;
                                 }
                                 return false;
@@ -2488,13 +2494,21 @@ define([], function() {
                             };
                         
                             AggregatedCell.prototype.unwrap = function(alt) {
-                                if (this.usersCount==0) throw new Error();
+                                if (this.usersCount==0) {
+                                    // TODO: implement
+                                    throw new Error();
+                                }
                         
                                 tracker.track(this);
-                                if (arguments.length==0 && this.content.isEmpty()) {
+                        
+                                var content = this.content;
+                                if (this.delta != null) {
+                                    content = this.delta;
+                                }
+                                if (arguments.length==0 && content.isEmpty()) {
                                     throw new EmptyError();
                                 }
-                                return this.content.isEmpty() ? alt : this.content.value();
+                                return content.isEmpty() ? alt : content.value();
                             };
                         
                         //    AggregatedCell.prototype.unwrap = function() {
@@ -2642,21 +2656,30 @@ define([], function() {
                             Cell.prototype = new BaseCell();
                         
                             Cell.prototype.dependenciesChanged = function() {
-                                return true;
+                                return this.delta != null;
                             };
                         
                             Cell.prototype.set = function(value) {
-                                this.content = new Some(value);
+                                this.delta = {
+                                    value: new Some(value)
+                                };
                                 if (this.usersCount>0) {
                                     event_broker.emitChanged(this);
                                 }
                             };
                         
                             Cell.prototype.unset = function() {
-                                this.content = new None();
+                                this.delta = {
+                                    value: new None()
+                                };
                                 if (this.usersCount>0) {
                                     event_broker.emitChanged(this);
                                 }
+                            };
+                        
+                            Cell.prototype.commit = function() {
+                                this.content = this.delta.value;
+                                this.delta = null;
                             };
                         
                             Cell.prototype.leak = function(id) {
@@ -2670,6 +2693,9 @@ define([], function() {
                                 BaseCell.prototype._leak.apply(this, [id]);
                         
                                 if (this.usersCount===1) {
+                                    if (this.delta!=null) {
+                                        this.commit();
+                                    }
                                     DAG.addNode(this);
                                     event_broker.emitNotify(this);
                                 }
@@ -2686,15 +2712,27 @@ define([], function() {
                         
                             Cell.prototype.hasValue = function() {
                                 tracker.track(this);
-                                return !this.content.isEmpty();
+                        
+                                var value = this.content;
+                                if (this.delta != null) {
+                                    value = this.delta.value;
+                                }
+                        
+                                return !value.isEmpty();
                             };
                         
                             Cell.prototype.unwrap = function(alt) {
                                 tracker.track(this);
-                                if (arguments.length==0 && this.content.isEmpty()) {
+                        
+                                var value = this.content;
+                                if (this.delta != null) {
+                                    value = this.delta.value;
+                                }
+                        
+                                if (arguments.length==0 && value.isEmpty()) {
                                     throw new EmptyError();
                                 }
-                                return this.content.isEmpty() ? alt : this.content.value();
+                                return value.isEmpty() ? alt : value.value();
                             };
                         }
                         
@@ -2739,6 +2777,11 @@ define([], function() {
                             this.usersCount = 0;
                             this.f = f;
                         }
+                        
+                        DependentCell.prototype.commit = function() {
+                            this.content = this.delta.value;
+                            this.delta = null;
+                        };
                         
                         DependentCell.prototype.dependenciesChanged = function() {
                             var i;
@@ -2795,7 +2838,7 @@ define([], function() {
                                     return false;
                                 }
                             }
-                            this.content = value;
+                            this.delta = {value: value};
                             return true;
                         };
                         
@@ -2897,8 +2940,13 @@ define([], function() {
                             tracker.track(this);
                         
                             if (this.usersCount>0) {
-                                return !this.content.isEmpty();
+                                var value = this.content;
+                                if (this.delta != null) {
+                                    value = this.delta.value;
+                                }
+                                return !value.isEmpty();
                             } else {
+                                if (this.delta != null) throw new Error();
                                 return !tracker.outScope(function(){
                                     try {
                                         return new Some(f());
@@ -2919,9 +2967,10 @@ define([], function() {
                         
                             var args = arguments.length==0 ? [] : [alt];
                         
-                            var content = this.content;
+                            var value = this.content;
                             if (this.usersCount==0) {
-                                content = tracker.outScope(function(){
+                                if (this.delta != null) throw new Error();
+                                value = tracker.outScope(function(){
                                     try {
                                         var value = f();
                                         return new Some(value);
@@ -2934,8 +2983,11 @@ define([], function() {
                                     }
                                 });
                             }
+                            if (this.delta != null) {
+                                value = this.delta.value;
+                            }
                         
-                            return unwrap.apply(content, args);
+                            return unwrap.apply(value, args);
                         };
                         
                         function unwrap(alt) {

@@ -35,6 +35,10 @@ function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreU
 function SetPrototype() {
     AggregatedCell.prototype = new BaseCell();
 
+    AggregatedCell.prototype.commit = function() {
+        this.content = this.delta.value;
+        this.delta = null;
+    };
 
     AggregatedCell.prototype.dependenciesChanged = function() {
         for (var nodeId in this.changed) {
@@ -47,7 +51,7 @@ function SetPrototype() {
             }
             for (var j=0;j<this.nodeIdToItemIds[nodeId].length;j++) {
                 var itemId = this.nodeIdToItemIds[nodeId][j];
-                this.reducer.update(itemId, this.dependencies[nodeId].content);
+                this.reducer.update(itemId, this.dependencies[nodeId].delta.value);
             }
         }
 
@@ -55,7 +59,7 @@ function SetPrototype() {
 
         var value = this.reducer.value.lift(this._unwrap);
         if (!value.isEqualTo(this.content)) {
-            this.content = value;
+            this.delta = {value: value};
             return true;
         }
         return false;
@@ -185,13 +189,21 @@ function SetPrototype() {
     };
 
     AggregatedCell.prototype.unwrap = function(alt) {
-        if (this.usersCount==0) throw new Error();
+        if (this.usersCount==0) {
+            // TODO: implement
+            throw new Error();
+        }
 
         tracker.track(this);
-        if (arguments.length==0 && this.content.isEmpty()) {
+
+        var content = this.content;
+        if (this.delta != null) {
+            content = this.delta;
+        }
+        if (arguments.length==0 && content.isEmpty()) {
             throw new EmptyError();
         }
-        return this.content.isEmpty() ? alt : this.content.value();
+        return content.isEmpty() ? alt : content.value();
     };
 
 //    AggregatedCell.prototype.unwrap = function() {

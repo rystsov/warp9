@@ -8,7 +8,8 @@ exports.subscribeUnused = function(test) {
 
     var cell = new Cell();
     var add2 = warp9.tng.do(function(){
-        return cell.unwrap()+2;
+        var value = cell.unwrap()+2;
+        return value;
     });
     var event = null;
     add2.onChange(function(add2){

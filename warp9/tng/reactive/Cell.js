@@ -29,21 +29,30 @@ function SetCellPrototype() {
     Cell.prototype = new BaseCell();
 
     Cell.prototype.dependenciesChanged = function() {
-        return true;
+        return this.delta != null;
     };
 
     Cell.prototype.set = function(value) {
-        this.content = new Some(value);
+        this.delta = {
+            value: new Some(value)
+        };
         if (this.usersCount>0) {
             event_broker.emitChanged(this);
         }
     };
 
     Cell.prototype.unset = function() {
-        this.content = new None();
+        this.delta = {
+            value: new None()
+        };
         if (this.usersCount>0) {
             event_broker.emitChanged(this);
         }
+    };
+
+    Cell.prototype.commit = function() {
+        this.content = this.delta.value;
+        this.delta = null;
     };
 
     Cell.prototype.leak = function(id) {
@@ -57,6 +66,9 @@ function SetCellPrototype() {
         BaseCell.prototype._leak.apply(this, [id]);
 
         if (this.usersCount===1) {
+            if (this.delta!=null) {
+                this.commit();
+            }
             DAG.addNode(this);
             event_broker.emitNotify(this);
         }
@@ -73,15 +85,27 @@ function SetCellPrototype() {
 
     Cell.prototype.hasValue = function() {
         tracker.track(this);
-        return !this.content.isEmpty();
+
+        var value = this.content;
+        if (this.delta != null) {
+            value = this.delta.value;
+        }
+
+        return !value.isEmpty();
     };
 
     Cell.prototype.unwrap = function(alt) {
         tracker.track(this);
-        if (arguments.length==0 && this.content.isEmpty()) {
+
+        var value = this.content;
+        if (this.delta != null) {
+            value = this.delta.value;
+        }
+
+        if (arguments.length==0 && value.isEmpty()) {
             throw new EmptyError();
         }
-        return this.content.isEmpty() ? alt : this.content.value();
+        return value.isEmpty() ? alt : value.value();
     };
 }
 

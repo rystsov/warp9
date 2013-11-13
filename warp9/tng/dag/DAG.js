@@ -102,6 +102,7 @@ DAG.prototype.propagate = function() {
 
     for (var nodeId in dirty) {
         if (!dirty.hasOwnProperty(nodeId)) continue;
+        this.nodes[nodeId].commit();
         event_broker.emitNotify(this.nodes[nodeId]);
     }
 };

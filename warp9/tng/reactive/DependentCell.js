@@ -24,6 +24,11 @@ function DependentCell(f) {
     this.f = f;
 }
 
+DependentCell.prototype.commit = function() {
+    this.content = this.delta.value;
+    this.delta = null;
+};
+
 DependentCell.prototype.dependenciesChanged = function() {
     var i;
     var known = {};
@@ -79,7 +84,7 @@ DependentCell.prototype.dependenciesChanged = function() {
             return false;
         }
     }
-    this.content = value;
+    this.delta = {value: value};
     return true;
 };
 
@@ -181,8 +186,13 @@ DependentCell.prototype.hasValue = function() {
     tracker.track(this);
 
     if (this.usersCount>0) {
-        return !this.content.isEmpty();
+        var value = this.content;
+        if (this.delta != null) {
+            value = this.delta.value;
+        }
+        return !value.isEmpty();
     } else {
+        if (this.delta != null) throw new Error();
         return !tracker.outScope(function(){
             try {
                 return new Some(f());
@@ -203,9 +213,10 @@ DependentCell.prototype.unwrap = function(alt) {
 
     var args = arguments.length==0 ? [] : [alt];
 
-    var content = this.content;
+    var value = this.content;
     if (this.usersCount==0) {
-        content = tracker.outScope(function(){
+        if (this.delta != null) throw new Error();
+        value = tracker.outScope(function(){
             try {
                 var value = f();
                 return new Some(value);
@@ -218,8 +229,11 @@ DependentCell.prototype.unwrap = function(alt) {
             }
         });
     }
+    if (this.delta != null) {
+        value = this.delta.value;
+    }
 
-    return unwrap.apply(content, args);
+    return unwrap.apply(value, args);
 };
 
 function unwrap(alt) {
