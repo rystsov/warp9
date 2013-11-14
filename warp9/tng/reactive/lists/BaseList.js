@@ -20,36 +20,49 @@ function BaseList() {
     this.usersCount = 0;
 }
 
+BaseList.prototype.sendAllMessages = function() {
+    for (var i=0;i<this.dependants.length;i++) {
+        this.sendItsMessages(this.dependants[i]);
+    }
+};
 
+BaseList.prototype.sendItsMessages = function(dependant) {
+    if (dependant.disabled) return;
+    if (dependant.mailbox.length==0) return;
+    var event = dependant.mailbox[dependant.mailbox.length - 1];
+    dependant.mailbox = [];
+    dependant.f(this, event);
+};
 
 BaseList.prototype.onEvent = function(f) {
     if (!event_broker.isOnProcessCall) {
         return event_broker.invokeOnProcess(this, this.onEvent, [f]);
     }
 
+    var self = this;
+
     var dependant = {
         key: uid(),
         f: function(list, event) {
-            if (this.disposed || list.usersCount==0) return;
+            if (this.disposed) return;
             f(event);
         },
-        disposed: false
+        disposed: false,
+        mailbox: [ ["reset", this.data.slice()] ]
     };
 
     this.dependants.push(dependant);
 
-    event_broker.emitNotifySingle(this, dependant.f, {
-        root: this.data.slice(),
-        added: [],
-        removed: []
-    });
+    if (this.usersCount > 0) {
+        event_broker.notifySingle(this, dependant);
+    }
 
     return function() {
         dependant.disposed = true;
-        this.dependants = this.dependants.filter(function(d) {
+        self.dependants = self.dependants.filter(function(d) {
             return d.key != id;
         });
-    }.bind(this);
+    };
 };
 
 BaseList.prototype._leak = function(id) {
@@ -75,6 +88,12 @@ BaseList.prototype._seal = function(id) {
     this.usersCount--;
     if (this.users[id]===0) {
         delete this.users[id];
+    }
+};
+
+BaseList.prototype._putEventToDependants = function(event) {
+    for (var i=0;i<this.dependants.length;i++) {
+        this.dependants[i].mailbox.push(event);
     }
 };
 

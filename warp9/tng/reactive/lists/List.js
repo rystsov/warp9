@@ -13,14 +13,8 @@ function List(data) {
     BaseList.apply(this);
     this.attach(List);
 
-    if (data) {
-        this.data = data.map(function(item){
-            return {
-                key: uid(),
-                value: item
-            }
-        });
-    }
+    this.changeSet = [];
+    this._setData(data || []);
 }
 
 function SetListPrototype() {
@@ -29,101 +23,40 @@ function SetListPrototype() {
     // add, remove, setData are being called only outside of propagating
 
     List.prototype.add = function(f) {
-        if (typeof(f) != "function") {
-            var item = f;
-            f = function(id) { return item; };
-        }
-
         var key = uid();
-        var value = {key: key, value: f(key)};
-
-        if (this.usersCount>0) {
-            if (!this.delta) {
-                this.delta = {
-                    root: null,
-                    added: [],
-                    removed: {}
-                }
-            }
-            this.delta.added.push(value);
-            event_broker.emitChanged(this);
-        } else {
-            if (this.delta != null) {
-                throw new Error();
-            }
-            this.data.push(value);
-        }
-
+        event_broker.postponeChange(this, ["add", key, f]);
         return key;
     };
 
     List.prototype.remove = function(key) {
-        if (this.usersCount>0) {
-            if (!this.delta) {
-                this.delta = {
-                    root: null,
-                    added: [],
-                    removed: {}
-                }
-            }
-            this.delta.removed.push(key);
-            event_broker.emitChanged(this);
-        } else {
-            if (this.delta != null) {
-                throw new Error();
-            }
-            this.data = this.data.filter(function(item) {
-                return item.key != key;
-            });
-        }
+        event_broker.postponeChange(this, ["remove", key]);
     };
 
     List.prototype.setData = function(data) {
-        data = data.map(function(item){
-            return {
-                key: uid(),
-                value: item
-            }
-        });
-        if (this.usersCount>0) {
-            this.delta = {
-                root: data,
-                added: [],
-                removed: {}
-            };
-            event_broker.emitChanged(this);
+        event_broker.postponeChange(this, ["setData", data]);
+    };
+
+    List.prototype.applyChange = function(change) {
+        if (change[0]==="add") {
+            return this._add(change[1],change[2]);
+        } else if (change[0]==="remove") {
+            return this._remove(change[1]);
+        } else if (change[0]==="setData") {
+            return this._setData(change[1]);
         } else {
-            if (this.delta != null) {
-                throw new Error();
-            }
-            this.data = data;
+            throw new Error();
         }
     };
 
-    // dependenciesChanged, commit & introduced called during propagating only (!)
+    // dependenciesChanged is being called during propagating only (!)
 
     List.prototype.dependenciesChanged = function() {
-        return this.delta != null;
-    };
-
-    List.prototype.commit = function() {
-        if (this.delta==null) throw Error();
-        var delta = this.delta;
-        this.data = this._latest();
-        this.delta = null;
-        event_broker.emitNotify(this, delta);
-    };
-
-    List.prototype.introduce = function() {
-        if (this.delta != null) {
-            this.data = this._latest();
-            this.delta = null;
-        }
-        event_broker.emitNotify(this, {
-            root: this.data.slice(),
-            added: [],
-            removed: []
-        });
+        var info = {
+            hasChanges: this.changeSet.length > 0,
+            changeSet: this.changeSet
+        };
+        this.changeSet = []
+        return info;
     };
 
     // may be called during propagating or outside it
@@ -140,7 +73,8 @@ function SetListPrototype() {
 
         if (this.usersCount===1) {
             DAG.addNode(this);
-            event_broker.emitIntroduced(this);
+            this._putEventToDependants(["reset", this.data.slice()]);
+            event_broker.notify(this);
         }
     };
 
@@ -155,20 +89,66 @@ function SetListPrototype() {
 
     // internal
 
-    List.prototype._latest = function() {
-        if (this.delta==null) return this.data;
-        var data = this.delta.root == null ? this.data : this.delta.root;
-
-        var result = [];
-        for (var i=0;i<data.length;i++) {
-            if (this.delta.removed.hasOwnProperty(data[i].key)) continue;
-            result.push(data[i]);
-        }
-        for (var i=0;i<this.delta.added.length;i++) {
-            if (this.delta.removed.hasOwnProperty(this.delta.added[i].key)) continue;
-            result.push(this.delta.added[i]);
+    List.prototype._add = function(key, f) {
+        if (typeof(f) != "function") {
+            var item = f;
+            f = function(id) { return item; };
         }
 
-        return result;
+        var value = {key: key, value: f(key)};
+        this.data.push(value);
+
+        var event = ["add", value];
+        this.changeSet.push(event);
+        if (this.usersCount>0) {
+            this._putEventToDependants(event);
+            event_broker.notify(this);
+        }
+
+        return true;
+    };
+
+    List.prototype._remove = function(key) {
+        this.data = this.data.filter(function(item) {
+            return item.key != key;
+        });
+
+        var event = ["remove", key];
+        this.changeSet.push(event);
+        if (this.usersCount>0) {
+            this._putEventToDependants(event);
+            event_broker.notify(this);
+        }
+
+        return true;
+    };
+
+    List.prototype._setData = function(data) {
+        this.data = data.map(function(item){
+            return {
+                key: uid(),
+                value: item
+            }
+        });
+        var event = ["reset", data.slice()];
+        this.changeSet.push(event);
+        if (this.usersCount>0) {
+            this._putEventToDependants(event);
+            event_broker.notify(this);
+        }
+
+        return true;
     };
 }
+
+List.handler = function(handlers) {
+    return function(e) {
+        while(true) {
+            if (e[0]==="reset") break;
+            if (e[0]==="add") break;
+            if (e[0]==="remove") break;
+            throw new Error();
+        }
+        handlers[e[0]].call(handlers, e[1]);
+    };
+};

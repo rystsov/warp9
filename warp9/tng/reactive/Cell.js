@@ -31,45 +31,28 @@ function SetCellPrototype() {
     // set and unset called only outside of propagating
 
     Cell.prototype.set = function(value) {
-        this._update(new Some(value));
+        event_broker.postponeChange(this, {value: value});
     };
 
     Cell.prototype.unset = function() {
-        this._update(new None());
+        event_broker.postponeChange(this, null);
     };
 
-    Cell.prototype._update = function(value) {
-        if (this.usersCount>0) {
-            this.delta = {
-                value: value
-            };
-            event_broker.emitChanged(this);
+    Cell.prototype.applyChange = function(change) {
+        if (change == null) {
+            return this._update(new None(), ["unset"]);
         } else {
-            if (this.delta != null) {
-                throw new Error();
-            }
-            this.content = value;
+            return this._update(new Some(change.value), ["set", change.value]);
         }
     };
 
-    // dependenciesChanged, commit & introduced called during propagating only (!)
+    // dependenciesChanged is being called during propagating only (!)
 
     Cell.prototype.dependenciesChanged = function() {
-        return this.delta != null;
-    };
-
-    Cell.prototype.commit = function() {
-        this.content = this.delta.value;
-        this.delta = null;
-        event_broker.emitNotify(this);
-    };
-
-    Cell.prototype.introduce = function() {
-        if (this.delta != null) {
-            this.content = this.delta.value;
-            this.delta = null;
-        }
-        event_broker.emitNotify(this);
+        return {
+            hasChanges: true,
+            changeSet: [this.content]
+        };
     };
 
     // may be called during propagating or outside it
@@ -86,41 +69,45 @@ function SetCellPrototype() {
 
         if (this.usersCount===1) {
             DAG.addNode(this);
-            event_broker.emitIntroduced(this);
+            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+            event_broker.notify(this);
         }
     };
 
     Cell.prototype.seal = function(id) {
         id = arguments.length==0 ? this.nodeId : id;
-        BaseCell.prototype.seal.apply(this, [id]);
+        BaseCell.prototype._seal.apply(this, [id]);
 
         if (this.usersCount===0) {
             DAG.removeNode(this);
         }
     };
 
+    // gets
+
     Cell.prototype.hasValue = function() {
         tracker.track(this);
 
-        var value = this.content;
-        if (this.delta != null) {
-            value = this.delta.value;
-        }
-
-        return !value.isEmpty();
+        return !this.content.isEmpty();
     };
 
     Cell.prototype.unwrap = function(alt) {
         tracker.track(this);
 
-        var value = this.content;
-        if (this.delta != null) {
-            value = this.delta.value;
-        }
-
-        if (arguments.length==0 && value.isEmpty()) {
+        if (arguments.length==0 && this.content.isEmpty()) {
             throw new EmptyError();
         }
-        return value.isEmpty() ? alt : value.value();
+        return this.content.isEmpty() ? alt : this.content.value();
+    };
+
+    // utils
+
+    Cell.prototype._update = function(value, event) {
+        this.content = value;
+        if (this.usersCount>0) {
+            this._putEventToDependants(event);
+            event_broker.notify(this);
+        }
+        return true;
     };
 }

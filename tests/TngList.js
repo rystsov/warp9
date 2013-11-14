@@ -2,6 +2,7 @@ var warp9 = require('../target/warp9.common');
 
 var Cell = warp9.tng.reactive.Cell;
 var List = warp9.tng.reactive.lists.List;
+var EventStore = require('./utils/TngList.EventStore');
 
 exports.ctor = function(test) {
     test.expect(0);
@@ -11,19 +12,41 @@ exports.ctor = function(test) {
 
 exports.subscribeEmptyChange = function(test) {
     test.expect(4);
-    var event = null;
+
     var list = new List();
-    list.onEvent(function(change){
-        event = change;
-    });
-    test.equal(event, null);
+    var store = new EventStore(list);
+    test.equal(store.changes, 0);
 
     list.add(42);
-    test.equal(event, null);
+    test.equal(store.changes, 0);
 
     list.leak();
-    test.equal(event.root.length, 1);
-    test.equal(event.root[0].value, 42);
+    var data = store.play();
+
+    test.equal(data.length, 1);
+    test.ok(data.has(42));
+
+    test.done();
+};
+
+exports.subscribeEmptyChangeChange = function(test) {
+    test.expect(5);
+
+    var list = new List();
+    var store = new EventStore(list);
+    test.equal(store.changes, 0);
+
+    list.add(42);
+    test.equal(store.changes, 0);
+
+    list.leak();
+    list.add(13);
+
+    var data = store.play();
+
+    test.equal(data.length, 2);
+    test.ok(data.has(13));
+    test.ok(data.has(42));
 
     test.done();
 };
@@ -43,7 +66,7 @@ exports.subscribeEmptyChange = function(test) {
 //    test.equal(event, marker);
 //    test.done();
 //};
-//
+
 //exports.subscribeLeak = function(test) {
 //    test.expect(2);
 //    var event = null;

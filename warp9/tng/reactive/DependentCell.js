@@ -22,12 +22,24 @@ function DependentCell(f) {
     this.users = {};
     this.usersCount = 0;
     this.f = f;
+
+    tracker.inScope(function(){
+        try {
+            this.content = new Some(this.f());
+        } catch (e) {
+            if (e instanceof EmptyError) {
+                this.content = new None();
+            } else {
+                throw e;
+            }
+        }
+    }, this);
 }
 
 function SetDependentCellPrototype() {
     DependentCell.prototype = new BaseCell();
 
-    // dependenciesChanged, commit & introduced called during propagating only (!)
+    // dependenciesChanged is being called during propagating only (!)
 
     DependentCell.prototype.dependenciesChanged = function() {
         var i;
@@ -77,33 +89,25 @@ function SetDependentCellPrototype() {
         this.changed = {};
 
         if (this.content.isEmpty() && value.isEmpty()) {
-            return false;
+            return { hasChanges: false };
         }
         if (!this.content.isEmpty() && !value.isEmpty()) {
             if (this.content.value() === value.value()) {
-                return false;
+                return { hasChanges: false };
             }
         }
-        this.delta = {value: value};
-        return true;
+        this.content = value;
+        this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+        event_broker.notify(this);
+
+        return {
+            hasChanges: true,
+            changeSet: [this.content]
+        };
     };
 
-    DependentCell.prototype.commit = function() {
-        this.content = this.delta.value;
-        this.delta = null;
-        event_broker.emitNotify(this);
-    };
+    // may be called during propagating or outside it
 
-    DependentCell.prototype.introduce = function() {
-        if (this.delta != null) {
-            this.content = this.delta.value;
-            this.delta = null;
-        }
-        event_broker.emitNotify(this);
-    };
-
-
-    /////
     DependentCell.prototype.leak = function() {
         id = arguments.length==0 ? this.nodeId : id;
 
@@ -117,32 +121,31 @@ function SetDependentCellPrototype() {
         if (this.usersCount===1) {
             tracker.inScope(function(){
                 try {
-                    this.delta = {
-                        value: new Some(this.f())
-                    };
+                    this.content = new Some(this.f());
                 } catch (e) {
                     if (e instanceof EmptyError) {
-                        this.delta = {
-                            value: new None()
-                        };
+                        this.content = new None();
                     } else {
                         throw e;
                     }
                 }
                 this.dependencies = tracker.tracked;
             }, this);
+
             DAG.addNode(this);
             for (var i=0;i<this.dependencies.length;i++) {
                 this.dependencies[i].leak(this.nodeId);
                 DAG.addRelation(this.dependencies[i], this);
             }
-            event_broker.emitIntroduced(this);
+
+            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+            event_broker.notify(this);
         }
     };
 
     DependentCell.prototype.seal = function(event) {
         id = arguments.length==0 ? this.nodeId : id;
-        BaseCell.prototype.seal.apply(this, [id]);
+        BaseCell.prototype._seal.apply(this, [id]);
 
         if (this.usersCount===0) {
             for (var i=0;i<this.dependencies.length;i++) {
@@ -153,33 +156,11 @@ function SetDependentCellPrototype() {
         }
     };
 
-    ////
-
+    // gets
 
     DependentCell.prototype.hasValue = function() {
-        var f = this.f;
-        tracker.track(this);
-
-        if (this.usersCount>0) {
-            var value = this.content;
-            if (this.delta != null) {
-                value = this.delta.value;
-            }
-            return !value.isEmpty();
-        } else {
-            if (this.delta != null) throw new Error();
-            return !tracker.outScope(function(){
-                try {
-                    return new Some(f());
-                } catch (e) {
-                    if (e instanceof EmptyError) {
-                        return new None();
-                    } else {
-                        throw e;
-                    }
-                }
-            }).isEmpty();
-        }
+        var marker = {};
+        return this.unwrap(marker) !== marker;
     };
 
     DependentCell.prototype.unwrap = function(alt) {
@@ -190,11 +171,9 @@ function SetDependentCellPrototype() {
 
         var value = this.content;
         if (this.usersCount==0) {
-            if (this.delta != null) throw new Error();
             value = tracker.outScope(function(){
                 try {
-                    var value = f();
-                    return new Some(value);
+                    return new Some(f());
                 } catch (e) {
                     if (e instanceof EmptyError) {
                         return new None();
@@ -203,9 +182,6 @@ function SetDependentCellPrototype() {
                     }
                 }
             });
-        }
-        if (this.delta != null) {
-            value = this.delta.value;
         }
 
         return unwrap.apply(value, args);

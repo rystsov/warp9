@@ -28,7 +28,7 @@ exports.subscribeEmptyChange = function(test) {
     test.expect(3);
     var event = null;
     var cell = new Cell();
-    cell.onChange(function(cell){
+    cell.onChange(function(cell, message){
         event = cell.unwrap(null);
     });
     test.equal(event, null);
@@ -73,53 +73,3 @@ exports.subscribeLeak = function(test) {
 
     test.done();
 };
-
-
-
-
-
-
-
-
-
-//exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
-//    test.expect(6);
-//
-//    var cell = new Cell(42);
-//    cell.leak();
-//
-//    var sink = new EventSink(cell);
-//    test.equal(sink.changes, 1);
-//    test.equal(sink.unwrap(0), 42);
-//
-//    cell.set(13);
-//    test.equal(sink.changes, 2);
-//    test.equal(sink.unwrap(0), 13);
-//
-//    cell.set(13);
-//    test.equal(sink.changes, 2);
-//    test.equal(sink.unwrap(0), 13);
-//
-//    test.done();
-//};
-//
-//exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
-//    test.expect(6);
-//
-//    var cell = new Cell(42);
-//    cell.leak();
-//
-//    var sink = new EventSink(cell);
-//    test.equal(sink.changes, 1);
-//    test.equal(sink.unwrap(0), 42);
-//
-//    cell.unset();
-//    test.equal(sink.changes, 2);
-//    test.equal(sink.unwrap(0), 0);
-//
-//    cell.unset();
-//    test.equal(sink.changes, 2);
-//    test.equal(sink.unwrap(0), 0);
-//
-//    test.done();
-//};

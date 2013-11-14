@@ -1,64 +1,30 @@
 expose(new EventBroker());
 
-var
-    CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single", INTRODUCED = "introduced";
-
 function EventBroker() {
-    this.events = [];
+    this.changeRequests = [];
+
+    // TODO: replace to set
+    this.nodesToNotify = [];
+    this.dependantsToNotify = [];
+
     this.active = false;
     this.isOnProcessCall = false;
-    this.isPropagating = false;
 }
 
-EventBroker.prototype.emitChanged = function(node) {
-    this.events.push({
-        type: CHANGED,
-        node: node
-    });
-    this.process();
-};
-
-EventBroker.prototype.emitIntroduced = function(node) {
-    if (this.isPropagating) {
-        root.tng.dag.DAG.markIntroduced(node);
-    } else {
-        this.events.push({
-            type: INTRODUCED,
-            node: node
-        });
-        this.process();
-    }
-};
-
-EventBroker.prototype.emitCall = function(fn) {
-    if (this.active) {
-        fn()
-    } else {
-        this.events.push({
-            type: CALL,
-            fn: fn
-        });
-        this.process();
-    }
-};
-
-EventBroker.prototype.emitNotify = function(node, event) {
-    this.events.push({
-        type: NOTIFY,
+EventBroker.prototype.postponeChange = function(node, change) {
+    this.changeRequests.push({
         node: node,
-        event: event
+        change: change
     });
-    this.process();
+    this.loop();
 };
 
-EventBroker.prototype.emitNotifySingle = function(node, f, event) {
-    this.events.push({
-        type: NOTIFY_SINGLE,
-        node: node,
-        f: f,
-        event: event
-    });
-    this.process();
+EventBroker.prototype.notify = function(node) {
+    this.nodesToNotify.push(node);
+};
+
+EventBroker.prototype.notifySingle = function(node, dependant) {
+    this.dependantsToNotify.push({node: node, dependant: dependant});
 };
 
 EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
@@ -68,40 +34,40 @@ EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
         this.isOnProcessCall = true;
         var result = f.apply(obj, args);
         this.isOnProcessCall = false;
-        this.process();
+        this.loop();
         return result;
     }
 };
 
-EventBroker.prototype.process = function() {
+EventBroker.prototype.loop = function() {
     if (this.active) return;
-
     this.active = true;
-    this.isOnProcessCall = true;
-    while (this.events.length>0) {
-        var event = this.events.shift();
-        if (event.type === CHANGED) {
-            root.tng.dag.DAG.notifyChanged(event.node);
-            this.isPropagating = true;
+
+    while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
+        var hasChanges = false;
+        while (this.changeRequests.length!=0) {
+            var request = this.changeRequests.shift();
+            if (request.node.applyChange(request.change)) {
+                hasChanges = true;
+                if (request.node.usersCount > 0) {
+                    root.tng.dag.DAG.notifyChanged(request.node);
+                }
+            }
+        }
+        if (hasChanges) {
             root.tng.dag.DAG.propagate();
-            this.isPropagating = false;
-        } else if (event.type === INTRODUCED) {
-            root.tng.dag.DAG.markIntroduced(event.node);
-            this.isPropagating = true;
-            root.tng.dag.DAG.propagate();
-            this.isPropagating = false;
-        } else if (event.type === CALL) {
-            event.fn();
-        } else if (event.type === NOTIFY) {
-            event.node.dependants.forEach(function(d){
-                d.f(event.node, event.event);
-            });
-        } else if (event.type === NOTIFY_SINGLE) {
-            event.f(event.node, event.event);
-        } else {
-            throw new Error();
+        }
+        if (this.nodesToNotify.length!=0) {
+            var node = this.nodesToNotify.shift();
+            node.sendAllMessages();
+            continue;
+        }
+        if (this.dependantsToNotify.length!=0) {
+            var info = this.dependantsToNotify.shift();
+            info.node.sendItsMessages(info.dependant);
+            continue;
         }
     }
+
     this.active = false;
-    this.isOnProcessCall = false;
 };

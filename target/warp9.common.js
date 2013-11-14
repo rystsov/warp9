@@ -2061,7 +2061,6 @@ var warp9 = (function(){
                         this.changed = new SortedList(function(a,b){
                             return a.nodeRank - b.nodeRank;
                         });
-                        this.nova = {};
                     };
                     
                     DAG.prototype.addNode = function(node) {
@@ -2126,37 +2125,23 @@ var warp9 = (function(){
                         this.changed.push(node);
                     };
                     
-                    DAG.prototype.markIntroduced = function(node) {
-                        this.nova[node.nodeId] = node;
-                    };
-                    
                     DAG.prototype.propagate = function() {
-                        var dirty = {};
                         while (this.changed.length>0) {
                             var front = this.changed.pop();
-                            if (!front.dependenciesChanged()) continue;
-                            dirty[front.nodeId] = front;
+                            var info = front.dependenciesChanged();
+                            if (!info.hasChanges) continue;
                     
                             for (var i=0;i<this.dependants[front.nodeId].length;i++) {
                                 var node = this.nodes[this.dependants[front.nodeId][i]];
-                                node.changed[front.nodeId] = true;
+                                if (!node.changed.hasOwnProperty(front.nodeId)) {
+                                    node.changed[front.nodeId] = [];
+                                }
+                                for (var j=0;j<info.changeSet.length;j++) {
+                                    node.changed[front.nodeId].push(info.changeSet[j]);
+                                }
                                 this.changed.push(node);
                             }
                         }
-                    
-                        for (var nodeId in this.nova) {
-                            if (!this.nova.hasOwnProperty(nodeId)) continue;
-                            if (this.nova[nodeId].usersCount === 0) continue;
-                            this.nova[nodeId].introduce();
-                        }
-                    
-                        for (var nodeId in dirty) {
-                            if (!dirty.hasOwnProperty(nodeId)) continue;
-                            if (this.nova.hasOwnProperty(nodeId)) continue;
-                            dirty[nodeId].commit();
-                        }
-                    
-                        this.nova = {};
                     };
                     
                     function knownNode(dag, node) {
@@ -2227,65 +2212,31 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose(new EventBroker());
                     
-                    var
-                        CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single", INTRODUCED = "introduced";
-                    
                     function EventBroker() {
-                        this.events = [];
+                        this.changeRequests = [];
+                    
+                        // TODO: replace to set
+                        this.nodesToNotify = [];
+                        this.dependantsToNotify = [];
+                    
                         this.active = false;
                         this.isOnProcessCall = false;
-                        this.isPropagating = false;
                     }
                     
-                    EventBroker.prototype.emitChanged = function(node) {
-                        this.events.push({
-                            type: CHANGED,
-                            node: node
-                        });
-                        this.process();
-                    };
-                    
-                    EventBroker.prototype.emitIntroduced = function(node) {
-                        if (this.isPropagating) {
-                            root.tng.dag.DAG.markIntroduced(node);
-                        } else {
-                            this.events.push({
-                                type: INTRODUCED,
-                                node: node
-                            });
-                            this.process();
-                        }
-                    };
-                    
-                    EventBroker.prototype.emitCall = function(fn) {
-                        if (this.active) {
-                            fn()
-                        } else {
-                            this.events.push({
-                                type: CALL,
-                                fn: fn
-                            });
-                            this.process();
-                        }
-                    };
-                    
-                    EventBroker.prototype.emitNotify = function(node, event) {
-                        this.events.push({
-                            type: NOTIFY,
+                    EventBroker.prototype.postponeChange = function(node, change) {
+                        this.changeRequests.push({
                             node: node,
-                            event: event
+                            change: change
                         });
-                        this.process();
+                        this.loop();
                     };
                     
-                    EventBroker.prototype.emitNotifySingle = function(node, f, event) {
-                        this.events.push({
-                            type: NOTIFY_SINGLE,
-                            node: node,
-                            f: f,
-                            event: event
-                        });
-                        this.process();
+                    EventBroker.prototype.notify = function(node) {
+                        this.nodesToNotify.push(node);
+                    };
+                    
+                    EventBroker.prototype.notifySingle = function(node, dependant) {
+                        this.dependantsToNotify.push({node: node, dependant: dependant});
                     };
                     
                     EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
@@ -2295,43 +2246,44 @@ var warp9 = (function(){
                             this.isOnProcessCall = true;
                             var result = f.apply(obj, args);
                             this.isOnProcessCall = false;
-                            this.process();
+                            this.loop();
                             return result;
                         }
                     };
                     
-                    EventBroker.prototype.process = function() {
+                    EventBroker.prototype.loop = function() {
                         if (this.active) return;
-                    
                         this.active = true;
-                        this.isOnProcessCall = true;
-                        while (this.events.length>0) {
-                            var event = this.events.shift();
-                            if (event.type === CHANGED) {
-                                root.tng.dag.DAG.notifyChanged(event.node);
-                                this.isPropagating = true;
+                    
+                        while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
+                            var hasChanges = false;
+                            while (this.changeRequests.length!=0) {
+                                var request = this.changeRequests.shift();
+                                if (request.node.applyChange(request.change)) {
+                                    hasChanges = true;
+                                    if (request.node.usersCount > 0) {
+                                        root.tng.dag.DAG.notifyChanged(request.node);
+                                    }
+                                }
+                            }
+                            if (hasChanges) {
                                 root.tng.dag.DAG.propagate();
-                                this.isPropagating = false;
-                            } else if (event.type === INTRODUCED) {
-                                root.tng.dag.DAG.markIntroduced(event.node);
-                                this.isPropagating = true;
-                                root.tng.dag.DAG.propagate();
-                                this.isPropagating = false;
-                            } else if (event.type === CALL) {
-                                event.fn();
-                            } else if (event.type === NOTIFY) {
-                                event.node.dependants.forEach(function(d){
-                                    d.f(event.node, event.event);
-                                });
-                            } else if (event.type === NOTIFY_SINGLE) {
-                                event.f(event.node, event.event);
-                            } else {
-                                throw new Error();
+                            }
+                            if (this.nodesToNotify.length!=0) {
+                                var node = this.nodesToNotify.shift();
+                                node.sendAllMessages();
+                                continue;
+                            }
+                            if (this.dependantsToNotify.length!=0) {
+                                var info = this.dependantsToNotify.shift();
+                                info.node.sendItsMessages(info.dependant);
+                                continue;
                             }
                         }
+                    
                         this.active = false;
-                        this.isOnProcessCall = false;
                     };
+                    
                 }
             },
             {
@@ -2586,9 +2538,10 @@ var warp9 = (function(){
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
                         DAG = root.tng.dag.DAG;
+                        uid = root.idgenerator;
                     });
                     
-                    var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker;
+                    var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid;
                     
                     function BaseCell() {
                         root.tng.Matter.apply(this, []);
@@ -2600,29 +2553,45 @@ var warp9 = (function(){
                         this.usersCount = 0;
                     }
                     
+                    BaseCell.prototype.sendAllMessages = function() {
+                        for (var i=0;i<this.dependants.length;i++) {
+                            this.sendItsMessages(this.dependants[i]);
+                        }
+                    };
+                    
+                    BaseCell.prototype.sendItsMessages = function(dependant) {
+                        if (dependant.disabled) return;
+                        if (dependant.mailbox.length==0) return;
+                        var event = dependant.mailbox[dependant.mailbox.length - 1];
+                        dependant.mailbox = [];
+                        dependant.f(this, event);
+                    };
+                    
                     BaseCell.prototype.onChange = function(f) {
                         if (!event_broker.isOnProcessCall) {
                             return event_broker.invokeOnProcess(this, this.onChange, [f]);
                         }
                     
                         var self = this;
-                        var active = true;
                         
                         var dependant = {
-                            key: root.idgenerator(),
+                            key: uid(),
                             f: function(obj) {
-                                if (active && obj.usersCount>0) {
-                                    f(obj);
-                                }
-                            }
+                                if (this.disposed) return;
+                                f(obj);
+                            },
+                            disposed: false,
+                            mailbox: [ this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]]
                         };
                     
                         this.dependants.push(dependant);
                         
-                        event_broker.emitNotifySingle(this, dependant.f);
+                        if (this.usersCount > 0) {
+                            event_broker.notifySingle(this, dependant);
+                        }
                     
                         return function() {
-                            active = false;
+                            dependant.disposed = true;
                             self.dependants = self.dependants.filter(function(d) {
                                 return d.key != id;
                             });
@@ -2639,7 +2608,7 @@ var warp9 = (function(){
                         this.usersCount++;
                     };
                     
-                    BaseCell.prototype.seal = function(id) {
+                    BaseCell.prototype._seal = function(id) {
                         id = arguments.length==0 ? this.nodeId : id;
                     
                         if (!this.users.hasOwnProperty(id)) {
@@ -2652,6 +2621,12 @@ var warp9 = (function(){
                         this.usersCount--;
                         if (this.users[id]===0) {
                             delete this.users[id];
+                        }
+                    };
+                    
+                    BaseCell.prototype._putEventToDependants = function(event) {
+                        for (var i=0;i<this.dependants.length;i++) {
+                            this.dependants[i].mailbox.push(event);
                         }
                     };
                 }
@@ -2692,45 +2667,28 @@ var warp9 = (function(){
                         // set and unset called only outside of propagating
                     
                         Cell.prototype.set = function(value) {
-                            this._update(new Some(value));
+                            event_broker.postponeChange(this, {value: value});
                         };
                     
                         Cell.prototype.unset = function() {
-                            this._update(new None());
+                            event_broker.postponeChange(this, null);
                         };
                     
-                        Cell.prototype._update = function(value) {
-                            if (this.usersCount>0) {
-                                this.delta = {
-                                    value: value
-                                };
-                                event_broker.emitChanged(this);
+                        Cell.prototype.applyChange = function(change) {
+                            if (change == null) {
+                                return this._update(new None(), ["unset"]);
                             } else {
-                                if (this.delta != null) {
-                                    throw new Error();
-                                }
-                                this.content = value;
+                                return this._update(new Some(change.value), ["set", change.value]);
                             }
                         };
                     
-                        // dependenciesChanged, commit & introduced called during propagating only (!)
+                        // dependenciesChanged is being called during propagating only (!)
                     
                         Cell.prototype.dependenciesChanged = function() {
-                            return this.delta != null;
-                        };
-                    
-                        Cell.prototype.commit = function() {
-                            this.content = this.delta.value;
-                            this.delta = null;
-                            event_broker.emitNotify(this);
-                        };
-                    
-                        Cell.prototype.introduce = function() {
-                            if (this.delta != null) {
-                                this.content = this.delta.value;
-                                this.delta = null;
-                            }
-                            event_broker.emitNotify(this);
+                            return {
+                                hasChanges: true,
+                                changeSet: [this.content]
+                            };
                         };
                     
                         // may be called during propagating or outside it
@@ -2747,42 +2705,46 @@ var warp9 = (function(){
                     
                             if (this.usersCount===1) {
                                 DAG.addNode(this);
-                                event_broker.emitIntroduced(this);
+                                this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+                                event_broker.notify(this);
                             }
                         };
                     
                         Cell.prototype.seal = function(id) {
                             id = arguments.length==0 ? this.nodeId : id;
-                            BaseCell.prototype.seal.apply(this, [id]);
+                            BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount===0) {
                                 DAG.removeNode(this);
                             }
                         };
                     
+                        // gets
+                    
                         Cell.prototype.hasValue = function() {
                             tracker.track(this);
                     
-                            var value = this.content;
-                            if (this.delta != null) {
-                                value = this.delta.value;
-                            }
-                    
-                            return !value.isEmpty();
+                            return !this.content.isEmpty();
                         };
                     
                         Cell.prototype.unwrap = function(alt) {
                             tracker.track(this);
                     
-                            var value = this.content;
-                            if (this.delta != null) {
-                                value = this.delta.value;
-                            }
-                    
-                            if (arguments.length==0 && value.isEmpty()) {
+                            if (arguments.length==0 && this.content.isEmpty()) {
                                 throw new EmptyError();
                             }
-                            return value.isEmpty() ? alt : value.value();
+                            return this.content.isEmpty() ? alt : this.content.value();
+                        };
+                    
+                        // utils
+                    
+                        Cell.prototype._update = function(value, event) {
+                            this.content = value;
+                            if (this.usersCount>0) {
+                                this._putEventToDependants(event);
+                                event_broker.notify(this);
+                            }
+                            return true;
                         };
                     }
                     
@@ -2815,12 +2777,24 @@ var warp9 = (function(){
                         this.users = {};
                         this.usersCount = 0;
                         this.f = f;
+                    
+                        tracker.inScope(function(){
+                            try {
+                                this.content = new Some(this.f());
+                            } catch (e) {
+                                if (e instanceof EmptyError) {
+                                    this.content = new None();
+                                } else {
+                                    throw e;
+                                }
+                            }
+                        }, this);
                     }
                     
                     function SetDependentCellPrototype() {
                         DependentCell.prototype = new BaseCell();
                     
-                        // dependenciesChanged, commit & introduced called during propagating only (!)
+                        // dependenciesChanged is being called during propagating only (!)
                     
                         DependentCell.prototype.dependenciesChanged = function() {
                             var i;
@@ -2870,33 +2844,25 @@ var warp9 = (function(){
                             this.changed = {};
                     
                             if (this.content.isEmpty() && value.isEmpty()) {
-                                return false;
+                                return { hasChanges: false };
                             }
                             if (!this.content.isEmpty() && !value.isEmpty()) {
                                 if (this.content.value() === value.value()) {
-                                    return false;
+                                    return { hasChanges: false };
                                 }
                             }
-                            this.delta = {value: value};
-                            return true;
+                            this.content = value;
+                            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+                            event_broker.notify(this);
+                    
+                            return {
+                                hasChanges: true,
+                                changeSet: [this.content]
+                            };
                         };
                     
-                        DependentCell.prototype.commit = function() {
-                            this.content = this.delta.value;
-                            this.delta = null;
-                            event_broker.emitNotify(this);
-                        };
+                        // may be called during propagating or outside it
                     
-                        DependentCell.prototype.introduce = function() {
-                            if (this.delta != null) {
-                                this.content = this.delta.value;
-                                this.delta = null;
-                            }
-                            event_broker.emitNotify(this);
-                        };
-                    
-                    
-                        /////
                         DependentCell.prototype.leak = function() {
                             id = arguments.length==0 ? this.nodeId : id;
                     
@@ -2910,32 +2876,31 @@ var warp9 = (function(){
                             if (this.usersCount===1) {
                                 tracker.inScope(function(){
                                     try {
-                                        this.delta = {
-                                            value: new Some(this.f())
-                                        };
+                                        this.content = new Some(this.f());
                                     } catch (e) {
                                         if (e instanceof EmptyError) {
-                                            this.delta = {
-                                                value: new None()
-                                            };
+                                            this.content = new None();
                                         } else {
                                             throw e;
                                         }
                                     }
                                     this.dependencies = tracker.tracked;
                                 }, this);
+                    
                                 DAG.addNode(this);
                                 for (var i=0;i<this.dependencies.length;i++) {
                                     this.dependencies[i].leak(this.nodeId);
                                     DAG.addRelation(this.dependencies[i], this);
                                 }
-                                event_broker.emitIntroduced(this);
+                    
+                                this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+                                event_broker.notify(this);
                             }
                         };
                     
                         DependentCell.prototype.seal = function(event) {
                             id = arguments.length==0 ? this.nodeId : id;
-                            BaseCell.prototype.seal.apply(this, [id]);
+                            BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount===0) {
                                 for (var i=0;i<this.dependencies.length;i++) {
@@ -2946,33 +2911,11 @@ var warp9 = (function(){
                             }
                         };
                     
-                        ////
-                    
+                        // gets
                     
                         DependentCell.prototype.hasValue = function() {
-                            var f = this.f;
-                            tracker.track(this);
-                    
-                            if (this.usersCount>0) {
-                                var value = this.content;
-                                if (this.delta != null) {
-                                    value = this.delta.value;
-                                }
-                                return !value.isEmpty();
-                            } else {
-                                if (this.delta != null) throw new Error();
-                                return !tracker.outScope(function(){
-                                    try {
-                                        return new Some(f());
-                                    } catch (e) {
-                                        if (e instanceof EmptyError) {
-                                            return new None();
-                                        } else {
-                                            throw e;
-                                        }
-                                    }
-                                }).isEmpty();
-                            }
+                            var marker = {};
+                            return this.unwrap(marker) !== marker;
                         };
                     
                         DependentCell.prototype.unwrap = function(alt) {
@@ -2983,11 +2926,9 @@ var warp9 = (function(){
                     
                             var value = this.content;
                             if (this.usersCount==0) {
-                                if (this.delta != null) throw new Error();
                                 value = tracker.outScope(function(){
                                     try {
-                                        var value = f();
-                                        return new Some(value);
+                                        return new Some(f());
                                     } catch (e) {
                                         if (e instanceof EmptyError) {
                                             return new None();
@@ -2996,9 +2937,6 @@ var warp9 = (function(){
                                         }
                                     }
                                 });
-                            }
-                            if (this.delta != null) {
-                                value = this.delta.value;
                             }
                     
                             return unwrap.apply(value, args);
@@ -3141,36 +3079,49 @@ var warp9 = (function(){
                         this.usersCount = 0;
                     }
                     
+                    BaseList.prototype.sendAllMessages = function() {
+                        for (var i=0;i<this.dependants.length;i++) {
+                            this.sendItsMessages(this.dependants[i]);
+                        }
+                    };
                     
+                    BaseList.prototype.sendItsMessages = function(dependant) {
+                        if (dependant.disabled) return;
+                        if (dependant.mailbox.length==0) return;
+                        var event = dependant.mailbox[dependant.mailbox.length - 1];
+                        dependant.mailbox = [];
+                        dependant.f(this, event);
+                    };
                     
                     BaseList.prototype.onEvent = function(f) {
                         if (!event_broker.isOnProcessCall) {
                             return event_broker.invokeOnProcess(this, this.onEvent, [f]);
                         }
                     
+                        var self = this;
+                    
                         var dependant = {
                             key: uid(),
                             f: function(list, event) {
-                                if (this.disposed || list.usersCount==0) return;
+                                if (this.disposed) return;
                                 f(event);
                             },
-                            disposed: false
+                            disposed: false,
+                            mailbox: [ ["reset", this.data.slice()] ]
                         };
                     
                         this.dependants.push(dependant);
                     
-                        event_broker.emitNotifySingle(this, dependant.f, {
-                            root: this.data.slice(),
-                            added: [],
-                            removed: []
-                        });
+                        if (this.usersCount > 0) {
+                            event_broker.notifySingle(this, dependant);
+                        }
                     
                         return function() {
                             dependant.disposed = true;
-                            this.dependants = this.dependants.filter(function(d) {
+                            self.dependants = self.dependants.filter(function(d) {
                                 return d.key != id;
                             });
-                        }.bind(this);
+                        };
                     };
                     
                     BaseList.prototype._leak = function(id) {
@@ -3196,6 +3147,12 @@ var warp9 = (function(){
                         this.usersCount--;
                         if (this.users[id]===0) {
                             delete this.users[id];
+                        }
+                    };
+                    
+                    BaseList.prototype._putEventToDependants = function(event) {
+                        for (var i=0;i<this.dependants.length;i++) {
+                            this.dependants[i].mailbox.push(event);
                         }
                     };
                     
@@ -3341,14 +3298,8 @@ var warp9 = (function(){
                         BaseList.apply(this);
                         this.attach(List);
                     
-                        if (data) {
-                            this.data = data.map(function(item){
-                                return {
-                                    key: uid(),
-                                    value: item
-                                }
-                            });
-                        }
+                        this.changeSet = [];
+                        this._setData(data || []);
                     }
                     
                     function SetListPrototype() {
@@ -3357,101 +3308,40 @@ var warp9 = (function(){
                         // add, remove, setData are being called only outside of propagating
                     
                         List.prototype.add = function(f) {
-                            if (typeof(f) != "function") {
-                                var item = f;
-                                f = function(id) { return item; };
-                            }
-                    
                             var key = uid();
-                            var value = {key: key, value: f(key)};
-                    
-                            if (this.usersCount>0) {
-                                if (!this.delta) {
-                                    this.delta = {
-                                        root: null,
-                                        added: [],
-                                        removed: {}
-                                    }
-                                }
-                                this.delta.added.push(value);
-                                event_broker.emitChanged(this);
-                            } else {
-                                if (this.delta != null) {
-                                    throw new Error();
-                                }
-                                this.data.push(value);
-                            }
-                    
+                            event_broker.postponeChange(this, ["add", key, f]);
                             return key;
                         };
                     
                         List.prototype.remove = function(key) {
-                            if (this.usersCount>0) {
-                                if (!this.delta) {
-                                    this.delta = {
-                                        root: null,
-                                        added: [],
-                                        removed: {}
-                                    }
-                                }
-                                this.delta.removed.push(key);
-                                event_broker.emitChanged(this);
-                            } else {
-                                if (this.delta != null) {
-                                    throw new Error();
-                                }
-                                this.data = this.data.filter(function(item) {
-                                    return item.key != key;
-                                });
-                            }
+                            event_broker.postponeChange(this, ["remove", key]);
                         };
                     
                         List.prototype.setData = function(data) {
-                            data = data.map(function(item){
-                                return {
-                                    key: uid(),
-                                    value: item
-                                }
-                            });
-                            if (this.usersCount>0) {
-                                this.delta = {
-                                    root: data,
-                                    added: [],
-                                    removed: {}
-                                };
-                                event_broker.emitChanged(this);
+                            event_broker.postponeChange(this, ["setData", data]);
+                        };
+                    
+                        List.prototype.applyChange = function(change) {
+                            if (change[0]==="add") {
+                                return this._add(change[1],change[2]);
+                            } else if (change[0]==="remove") {
+                                return this._remove(change[1]);
+                            } else if (change[0]==="setData") {
+                                return this._setData(change[1]);
                             } else {
-                                if (this.delta != null) {
-                                    throw new Error();
-                                }
-                                this.data = data;
+                                throw new Error();
                             }
                         };
                     
-                        // dependenciesChanged, commit & introduced called during propagating only (!)
+                        // dependenciesChanged is being called during propagating only (!)
                     
                         List.prototype.dependenciesChanged = function() {
-                            return this.delta != null;
-                        };
-                    
-                        List.prototype.commit = function() {
-                            if (this.delta==null) throw Error();
-                            var delta = this.delta;
-                            this.data = this._latest();
-                            this.delta = null;
-                            event_broker.emitNotify(this, delta);
-                        };
-                    
-                        List.prototype.introduce = function() {
-                            if (this.delta != null) {
-                                this.data = this._latest();
-                                this.delta = null;
-                            }
-                            event_broker.emitNotify(this, {
-                                root: this.data.slice(),
-                                added: [],
-                                removed: []
-                            });
+                            var info = {
+                                hasChanges: this.changeSet.length > 0,
+                                changeSet: this.changeSet
+                            };
+                            this.changeSet = []
+                            return info;
                         };
                     
                         // may be called during propagating or outside it
@@ -3468,7 +3358,8 @@ var warp9 = (function(){
                     
                             if (this.usersCount===1) {
                                 DAG.addNode(this);
-                                event_broker.emitIntroduced(this);
+                                this._putEventToDependants(["reset", this.data.slice()]);
+                                event_broker.notify(this);
                             }
                         };
                     
@@ -3483,24 +3374,69 @@ var warp9 = (function(){
                     
                         // internal
                     
-                        List.prototype._latest = function() {
-                            if (this.delta==null) return this.data;
-                            var data = this.delta.root == null ? this.data : this.delta.root;
-                    
-                            var result = [];
-                            for (var i=0;i<data.length;i++) {
-                                if (this.delta.removed.hasOwnProperty(data[i].key)) continue;
-                                result.push(data[i]);
-                            }
-                            for (var i=0;i<this.delta.added.length;i++) {
-                                if (this.delta.removed.hasOwnProperty(this.delta.added[i].key)) continue;
-                                result.push(this.delta.added[i]);
+                        List.prototype._add = function(key, f) {
+                            if (typeof(f) != "function") {
+                                var item = f;
+                                f = function(id) { return item; };
                             }
                     
-                            return result;
+                            var value = {key: key, value: f(key)};
+                            this.data.push(value);
+                    
+                            var event = ["add", value];
+                            this.changeSet.push(event);
+                            if (this.usersCount>0) {
+                                this._putEventToDependants(event);
+                                event_broker.notify(this);
+                            }
+                    
+                            return true;
+                        };
+                    
+                        List.prototype._remove = function(key) {
+                            this.data = this.data.filter(function(item) {
+                                return item.key != key;
+                            });
+                    
+                            var event = ["remove", key];
+                            this.changeSet.push(event);
+                            if (this.usersCount>0) {
+                                this._putEventToDependants(event);
+                                event_broker.notify(this);
+                            }
+                    
+                            return true;
+                        };
+                    
+                        List.prototype._setData = function(data) {
+                            this.data = data.map(function(item){
+                                return {
+                                    key: uid(),
+                                    value: item
+                                }
+                            });
+                            var event = ["reset", data.slice()];
+                            this.changeSet.push(event);
+                            if (this.usersCount>0) {
+                                this._putEventToDependants(event);
+                                event_broker.notify(this);
+                            }
+                    
+                            return true;
                         };
                     }
                     
+                    List.handler = function(handlers) {
+                        return function(e) {
+                            while(true) {
+                                if (e[0]==="reset") break;
+                                if (e[0]==="add") break;
+                                if (e[0]==="remove") break;
+                                throw new Error();
+                            }
+                            handlers[e[0]].call(handlers, e[1]);
+                        };
+                    };
                 }
             },
             {
