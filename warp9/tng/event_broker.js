@@ -1,12 +1,13 @@
 expose(new EventBroker());
 
 var
-    CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single";
+    CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single", INTRODUCED = "introduced";
 
 function EventBroker() {
     this.events = [];
     this.active = false;
     this.isOnProcessCall = false;
+    this.isPropagating = false;
 }
 
 EventBroker.prototype.emitChanged = function(node) {
@@ -15,6 +16,18 @@ EventBroker.prototype.emitChanged = function(node) {
         node: node
     });
     this.process();
+};
+
+EventBroker.prototype.emitIntroduced = function(node) {
+    if (this.isPropagating) {
+        root.tng.dag.DAG.markIntroduced(node);
+    } else {
+        this.events.push({
+            type: INTRODUCED,
+            node: node
+        });
+        this.process();
+    }
 };
 
 EventBroker.prototype.emitCall = function(fn) {
@@ -29,19 +42,21 @@ EventBroker.prototype.emitCall = function(fn) {
     }
 };
 
-EventBroker.prototype.emitNotify = function(node) {
+EventBroker.prototype.emitNotify = function(node, event) {
     this.events.push({
         type: NOTIFY,
-        node: node
+        node: node,
+        event: event
     });
     this.process();
 };
 
-EventBroker.prototype.emitNotifySingle = function(node, f) {
+EventBroker.prototype.emitNotifySingle = function(node, f, event) {
     this.events.push({
         type: NOTIFY_SINGLE,
         node: node,
-        f: f
+        f: f,
+        event: event
     });
     this.process();
 };
@@ -67,15 +82,22 @@ EventBroker.prototype.process = function() {
         var event = this.events.shift();
         if (event.type === CHANGED) {
             root.tng.dag.DAG.notifyChanged(event.node);
+            this.isPropagating = true;
             root.tng.dag.DAG.propagate();
+            this.isPropagating = false;
+        } else if (event.type === INTRODUCED) {
+            root.tng.dag.DAG.markIntroduced(event.node);
+            this.isPropagating = true;
+            root.tng.dag.DAG.propagate();
+            this.isPropagating = false;
         } else if (event.type === CALL) {
             event.fn();
         } else if (event.type === NOTIFY) {
             event.node.dependants.forEach(function(d){
-                d.f(event.node);
+                d.f(event.node, event.event);
             });
         } else if (event.type === NOTIFY_SINGLE) {
-            event.f(event.node);
+            event.f(event.node, event.event);
         } else {
             throw new Error();
         }

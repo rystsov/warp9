@@ -18,9 +18,11 @@ DAG.prototype.reset = function() {
     this.length = 0;
     this.dependencies = {};
     this.dependants = {};
+
     this.changed = new SortedList(function(a,b){
         return a.nodeRank - b.nodeRank;
     });
+    this.nova = {};
 };
 
 DAG.prototype.addNode = function(node) {
@@ -85,13 +87,16 @@ DAG.prototype.notifyChanged = function(node) {
     this.changed.push(node);
 };
 
+DAG.prototype.markIntroduced = function(node) {
+    this.nova[node.nodeId] = node;
+};
+
 DAG.prototype.propagate = function() {
     var dirty = {};
-
     while (this.changed.length>0) {
         var front = this.changed.pop();
         if (!front.dependenciesChanged()) continue;
-        dirty[front.nodeId] = true;
+        dirty[front.nodeId] = front;
 
         for (var i=0;i<this.dependants[front.nodeId].length;i++) {
             var node = this.nodes[this.dependants[front.nodeId][i]];
@@ -100,11 +105,19 @@ DAG.prototype.propagate = function() {
         }
     }
 
+    for (var nodeId in this.nova) {
+        if (!this.nova.hasOwnProperty(nodeId)) continue;
+        if (this.nova[nodeId].usersCount === 0) continue;
+        this.nova[nodeId].introduce();
+    }
+
     for (var nodeId in dirty) {
         if (!dirty.hasOwnProperty(nodeId)) continue;
-        this.nodes[nodeId].commit();
-        event_broker.emitNotify(this.nodes[nodeId]);
+        if (this.nova.hasOwnProperty(nodeId)) continue;
+        dirty[nodeId].commit();
     }
+
+    this.nova = {};
 };
 
 function knownNode(dag, node) {

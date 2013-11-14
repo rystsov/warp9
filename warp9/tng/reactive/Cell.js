@@ -28,32 +28,51 @@ function Cell() {
 function SetCellPrototype() {
     Cell.prototype = new BaseCell();
 
-    Cell.prototype.dependenciesChanged = function() {
-        return this.delta != null;
-    };
+    // set and unset called only outside of propagating
 
     Cell.prototype.set = function(value) {
-        this.delta = {
-            value: new Some(value)
-        };
-        if (this.usersCount>0) {
-            event_broker.emitChanged(this);
-        }
+        this._update(new Some(value));
     };
 
     Cell.prototype.unset = function() {
-        this.delta = {
-            value: new None()
-        };
+        this._update(new None());
+    };
+
+    Cell.prototype._update = function(value) {
         if (this.usersCount>0) {
+            this.delta = {
+                value: value
+            };
             event_broker.emitChanged(this);
+        } else {
+            if (this.delta != null) {
+                throw new Error();
+            }
+            this.content = value;
         }
+    };
+
+    // dependenciesChanged, commit & introduced called during propagating only (!)
+
+    Cell.prototype.dependenciesChanged = function() {
+        return this.delta != null;
     };
 
     Cell.prototype.commit = function() {
         this.content = this.delta.value;
         this.delta = null;
+        event_broker.emitNotify(this);
     };
+
+    Cell.prototype.introduce = function() {
+        if (this.delta != null) {
+            this.content = this.delta.value;
+            this.delta = null;
+        }
+        event_broker.emitNotify(this);
+    };
+
+    // may be called during propagating or outside it
 
     Cell.prototype.leak = function(id) {
         id = arguments.length==0 ? this.nodeId : id;
@@ -66,11 +85,8 @@ function SetCellPrototype() {
         BaseCell.prototype._leak.apply(this, [id]);
 
         if (this.usersCount===1) {
-            if (this.delta!=null) {
-                this.commit();
-            }
             DAG.addNode(this);
-            event_broker.emitNotify(this);
+            event_broker.emitIntroduced(this);
         }
     };
 
@@ -108,14 +124,3 @@ function SetCellPrototype() {
         return value.isEmpty() ? alt : value.value();
     };
 }
-
-
-
-// onChange, leak, seal may be called by user outside the event processing
-// onChange, leak, seal can't be called during propagating
-// onChange may emit NOTIFY-SINGLE (node, f)
-// leak, seal may change graph structure
-// graph structure changes emit NOTIFY (node)
-// NOTIFY aren't processed during onChange, leak, seal
-// All should SET, UNSET be are processed prior start processing NOTIFY
-// if more then one NOTIFY* for the same node

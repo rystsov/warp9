@@ -2058,9 +2058,11 @@ define([], function() {
                             this.length = 0;
                             this.dependencies = {};
                             this.dependants = {};
+                        
                             this.changed = new SortedList(function(a,b){
                                 return a.nodeRank - b.nodeRank;
                             });
+                            this.nova = {};
                         };
                         
                         DAG.prototype.addNode = function(node) {
@@ -2125,13 +2127,16 @@ define([], function() {
                             this.changed.push(node);
                         };
                         
+                        DAG.prototype.markIntroduced = function(node) {
+                            this.nova[node.nodeId] = node;
+                        };
+                        
                         DAG.prototype.propagate = function() {
                             var dirty = {};
-                        
                             while (this.changed.length>0) {
                                 var front = this.changed.pop();
                                 if (!front.dependenciesChanged()) continue;
-                                dirty[front.nodeId] = true;
+                                dirty[front.nodeId] = front;
                         
                                 for (var i=0;i<this.dependants[front.nodeId].length;i++) {
                                     var node = this.nodes[this.dependants[front.nodeId][i]];
@@ -2140,11 +2145,19 @@ define([], function() {
                                 }
                             }
                         
+                            for (var nodeId in this.nova) {
+                                if (!this.nova.hasOwnProperty(nodeId)) continue;
+                                if (this.nova[nodeId].usersCount === 0) continue;
+                                this.nova[nodeId].introduce();
+                            }
+                        
                             for (var nodeId in dirty) {
                                 if (!dirty.hasOwnProperty(nodeId)) continue;
-                                this.nodes[nodeId].commit();
-                                event_broker.emitNotify(this.nodes[nodeId]);
+                                if (this.nova.hasOwnProperty(nodeId)) continue;
+                                dirty[nodeId].commit();
                             }
+                        
+                            this.nova = {};
                         };
                         
                         function knownNode(dag, node) {
@@ -2216,12 +2229,13 @@ define([], function() {
                         expose(new EventBroker());
                         
                         var
-                            CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single";
+                            CHANGED = "changed", CALL = "call", NOTIFY = "notify", NOTIFY_SINGLE = "notify-single", INTRODUCED = "introduced";
                         
                         function EventBroker() {
                             this.events = [];
                             this.active = false;
                             this.isOnProcessCall = false;
+                            this.isPropagating = false;
                         }
                         
                         EventBroker.prototype.emitChanged = function(node) {
@@ -2230,6 +2244,18 @@ define([], function() {
                                 node: node
                             });
                             this.process();
+                        };
+                        
+                        EventBroker.prototype.emitIntroduced = function(node) {
+                            if (this.isPropagating) {
+                                root.tng.dag.DAG.markIntroduced(node);
+                            } else {
+                                this.events.push({
+                                    type: INTRODUCED,
+                                    node: node
+                                });
+                                this.process();
+                            }
                         };
                         
                         EventBroker.prototype.emitCall = function(fn) {
@@ -2244,19 +2270,21 @@ define([], function() {
                             }
                         };
                         
-                        EventBroker.prototype.emitNotify = function(node) {
+                        EventBroker.prototype.emitNotify = function(node, event) {
                             this.events.push({
                                 type: NOTIFY,
-                                node: node
+                                node: node,
+                                event: event
                             });
                             this.process();
                         };
                         
-                        EventBroker.prototype.emitNotifySingle = function(node, f) {
+                        EventBroker.prototype.emitNotifySingle = function(node, f, event) {
                             this.events.push({
                                 type: NOTIFY_SINGLE,
                                 node: node,
-                                f: f
+                                f: f,
+                                event: event
                             });
                             this.process();
                         };
@@ -2282,15 +2310,22 @@ define([], function() {
                                 var event = this.events.shift();
                                 if (event.type === CHANGED) {
                                     root.tng.dag.DAG.notifyChanged(event.node);
+                                    this.isPropagating = true;
                                     root.tng.dag.DAG.propagate();
+                                    this.isPropagating = false;
+                                } else if (event.type === INTRODUCED) {
+                                    root.tng.dag.DAG.markIntroduced(event.node);
+                                    this.isPropagating = true;
+                                    root.tng.dag.DAG.propagate();
+                                    this.isPropagating = false;
                                 } else if (event.type === CALL) {
                                     event.fn();
                                 } else if (event.type === NOTIFY) {
                                     event.node.dependants.forEach(function(d){
-                                        d.f(event.node);
+                                        d.f(event.node, event.event);
                                     });
                                 } else if (event.type === NOTIFY_SINGLE) {
-                                    event.f(event.node);
+                                    event.f(event.node, event.event);
                                 } else {
                                     throw new Error();
                                 }
@@ -2655,32 +2690,51 @@ define([], function() {
                         function SetCellPrototype() {
                             Cell.prototype = new BaseCell();
                         
-                            Cell.prototype.dependenciesChanged = function() {
-                                return this.delta != null;
-                            };
+                            // set and unset called only outside of propagating
                         
                             Cell.prototype.set = function(value) {
-                                this.delta = {
-                                    value: new Some(value)
-                                };
-                                if (this.usersCount>0) {
-                                    event_broker.emitChanged(this);
-                                }
+                                this._update(new Some(value));
                             };
                         
                             Cell.prototype.unset = function() {
-                                this.delta = {
-                                    value: new None()
-                                };
+                                this._update(new None());
+                            };
+                        
+                            Cell.prototype._update = function(value) {
                                 if (this.usersCount>0) {
+                                    this.delta = {
+                                        value: value
+                                    };
                                     event_broker.emitChanged(this);
+                                } else {
+                                    if (this.delta != null) {
+                                        throw new Error();
+                                    }
+                                    this.content = value;
                                 }
+                            };
+                        
+                            // dependenciesChanged, commit & introduced called during propagating only (!)
+                        
+                            Cell.prototype.dependenciesChanged = function() {
+                                return this.delta != null;
                             };
                         
                             Cell.prototype.commit = function() {
                                 this.content = this.delta.value;
                                 this.delta = null;
+                                event_broker.emitNotify(this);
                             };
+                        
+                            Cell.prototype.introduce = function() {
+                                if (this.delta != null) {
+                                    this.content = this.delta.value;
+                                    this.delta = null;
+                                }
+                                event_broker.emitNotify(this);
+                            };
+                        
+                            // may be called during propagating or outside it
                         
                             Cell.prototype.leak = function(id) {
                                 id = arguments.length==0 ? this.nodeId : id;
@@ -2693,11 +2747,8 @@ define([], function() {
                                 BaseCell.prototype._leak.apply(this, [id]);
                         
                                 if (this.usersCount===1) {
-                                    if (this.delta!=null) {
-                                        this.commit();
-                                    }
                                     DAG.addNode(this);
-                                    event_broker.emitNotify(this);
+                                    event_broker.emitIntroduced(this);
                                 }
                             };
                         
@@ -2736,17 +2787,6 @@ define([], function() {
                             };
                         }
                         
-                        
-                        
-                        // onChange, leak, seal may be called by user outside the event processing
-                        // onChange, leak, seal can't be called during propagating
-                        // onChange may emit NOTIFY-SINGLE (node, f)
-                        // leak, seal may change graph structure
-                        // graph structure changes emit NOTIFY (node)
-                        // NOTIFY aren't processed during onChange, leak, seal
-                        // All should SET, UNSET be are processed prior start processing NOTIFY
-                        // if more then one NOTIFY* for the same node
-                        
                     }
                 },
                 {
@@ -2761,16 +2801,16 @@ define([], function() {
                             tracker = root.tng.tracker;
                             EmptyError = root.tng.reactive.EmptyError;
                             DAG = root.tng.dag.DAG;
-                            Cell = root.tng.reactive.Cell;
+                            BaseCell = root.tng.reactive.BaseCell;
+                        
+                            SetDependentCellPrototype();
                         });
                         
-                        var Matter, Node, None, Some, event_broker, tracker, EmptyError, DAG, Cell;
+                        var Matter, Node, None, Some, event_broker, tracker, EmptyError, DAG, BaseCell;
                         
                         function DependentCell(f) {
-                            Matter.apply(this, []);
-                            Node.apply(this, []);
+                            BaseCell.apply(this, []);
                             this.attach(DependentCell);
-                            this.attach(Cell);
                         
                             this.dependants = [];
                             this.users = {};
@@ -2778,223 +2818,199 @@ define([], function() {
                             this.f = f;
                         }
                         
-                        DependentCell.prototype.commit = function() {
-                            this.content = this.delta.value;
-                            this.delta = null;
-                        };
+                        function SetDependentCellPrototype() {
+                            DependentCell.prototype = new BaseCell();
                         
-                        DependentCell.prototype.dependenciesChanged = function() {
-                            var i;
-                            var known = {};
-                            for (i=0;i<this.dependencies.length;i++) {
-                                known[this.dependencies[i].nodeId] = this.dependencies[i];
-                            }
+                            // dependenciesChanged, commit & introduced called during propagating only (!)
                         
-                            var value, tracked, nova = {};
-                            tracker.inScope(function(){
-                                try {
-                                    value = new Some(this.f());
-                                } catch (e) {
-                                    if (e instanceof EmptyError) {
-                                        value = new None();
-                                    } else {
-                                        throw e;
-                                    }
+                            DependentCell.prototype.dependenciesChanged = function() {
+                                var i;
+                                var known = {};
+                                for (i=0;i<this.dependencies.length;i++) {
+                                    known[this.dependencies[i].nodeId] = this.dependencies[i];
                                 }
-                                tracked = tracker.tracked;
-                            }, this);
                         
-                            var deleted = [];
-                            var added = [];
-                            for (i=0;i<tracked.length;i++) {
-                                nova[tracked[i].nodeId] = tracked[i];
-                                if (!known.hasOwnProperty(tracked[i].nodeId)) {
-                                    added.push(tracked[i]);
-                                }
-                            }
-                            for (i=0;i<this.dependencies.length;i++) {
-                                if (!nova.hasOwnProperty(this.dependencies[i].nodeId)) {
-                                    deleted.push(this.dependencies[i]);
-                                }
-                            }
-                        
-                            for (i=0;i<deleted.length;i++) {
-                                DAG.removeRelation(deleted[i], this);
-                                deleted[i].seal(this.nodeId);
-                            }
-                            for (i=0;i<added.length;i++) {
-                                added[i].leak(this.nodeId);
-                                DAG.addRelation(added[i], this);
-                            }
-                        
-                            this.dependencies = tracked;
-                            this.changed = {};
-                        
-                            if (this.content.isEmpty() && value.isEmpty()) {
-                                return false;
-                            }
-                            if (!this.content.isEmpty() && !value.isEmpty()) {
-                                if (this.content.value() === value.value()) {
-                                    return false;
-                                }
-                            }
-                            this.delta = {value: value};
-                            return true;
-                        };
-                        
-                        
-                        /////
-                        
-                        DependentCell.prototype.onChange = function(f) {
-                            if (!event_broker.isOnProcessCall) {
-                                return event_broker.invokeOnProcess(this, this.onChange, [f]);
-                            }
-                        
-                            var self = this;
-                            var active = true;
-                        
-                            var dependant = {
-                                key: root.idgenerator(),
-                                f: function(obj) {
-                                    if (active && obj.usersCount>0) {
-                                        f(obj);
-                                    }
-                                }
-                            };
-                        
-                            this.dependants.push(dependant);
-                        
-                            event_broker.emitNotifySingle(this, dependant.f);
-                        
-                            return function() {
-                                active = false;
-                                self.dependants = self.dependants.filter(function(d) {
-                                    return d.key != id;
-                                });
-                            };
-                        };
-                        
-                        DependentCell.prototype.leak = function() {
-                            var id = arguments.length==0 ? this.nodeId : arguments[0];
-                        
-                            if (!event_broker.isOnProcessCall) {
-                                event_broker.invokeOnProcess(this, this.leak, [id]);
-                                return;
-                            }
-                        
-                            if (this.users.hasOwnProperty(id)) {
-                                this.users[id] = 0;
-                            }
-                            this.users[id]++;
-                            this.usersCount++;
-                            if (this.usersCount===1) {
+                                var value, tracked, nova = {};
                                 tracker.inScope(function(){
                                     try {
-                                        this.content = new Some(this.f());
+                                        value = new Some(this.f());
                                     } catch (e) {
                                         if (e instanceof EmptyError) {
-                                            this.content = new None();
+                                            value = new None();
                                         } else {
                                             throw e;
                                         }
                                     }
-                                    this.dependencies = tracker.tracked;
+                                    tracked = tracker.tracked;
                                 }, this);
-                                DAG.addNode(this);
-                                for (var i=0;i<this.dependencies.length;i++) {
-                                    this.dependencies[i].leak(this.nodeId);
-                                    DAG.addRelation(this.dependencies[i], this);
+                        
+                                var deleted = [];
+                                var added = [];
+                                for (i=0;i<tracked.length;i++) {
+                                    nova[tracked[i].nodeId] = tracked[i];
+                                    if (!known.hasOwnProperty(tracked[i].nodeId)) {
+                                        added.push(tracked[i]);
+                                    }
+                                }
+                                for (i=0;i<this.dependencies.length;i++) {
+                                    if (!nova.hasOwnProperty(this.dependencies[i].nodeId)) {
+                                        deleted.push(this.dependencies[i]);
+                                    }
+                                }
+                        
+                                for (i=0;i<deleted.length;i++) {
+                                    DAG.removeRelation(deleted[i], this);
+                                    deleted[i].seal(this.nodeId);
+                                }
+                                for (i=0;i<added.length;i++) {
+                                    added[i].leak(this.nodeId);
+                                    DAG.addRelation(added[i], this);
+                                }
+                        
+                                this.dependencies = tracked;
+                                this.changed = {};
+                        
+                                if (this.content.isEmpty() && value.isEmpty()) {
+                                    return false;
+                                }
+                                if (!this.content.isEmpty() && !value.isEmpty()) {
+                                    if (this.content.value() === value.value()) {
+                                        return false;
+                                    }
+                                }
+                                this.delta = {value: value};
+                                return true;
+                            };
+                        
+                            DependentCell.prototype.commit = function() {
+                                this.content = this.delta.value;
+                                this.delta = null;
+                                event_broker.emitNotify(this);
+                            };
+                        
+                            DependentCell.prototype.introduce = function() {
+                                if (this.delta != null) {
+                                    this.content = this.delta.value;
+                                    this.delta = null;
                                 }
                                 event_broker.emitNotify(this);
-                            }
-                        };
+                            };
                         
-                        DependentCell.prototype.seal = function(event) {
-                            var id = arguments.length==0 ? this.nodeId : arguments[0];
                         
-                            if (!this.users.hasOwnProperty(id)) {
-                                throw new Error();
-                            }
-                            if (this.users[id]===0) {
-                                throw new Error();
-                            }
-                            this.users[id]--;
-                            this.usersCount--;
-                            if (this.users[id]===0) {
-                                delete this.users[id];
-                            }
-                            if (this.usersCount===0) {
-                                for (var i=0;i<this.dependencies.length;i++) {
-                                    DAG.removeRelation(this.dependencies[i], this);
-                                    this.dependencies[i].seal(this.nodeId);
+                            /////
+                            DependentCell.prototype.leak = function() {
+                                id = arguments.length==0 ? this.nodeId : id;
+                        
+                                if (!event_broker.isOnProcessCall) {
+                                    event_broker.invokeOnProcess(this, this.leak, [id]);
+                                    return;
                                 }
-                                DAG.removeNode(this);
-                            }
-                        };
                         
-                        ////
+                                BaseCell.prototype._leak.apply(this, [id]);
+                        
+                                if (this.usersCount===1) {
+                                    tracker.inScope(function(){
+                                        try {
+                                            this.delta = {
+                                                value: new Some(this.f())
+                                            };
+                                        } catch (e) {
+                                            if (e instanceof EmptyError) {
+                                                this.delta = {
+                                                    value: new None()
+                                                };
+                                            } else {
+                                                throw e;
+                                            }
+                                        }
+                                        this.dependencies = tracker.tracked;
+                                    }, this);
+                                    DAG.addNode(this);
+                                    for (var i=0;i<this.dependencies.length;i++) {
+                                        this.dependencies[i].leak(this.nodeId);
+                                        DAG.addRelation(this.dependencies[i], this);
+                                    }
+                                    event_broker.emitIntroduced(this);
+                                }
+                            };
+                        
+                            DependentCell.prototype.seal = function(event) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                                BaseCell.prototype.seal.apply(this, [id]);
+                        
+                                if (this.usersCount===0) {
+                                    for (var i=0;i<this.dependencies.length;i++) {
+                                        DAG.removeRelation(this.dependencies[i], this);
+                                        this.dependencies[i].seal(this.nodeId);
+                                    }
+                                    DAG.removeNode(this);
+                                }
+                            };
+                        
+                            ////
                         
                         
-                        DependentCell.prototype.hasValue = function() {
-                            var f = this.f;
-                            tracker.track(this);
+                            DependentCell.prototype.hasValue = function() {
+                                var f = this.f;
+                                tracker.track(this);
                         
-                            if (this.usersCount>0) {
+                                if (this.usersCount>0) {
+                                    var value = this.content;
+                                    if (this.delta != null) {
+                                        value = this.delta.value;
+                                    }
+                                    return !value.isEmpty();
+                                } else {
+                                    if (this.delta != null) throw new Error();
+                                    return !tracker.outScope(function(){
+                                        try {
+                                            return new Some(f());
+                                        } catch (e) {
+                                            if (e instanceof EmptyError) {
+                                                return new None();
+                                            } else {
+                                                throw e;
+                                            }
+                                        }
+                                    }).isEmpty();
+                                }
+                            };
+                        
+                            DependentCell.prototype.unwrap = function(alt) {
+                                var f = this.f;
+                                tracker.track(this);
+                        
+                                var args = arguments.length==0 ? [] : [alt];
+                        
                                 var value = this.content;
+                                if (this.usersCount==0) {
+                                    if (this.delta != null) throw new Error();
+                                    value = tracker.outScope(function(){
+                                        try {
+                                            var value = f();
+                                            return new Some(value);
+                                        } catch (e) {
+                                            if (e instanceof EmptyError) {
+                                                return new None();
+                                            } else {
+                                                throw e;
+                                            }
+                                        }
+                                    });
+                                }
                                 if (this.delta != null) {
                                     value = this.delta.value;
                                 }
-                                return !value.isEmpty();
-                            } else {
-                                if (this.delta != null) throw new Error();
-                                return !tracker.outScope(function(){
-                                    try {
-                                        return new Some(f());
-                                    } catch (e) {
-                                        if (e instanceof EmptyError) {
-                                            return new None();
-                                        } else {
-                                            throw e;
-                                        }
-                                    }
-                                }).isEmpty();
+                        
+                                return unwrap.apply(value, args);
+                            };
+                        
+                            function unwrap(alt) {
+                                if (arguments.length==0 && this.isEmpty()) {
+                                    throw new Error();
+                                }
+                                return this.isEmpty() ? alt : this.value();
                             }
-                        };
-                        
-                        DependentCell.prototype.unwrap = function(alt) {
-                            var f = this.f;
-                            tracker.track(this);
-                        
-                            var args = arguments.length==0 ? [] : [alt];
-                        
-                            var value = this.content;
-                            if (this.usersCount==0) {
-                                if (this.delta != null) throw new Error();
-                                value = tracker.outScope(function(){
-                                    try {
-                                        var value = f();
-                                        return new Some(value);
-                                    } catch (e) {
-                                        if (e instanceof EmptyError) {
-                                            return new None();
-                                        } else {
-                                            throw e;
-                                        }
-                                    }
-                                });
-                            }
-                            if (this.delta != null) {
-                                value = this.delta.value;
-                            }
-                        
-                            return unwrap.apply(value, args);
-                        };
-                        
-                        function unwrap(alt) {
-                            if (arguments.length==0 && this.isEmpty()) {
-                                throw new Error();
-                            }
-                            return this.isEmpty() ? alt : this.value();
                         }
                     }
                 },
@@ -3116,31 +3132,17 @@ define([], function() {
                         var uid, event_broker, Matter, AggregatedCell, GroupReducer;
                         
                         function BaseList() {
-                            Matter.apply(this, []);
+                            root.tng.Matter.apply(this, []);
+                            root.tng.dag.Node.apply(this, []);
                             this.attach(BaseList);
                         
-                            this.listId = uid();
                             this.dependants = [];
                             this.data = [];
                             this.users = {};
                             this.usersCount = 0;
                         }
                         
-                        // TODO: separate user's onEvent and systems's onEvent
-                        // TODO: postpone user's via event_broker
                         
-                        BaseList.prototype.unwrap = function(alt) {
-                            throw new Error("Not implemented");
-                        };
-                        
-                        BaseList.prototype.reduceGroup = function(group, opt) {
-                            if (!opt) opt = {};
-                            if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-                            if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-                            if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-                        
-                            return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-                        };
                         
                         BaseList.prototype.onEvent = function(f) {
                             if (!event_broker.isOnProcessCall) {
@@ -3158,7 +3160,11 @@ define([], function() {
                         
                             this.dependants.push(dependant);
                         
-                            dependant.f(this, ["data", this.data.slice()]);
+                            event_broker.emitNotifySingle(this, dependant.f, {
+                                root: this.data.slice(),
+                                added: [],
+                                removed: []
+                            });
                         
                             return function() {
                                 dependant.disposed = true;
@@ -3168,22 +3174,19 @@ define([], function() {
                             }.bind(this);
                         };
                         
-                        BaseList.prototype.leak = function(id) {
-                            if (arguments.length==0) {
-                                return this.leak(this.listId);
-                            }
+                        BaseList.prototype._leak = function(id) {
+                            id = arguments.length==0 ? this.nodeId : id;
+                        
                             if (!this.users.hasOwnProperty(id)) {
                                 this.users[id] = 0;
                             }
                             this.users[id]++;
                             this.usersCount++;
-                            return this;
                         };
                         
-                        BaseList.prototype.seal = function(id) {
-                            if (arguments.length==0) {
-                                return this.seal(this.listId);
-                            }
+                        BaseList.prototype._seal = function(id) {
+                            id = arguments.length==0 ? this.nodeId : id;
+                        
                             if (!this.users.hasOwnProperty(id)) {
                                 throw new Error();
                             }
@@ -3195,19 +3198,18 @@ define([], function() {
                             if (this.users[id]===0) {
                                 delete this.users[id];
                             }
-                            return this;
                         };
                         
-                        BaseList.prototype.__raise = function(e) {
-                            if (!event_broker.isOnProcessCall) {
-                                return event_broker.invokeOnProcess(this, this.__raise, [e]);
-                            }
                         
-                            if (this.usersCount>0) {
-                                for (var i=0;i<this.dependants.length;i++) {
-                                    this.dependants[i].f(this, e);
-                                }
-                            }
+                        
+                        
+                        BaseList.prototype.reduceGroup = function(group, opt) {
+                            if (!opt) opt = {};
+                            if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                            if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                            if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                        
+                            return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
                         };
                         
                     }
@@ -3234,48 +3236,91 @@ define([], function() {
                         function SetLiftedPrototype() {
                             LiftedList.prototype = new BaseList();
                         
+                            LiftedList.prototype.dependenciesChanged = function() {
+                                if (this.source.delta==null) throw new Error();
+                                this.delta = liftDelta(this.source.delta, this.f);
+                                return true;
+                            };
+                        
                             LiftedList.prototype.unwrap = function() {
-                                return this.source.unwrap().map(function(item){
-                                    return this.f(item);
-                                }.bind(this));
-                            };
-                        
-                            LiftedList.prototype.leak = function(id) {
-                                id = arguments.length==0 ? this.listId : id;
-                                BaseList.prototype.leak.apply(this, [id]);
-                                if (this.usersCount === 1) {
-                                    this.source.leak(this.listId);
-                                    this.unsubscribe = this.source.onEvent(List.handler({
-                                        data: function(data) {
-                                            this.data = data.map(function(item){
-                                                return {key: item.key, value: this.f(item.value)};
-                                            }.bind(this));
-                                            this.__raise(["data", this.data.slice()]);
-                                        }.bind(this),
-                                        add: function(item) {
-                                            item = {key: item.key, value: this.f(item.value)};
-                                            this.data.push(item);
-                                            this.__raise(["add", item]);
-                                        }.bind(this),
-                                        remove: function(key){
-                                            this.data = this.data.filter(function(item){
-                                                return item.key != key;
-                                            });
-                                            this.__raise(["remove", key]);
-                                        }.bind(this)
-                                    }))
+                                if (this.usersCount > 0) {
+                                    return this._latest();
+                                } else {
+                                    return this.source.unwrap().map(function(item){
+                                        return this.f(item);
+                                    }.bind(this));
                                 }
                             };
                         
-                            LiftedList.prototype.seal = function(id) {
-                                id = arguments.length==0 ? this.listId : id;
-                                BaseList.prototype.seal.apply(this, [id]);
-                                if (this.usersCount === 0) {
-                                    this.unsubscribe();
-                                    this.unsubscribe = null;
-                                    this.source.seal(this.listId);
+                            LiftedList.prototype.leak = function() {
+                                var id = arguments.length==0 ? this.nodeId : arguments[0];
+                        
+                                if (!event_broker.isOnProcessCall) {
+                                    event_broker.invokeOnProcess(this, this.leak, [id]);
+                                    return;
+                                }
+                        
+                                BaseList.prototype._leak.apply(this, [id]);
+                        
+                                if (this.usersCount===1) {
+                                    if (this.delta != null) throw new Error();
+                        
+                                    this.source.leak(this.nodeId);
+                                    this.data = liftData(this.source.data, this.f);
+                                    this.delta = liftDelta(this.source.delta, this.f);
+                        
+                                    DAG.addNode(this);
+                                    DAG.addRelation(this.source, this);
+                                    event_broker.emitIntroduced(this);
                                 }
                             };
+                        
+                            LiftedList.prototype.seal = function() {
+                                var id = arguments.length==0 ? this.nodeId : arguments[0];
+                        
+                                BaseList.prototype._seal.apply(this, [id]);
+                        
+                                if (this.usersCount===0) {
+                                    DAG.removeRelation(this.source, this);
+                                    this.source.seal(this.nodeId);
+                                    DAG.removeNode(this);
+                                }
+                            };
+                        
+                            function liftDelta(delta, f) {
+                                if (delta==null) return null;
+                        
+                                var result = {
+                                    root: null,
+                                    added: [],
+                                    removed: []
+                                };
+                        
+                                if (delta.root != null) {
+                                    result.root = liftData(delta.root, f);
+                                }
+                        
+                                for (var i=0;i<delta.added.length;i++) {
+                                    result.added.push({
+                                        key: delta.added[i].key,
+                                        value: f(delta.added[i].value)
+                                    })
+                                }
+                        
+                                result.removed = delta.removed.slice();
+                                return result;
+                            }
+                        
+                            function liftData(data, f) {
+                                var result = [];
+                                for (var i=0;i<data.length;i++) {
+                                    result.push({
+                                        key: data[i].key,
+                                        value: f(data[i].value)
+                                    })
+                                }
+                                return result;
+                            }
                         }
                     }
                 },
@@ -3285,27 +3330,32 @@ define([], function() {
                         expose(List, function(){
                             BaseList = root.tng.reactive.lists.BaseList;
                             uid = root.idgenerator;
+                            event_broker = root.tng.event_broker;
+                            DAG = root.tng.dag.DAG;
                         
                             SetListPrototype();
                         });
                         
-                        var uid, BaseList;
+                        var uid, BaseList, DAG, event_broker;
                         
                         function List(data) {
                             BaseList.apply(this);
                             this.attach(List);
                         
-                            this.setData(data ? data : []);
+                            if (data) {
+                                this.data = data.map(function(item){
+                                    return {
+                                        key: uid(),
+                                        value: item
+                                    }
+                                });
+                            }
                         }
                         
                         function SetListPrototype() {
                             List.prototype = new BaseList();
                         
-                            List.prototype.unwrap = function() {
-                                return this.data.map(function(item){
-                                    return item.value;
-                                });
-                            };
+                            // add, remove, setData are being called only outside of propagating
                         
                             List.prototype.add = function(f) {
                                 if (typeof(f) != "function") {
@@ -3315,53 +3365,142 @@ define([], function() {
                         
                                 var key = uid();
                                 var value = {key: key, value: f(key)};
-                                this.data.push(value);
                         
-                                this.__raise(["add", value]);
+                                if (this.usersCount>0) {
+                                    if (!this.delta) {
+                                        this.delta = {
+                                            root: null,
+                                            added: [],
+                                            removed: {}
+                                        }
+                                    }
+                                    this.delta.added.push(value);
+                                    event_broker.emitChanged(this);
+                                } else {
+                                    if (this.delta != null) {
+                                        throw new Error();
+                                    }
+                                    this.data.push(value);
+                                }
                         
                                 return key;
                             };
                         
+                            List.prototype.remove = function(key) {
+                                if (this.usersCount>0) {
+                                    if (!this.delta) {
+                                        this.delta = {
+                                            root: null,
+                                            added: [],
+                                            removed: {}
+                                        }
+                                    }
+                                    this.delta.removed.push(key);
+                                    event_broker.emitChanged(this);
+                                } else {
+                                    if (this.delta != null) {
+                                        throw new Error();
+                                    }
+                                    this.data = this.data.filter(function(item) {
+                                        return item.key != key;
+                                    });
+                                }
+                            };
+                        
                             List.prototype.setData = function(data) {
-                                this.data = data.map(function(item){
+                                data = data.map(function(item){
                                     return {
                                         key: uid(),
                                         value: item
                                     }
                                 });
-                                this.__raise(["data", this.data.slice()]);
-                            };
-                        
-                            List.prototype.remove = function(key) {
-                                var length = this.data.length;
-                                this.data = this.data.filter(function(item){
-                                    return item.key != key;
-                                });
-                                if (length!=this.data.length) {
-                                    this.__raise(["remove", key]);
+                                if (this.usersCount>0) {
+                                    this.delta = {
+                                        root: data,
+                                        added: [],
+                                        removed: {}
+                                    };
+                                    event_broker.emitChanged(this);
+                                } else {
+                                    if (this.delta != null) {
+                                        throw new Error();
+                                    }
+                                    this.data = data;
                                 }
                             };
+                        
+                            // dependenciesChanged, commit & introduced called during propagating only (!)
+                        
+                            List.prototype.dependenciesChanged = function() {
+                                return this.delta != null;
+                            };
+                        
+                            List.prototype.commit = function() {
+                                if (this.delta==null) throw Error();
+                                var delta = this.delta;
+                                this.data = this._latest();
+                                this.delta = null;
+                                event_broker.emitNotify(this, delta);
+                            };
+                        
+                            List.prototype.introduce = function() {
+                                if (this.delta != null) {
+                                    this.data = this._latest();
+                                    this.delta = null;
+                                }
+                                event_broker.emitNotify(this, {
+                                    root: this.data.slice(),
+                                    added: [],
+                                    removed: []
+                                });
+                            };
+                        
+                            // may be called during propagating or outside it
                         
                             List.prototype.leak = function(id) {
-                                id = arguments.length==0 ? this.listId : id;
-                                BaseList.prototype.leak.apply(this, [id]);
-                                if (this.usersCount === 1) {
-                                    this.__raise(["data", this.data.slice()]);
+                                id = arguments.length==0 ? this.nodeId : id;
+                        
+                                if (!event_broker.isOnProcessCall) {
+                                    event_broker.invokeOnProcess(this, this.leak, [id]);
+                                    return;
                                 }
+                        
+                                BaseList.prototype._leak.apply(this, [id]);
+                        
+                                if (this.usersCount===1) {
+                                    DAG.addNode(this);
+                                    event_broker.emitIntroduced(this);
+                                }
+                            };
+                        
+                            List.prototype.seal = function(id) {
+                                id = arguments.length==0 ? this.nodeId : id;
+                                BaseList.prototype.seal.apply(this, [id]);
+                        
+                                if (this.usersCount===0) {
+                                    DAG.removeNode(this);
+                                }
+                            };
+                        
+                            // internal
+                        
+                            List.prototype._latest = function() {
+                                if (this.delta==null) return this.data;
+                                var data = this.delta.root == null ? this.data : this.delta.root;
+                        
+                                var result = [];
+                                for (var i=0;i<data.length;i++) {
+                                    if (this.delta.removed.hasOwnProperty(data[i].key)) continue;
+                                    result.push(data[i]);
+                                }
+                                for (var i=0;i<this.delta.added.length;i++) {
+                                    if (this.delta.removed.hasOwnProperty(this.delta.added[i].key)) continue;
+                                    result.push(this.delta.added[i]);
+                                }
+                        
+                                return result;
                             };
                         }
-                        
-                        List.handler = function(handlers) {
-                            return function(e) {
-                                while(true) {
-                                    if (e[0]==="data") break;
-                                    if (e[0]==="add") break;
-                                    if (e[0]==="remove") break;
-                                    throw new Error();
-                                }
-                                handlers[e[0]].call(handlers, e[1]);
-                            };
-                        };
                         
                     }
                 },

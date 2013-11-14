@@ -10,31 +10,17 @@ expose(BaseList, function() {
 var uid, event_broker, Matter, AggregatedCell, GroupReducer;
 
 function BaseList() {
-    Matter.apply(this, []);
+    root.tng.Matter.apply(this, []);
+    root.tng.dag.Node.apply(this, []);
     this.attach(BaseList);
 
-    this.listId = uid();
     this.dependants = [];
     this.data = [];
     this.users = {};
     this.usersCount = 0;
 }
 
-// TODO: separate user's onEvent and systems's onEvent
-// TODO: postpone user's via event_broker
 
-BaseList.prototype.unwrap = function(alt) {
-    throw new Error("Not implemented");
-};
-
-BaseList.prototype.reduceGroup = function(group, opt) {
-    if (!opt) opt = {};
-    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
-    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
-
-    return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
-};
 
 BaseList.prototype.onEvent = function(f) {
     if (!event_broker.isOnProcessCall) {
@@ -52,7 +38,11 @@ BaseList.prototype.onEvent = function(f) {
 
     this.dependants.push(dependant);
 
-    dependant.f(this, ["data", this.data.slice()]);
+    event_broker.emitNotifySingle(this, dependant.f, {
+        root: this.data.slice(),
+        added: [],
+        removed: []
+    });
 
     return function() {
         dependant.disposed = true;
@@ -62,22 +52,19 @@ BaseList.prototype.onEvent = function(f) {
     }.bind(this);
 };
 
-BaseList.prototype.leak = function(id) {
-    if (arguments.length==0) {
-        return this.leak(this.listId);
-    }
+BaseList.prototype._leak = function(id) {
+    id = arguments.length==0 ? this.nodeId : id;
+
     if (!this.users.hasOwnProperty(id)) {
         this.users[id] = 0;
     }
     this.users[id]++;
     this.usersCount++;
-    return this;
 };
 
-BaseList.prototype.seal = function(id) {
-    if (arguments.length==0) {
-        return this.seal(this.listId);
-    }
+BaseList.prototype._seal = function(id) {
+    id = arguments.length==0 ? this.nodeId : id;
+
     if (!this.users.hasOwnProperty(id)) {
         throw new Error();
     }
@@ -89,17 +76,16 @@ BaseList.prototype.seal = function(id) {
     if (this.users[id]===0) {
         delete this.users[id];
     }
-    return this;
 };
 
-BaseList.prototype.__raise = function(e) {
-    if (!event_broker.isOnProcessCall) {
-        return event_broker.invokeOnProcess(this, this.__raise, [e]);
-    }
 
-    if (this.usersCount>0) {
-        for (var i=0;i<this.dependants.length;i++) {
-            this.dependants[i].f(this, e);
-        }
-    }
+
+
+BaseList.prototype.reduceGroup = function(group, opt) {
+    if (!opt) opt = {};
+    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+
+    return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
