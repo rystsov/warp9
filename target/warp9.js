@@ -128,6 +128,7 @@ var warp9 = (function(){
                             return new Some(f(value));
                         };
                         this.isEqualTo = function(brother) {
+                            if (brother==null) return false;
                             return !brother.isEmpty() && brother.value() === value;
                         }
                     }
@@ -143,6 +144,7 @@ var warp9 = (function(){
                             return this;
                         };
                         this.isEqualTo = function(brother) {
+                            if (brother==null) return false;
                             return brother.isEmpty();
                         }
                     }
@@ -2326,35 +2328,79 @@ var warp9 = (function(){
                     function SetPrototype() {
                         AggregatedCell.prototype = new BaseCell();
                     
-                        AggregatedCell.prototype.commit = function() {
-                            this.content = this.delta.value;
-                            this.delta = null;
-                        };
+                        // dependenciesChanged is being called during propagating only (!)
                     
                         AggregatedCell.prototype.dependenciesChanged = function() {
+                            // guard
                             for (var nodeId in this.changed) {
                                 if (!this.changed.hasOwnProperty(nodeId)) continue;
+                                if (nodeId == this.list.nodeId) continue;
                                 if (!this.dependencies.hasOwnProperty(nodeId)) {
                                     throw new Error();
                                 }
                                 if (!this.nodeIdToItemIds.hasOwnProperty(nodeId)) {
                                     throw new Error();
                                 }
-                                for (var j=0;j<this.nodeIdToItemIds[nodeId].length;j++) {
-                                    var itemId = this.nodeIdToItemIds[nodeId][j];
-                                    this.reducer.update(itemId, this.dependencies[nodeId].delta.value);
+                            }
+                    
+                            if (this.changed.hasOwnProperty(this.list.nodeId)) {
+                                for (var i=0;i<this.changed[this.list.nodeId].length;i++) {
+                                    var change = this.changed[this.list.nodeId][i];
+                                    if (change[0]=="reset") {
+                                        var data = change[1];
+                                        this._dispose();
+                                        this.reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+                                        for (var j=0;j<data.length;j++) {
+                                            this._addItem(data[j].key, data[j].value);
+                                        }
+                                    } else if (change[0]=="add") {
+                                        var item = change[1];
+                                        this._addItem(item.key, item.value);
+                                    } else if (change[0]=="remove") {
+                                        var key = change[1];
+                                        this._removeItem(key);
+                                    } else {
+                                        throw new Error("Unknown event: " + change[0]);
+                                    }
+                                }
+                                delete this.changed[this.list.nodeId];
+                            }
+                    
+                            for (var nodeId in this.changed) {
+                                if (!this.changed.hasOwnProperty(nodeId)) continue;
+                                if (!this.dependencies.hasOwnProperty(nodeId)) {
+                                    continue;
+                                }
+                                if (!this.nodeIdToItemIds.hasOwnProperty(nodeId)) {
+                                    continue;
+                                }
+                    
+                                for (var i=0;i<this.changed[nodeId].length;i++) {
+                                    var change = this.changed[nodeId][i];
+                                    for (var j=0;j<this.nodeIdToItemIds[nodeId].length;j++) {
+                                        var itemId = this.nodeIdToItemIds[nodeId][j];
+                                        this.reducer.update(itemId, change);
+                                    }
                                 }
                             }
                     
                             this.changed = {};
                     
                             var value = this.reducer.value.lift(this._unwrap);
-                            if (!value.isEqualTo(this.content)) {
-                                this.delta = {value: value};
-                                return true;
+                            if (value.isEqualTo(this.content)) {
+                                return { hasChanges: false };
                             }
-                            return false;
+                            this.content = value;
+                            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
+                            event_broker.notify(this);
+                    
+                            return {
+                                hasChanges: true,
+                                changeSet: [this.content]
+                            };
                         };
+                    
+                        // may be called during propagating or outside it
                     
                         AggregatedCell.prototype.leak = function(id) {
                             id = arguments.length==0 ? this.nodeId : id;
@@ -2367,53 +2413,56 @@ var warp9 = (function(){
                             BaseCell.prototype._leak.apply(this, [id]);
                     
                             if (this.usersCount === 1) {
-                                this.list.leak(this.nodeId);
                                 DAG.addNode(this);
-                                this.unsubscribe = this.list.onEvent(List.handler({
-                                    data: function(data) {
-                                        this._dispose();
-                                        this.reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
-                                        for (var i=0;i<data.length;i++) {
-                                            this._addItem(data[i].key, data[i].value);
-                                        }
-                                        this.content = this._unwrap(this.reducer.value);
-                                        event_broker.emitChanged(this);
-                                    }.bind(this),
-                                    add: function(item) {
-                                        this._addItem(item.key, item.value);
-                                        var value = this.reducer.value.lift(this._unwrap);
-                                        if (!value.isEqualTo(this.content)) {
-                                            this.content = value;
-                                            event_broker.emitChanged(this);
-                                        }
-                                    }.bind(this),
-                                    remove: function(key) {
-                                        this._removeItem(key);
-                                        var value = this.reducer.value.lift(this._unwrap);
-                                        if (!value.isEqualTo(this.content)) {
-                                            this.content = value;
-                                            event_broker.emitChanged(this);
-                                        }
-                                    }.bind(this)
-                                }));
+                                this.list.leak(this.nodeId);
+                                DAG.addRelation(this.list, this);
+                    
+                                this.changed = {};
+                                this.changed[this.list.nodeId] = [["reset", this.list.data.slice()]];
+                                this.dependenciesChanged();
                             }
                         };
                     
                         AggregatedCell.prototype.seal = function(id) {
                             id = arguments.length==0 ? this.nodeId : id;
-                            BaseCell.prototype.seal.apply(this, [id]);
+                            BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount === 0) {
-                                this.unsubscribe();
-                                this.unsubscribe = null;
-                    
                                 this.dispose();
-                    
+                                DAG.removeRelation(this.list, this);
                                 this.list.seal(this.nodeId);
                                 DAG.removeNode(this);
                             }
                         };
                     
+                        // gets
+                    
+                        AggregatedCell.prototype.hasValue = function() {
+                            if (this.usersCount==0) throw new Error();
+                    
+                            tracker.track(this);
+                            return !this.content.isEmpty();
+                        };
+                    
+                        AggregatedCell.prototype.unwrap = function(alt) {
+                            if (this.usersCount==0) {
+                                // TODO: implement
+                                throw new Error();
+                            }
+                    
+                            tracker.track(this);
+                    
+                            var content = this.content;
+                            if (this.delta != null) {
+                                content = this.delta;
+                            }
+                            if (arguments.length==0 && content.isEmpty()) {
+                                throw new EmptyError();
+                            }
+                            return content.isEmpty() ? alt : content.value();
+                        };
+                    
+                        // util
                     
                         AggregatedCell.prototype._dispose = function() {
                             for (var nodeId in this.dependencies) {
@@ -2470,31 +2519,6 @@ var warp9 = (function(){
                                 }
                             }
                             delete this.itemIdToNodeId[key];
-                        };
-                    
-                        AggregatedCell.prototype.hasValue = function() {
-                            if (this.usersCount==0) throw new Error();
-                    
-                            tracker.track(this);
-                            return !this.content.isEmpty();
-                        };
-                    
-                        AggregatedCell.prototype.unwrap = function(alt) {
-                            if (this.usersCount==0) {
-                                // TODO: implement
-                                throw new Error();
-                            }
-                    
-                            tracker.track(this);
-                    
-                            var content = this.content;
-                            if (this.delta != null) {
-                                content = this.delta;
-                            }
-                            if (arguments.length==0 && content.isEmpty()) {
-                                throw new EmptyError();
-                            }
-                            return content.isEmpty() ? alt : content.value();
                         };
                     
                     //    AggregatedCell.prototype.unwrap = function() {
