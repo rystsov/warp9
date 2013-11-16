@@ -1,4 +1,5 @@
 var warp9 = require('../target/warp9.common');
+var CellStore = require('./utils/TngCell.EventStore');
 
 var Cell = warp9.tng.reactive.Cell;
 
@@ -25,39 +26,69 @@ exports.unwrapEmpty = function(test) {
 };
 
 exports.subscribeEmptyChange = function(test) {
-    test.expect(3);
-    var event = null;
+    test.expect(4);
     var cell = new Cell();
-    var dispose = cell.onChange(function(cell, message){
-        event = cell.unwrap(null);
-    });
-    test.equal(event, null);
+    var store = new CellStore(cell);
+    test.equal(store.changes, 1);
+    test.ok(store.isEmpty());
 
-    var marker = {};
-    cell.set(marker);
-    test.equal(event, marker);
-
-    dispose();
-    event = null;
     cell.set(42);
-    test.equal(event, null);
+    test.ok(store.has(42));
+
+    store.dispose();
+    cell.set(13);
+    test.equal(store.changes, 0);
 
     test.done();
 };
 
 exports.subscribeValueChange = function(test) {
-    test.expect(2);
-    var event = null;
+    test.expect(3);
     var cell = new Cell(42);
-    var dispose = cell.onChange(function(cell){
-        event = cell.unwrap(null);
-    });
-    test.equal(event, 42);
+    var store = new CellStore(cell);
+    test.equal(store.changes, 1);
+    test.ok(store.has(42));
 
-    var marker = {};
-    cell.set(marker);
-    test.equal(event, marker);
-    dispose();
+    cell.set(13);
+    test.ok(store.has(13));
+
+    test.done();
+};
+
+exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
+    test.expect(6);
+
+    var cell = new Cell(42);
+    var store = new CellStore(cell);
+    test.equal(store.changes, 1);
+    test.equal(store.unwrap(0), 42);
+
+    cell.set(13);
+    test.equal(store.changes, 2);
+    test.equal(store.unwrap(0), 13);
+
+    cell.set(13);
+    test.equal(store.changes, 2);
+    test.equal(store.unwrap(0), 13);
+
+    test.done();
+};
+
+exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
+    test.expect(6);
+
+    var cell = new Cell(42);
+    var store = new CellStore(cell);
+    test.equal(store.changes, 1);
+    test.equal(store.unwrap(0), 42);
+
+    cell.unset();
+    test.equal(store.changes, 2);
+    test.ok(store.isEmpty());
+
+    cell.unset();
+    test.equal(store.changes, 2);
+    test.ok(store.isEmpty());
 
     test.done();
 };

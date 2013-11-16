@@ -18,10 +18,10 @@ function Cell() {
     BaseCell.apply(this, []);
     this.attach(Cell);
 
-    if (arguments.length===0) {
-        this.content = new None();
-    } else {
+    if (arguments.length!=0) {
         this.content = new Some(arguments[0]);
+    } else {
+        this.content = new None();
     }
 }
 
@@ -90,9 +90,11 @@ function SetCellPrototype() {
         return this.content.isEmpty() ? alt : this.content.value();
     };
 
-    // utils
+    // internals
 
     Cell.prototype._update = function(value, event) {
+        if (this.content.isEqualTo(value)) return false;
+
         this.content = value;
         if (this.usersCount>0) {
             this._putEventToDependants(event);
