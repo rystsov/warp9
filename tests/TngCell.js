@@ -2,15 +2,20 @@ var warp9 = require('../target/warp9.common');
 var CellStore = require('./utils/TngCell.EventStore');
 
 var Cell = warp9.tng.reactive.Cell;
+var DAG = warp9.tng.dag.DAG;
 
 exports.ctor = function(test) {
-    test.expect(0);
+    test.expect(1);
+    test.equal(DAG.length, 0);
+
     var cell = new Cell();
     test.done();
 };
 
 exports.unwrapValue = function(test) {
-    test.expect(1);
+    test.expect(2);
+    test.equal(DAG.length, 0);
+
     var value = {};
     var cell = new Cell(value);
     test.equal(cell.unwrap(), value);
@@ -18,7 +23,9 @@ exports.unwrapValue = function(test) {
 };
 
 exports.unwrapEmpty = function(test) {
-    test.expect(1);
+    test.expect(2);
+    test.equal(DAG.length, 0);
+
     var marker = {};
     var cell = new Cell();
     test.equal(cell.unwrap(marker), marker);
@@ -26,7 +33,9 @@ exports.unwrapEmpty = function(test) {
 };
 
 exports.subscribeEmptyChange = function(test) {
-    test.expect(4);
+    test.expect(5);
+    test.equal(DAG.length, 0);
+
     var cell = new Cell();
     var store = new CellStore(cell);
     test.equal(store.changes, 1);
@@ -43,7 +52,9 @@ exports.subscribeEmptyChange = function(test) {
 };
 
 exports.subscribeValueChange = function(test) {
-    test.expect(3);
+    test.expect(4);
+    test.equal(DAG.length, 0);
+
     var cell = new Cell(42);
     var store = new CellStore(cell);
     test.equal(store.changes, 1);
@@ -52,11 +63,13 @@ exports.subscribeValueChange = function(test) {
     cell.set(13);
     test.ok(store.has(13));
 
+    store.dispose();
     test.done();
 };
 
 exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
-    test.expect(6);
+    test.expect(7);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell(42);
     var store = new CellStore(cell);
@@ -71,11 +84,13 @@ exports.doNotRaiseSetWhenValueIsTheSameAsLastSeen = function(test) {
     test.equal(store.changes, 2);
     test.equal(store.unwrap(0), 13);
 
+    store.dispose();
     test.done();
 };
 
 exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
-    test.expect(6);
+    test.expect(7);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell(42);
     var store = new CellStore(cell);
@@ -90,5 +105,6 @@ exports.doNotRaiseUnsetWhenCellIsUnset = function(test) {
     test.equal(store.changes, 2);
     test.ok(store.isEmpty());
 
+    store.dispose();
     test.done();
 };

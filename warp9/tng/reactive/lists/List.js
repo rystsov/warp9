@@ -77,6 +77,14 @@ function SetListPrototype() {
         }
     };
 
+    // gets
+
+    List.prototype.unwrap = function() {
+        return this.data.map(function(item){
+            return item.value;
+        });
+    };
+
     // internal
 
     List.prototype._add = function(key, f) {

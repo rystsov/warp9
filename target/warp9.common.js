@@ -130,7 +130,10 @@ var warp9 = (function(){
                         this.isEqualTo = function(brother) {
                             if (brother==null) return false;
                             return !brother.isEmpty() && brother.value() === value;
-                        }
+                        };
+                        this.unwrap = function() {
+                            return value;
+                        };
                     }
                     
                     function None() {
@@ -146,7 +149,13 @@ var warp9 = (function(){
                         this.isEqualTo = function(brother) {
                             if (brother==null) return false;
                             return brother.isEmpty();
-                        }
+                        };
+                        this.unwrap = function(alt) {
+                            if (arguments.length==0) {
+                                throw new Error();
+                            }
+                            return alt;
+                        };
                     }
                     
                 }
@@ -2019,6 +2028,7 @@ var warp9 = (function(){
                         this._atoms = [];
                         this.instanceof = of;
                         this.attach = attach;
+                        this.metaType = Matter;
                     }
                     
                     function attach(atom) {
@@ -2210,6 +2220,16 @@ var warp9 = (function(){
                 }
             },
             {
+                path: ["tng","empty"],
+                content: function(root, expose) {
+                    expose(empty);
+                    
+                    function empty() {
+                        throw new root.tng.reactive.EmptyError();
+                    }
+                }
+            },
+            {
                 path: ["tng","event_broker"],
                 content: function(root, expose) {
                     expose(new EventBroker());
@@ -2299,11 +2319,12 @@ var warp9 = (function(){
                         DAG = root.tng.dag.DAG;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
+                        Matter = root.tng.Matter;
                     
                         SetPrototype();
                     });
                     
-                    var DAG, None, Some, BaseCell, List, event_broker, tracker;
+                    var DAG, None, Some, BaseCell, List, Matter, event_broker, tracker;
                     
                     function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
                         BaseCell.apply(this);
@@ -2443,14 +2464,25 @@ var warp9 = (function(){
                     
                             var value = this.content;
                             if (this.usersCount===0) {
-                                // TODO: implement
-                                throw new Error();
+                                var reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+                                var data = this.list.unwrap();
+                                var marker = {};
+                                var id = 0;
+                                for (var i=0;i<data.length;i++) {
+                                    if (data[i].metaType === Matter && data[i].instanceof(BaseCell)) {
+                                        var item = data[i].unwrap(marker);
+                                        if (item===marker) {
+                                            reducer.add(id++, new None());
+                                        } else {
+                                            reducer.add(id++, new Some(item));
+                                        }
+                                    } else {
+                                        reducer.add(id++, new Some(data[i]));
+                                    }
+                                }
+                                value = reducer.value;
                             }
-                    
-                            if (arguments.length==0 && value.isEmpty()) {
-                                throw new Error();
-                            }
-                            return value.isEmpty() ? alt : value.value();
+                            return value.unwrap.apply(value, arguments);
                         };
                     
                         // internal
@@ -2469,7 +2501,7 @@ var warp9 = (function(){
                         };
                     
                         AggregatedCell.prototype._addItem = function(key, value) {
-                            if (value.instanceof(BaseCell)) {
+                            if (value.metaType === Matter && value.instanceof(BaseCell)) {
                                 if (this.itemIdToNodeId.hasOwnProperty(key)) {
                                     throw new Error();
                                 }
@@ -3346,6 +3378,14 @@ var warp9 = (function(){
                             if (this.usersCount===0) {
                                 DAG.removeNode(this);
                             }
+                        };
+                    
+                        // gets
+                    
+                        List.prototype.unwrap = function() {
+                            return this.data.map(function(item){
+                                return item.value;
+                            });
                         };
                     
                         // internal

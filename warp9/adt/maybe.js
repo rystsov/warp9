@@ -16,7 +16,10 @@ function Some(value) {
     this.isEqualTo = function(brother) {
         if (brother==null) return false;
         return !brother.isEmpty() && brother.value() === value;
-    }
+    };
+    this.unwrap = function() {
+        return value;
+    };
 }
 
 function None() {
@@ -32,5 +35,11 @@ function None() {
     this.isEqualTo = function(brother) {
         if (brother==null) return false;
         return brother.isEmpty();
-    }
+    };
+    this.unwrap = function(alt) {
+        if (arguments.length==0) {
+            throw new Error();
+        }
+        return alt;
+    };
 }

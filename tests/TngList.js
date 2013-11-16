@@ -6,14 +6,16 @@ var EventStore = require('./utils/TngList.EventStore');
 var DAG = warp9.tng.dag.DAG;
 
 exports.ctor = function(test) {
-    test.expect(0);
+    test.expect(1);
+    test.equal(DAG.length, 0);
+
     var list = new List();
     test.done();
 };
 
 exports.subscribeEmptyChange = function(test) {
-    test.expect(6);
-    DAG.reset();
+    test.expect(7);
+    test.equal(DAG.length, 0);
 
     var list = new List();
     var store = new EventStore(list);
@@ -33,8 +35,8 @@ exports.subscribeEmptyChange = function(test) {
 };
 
 exports.subscribeValueChange = function(test) {
-    test.expect(5);
-    DAG.reset();
+    test.expect(6);
+    test.equal(DAG.length, 0);
 
     var list = new List([42]);
     var store = new EventStore(list);

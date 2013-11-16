@@ -6,11 +6,12 @@ expose(AggregatedCell, function(){
     DAG = root.tng.dag.DAG;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
+    Matter = root.tng.Matter;
 
     SetPrototype();
 });
 
-var DAG, None, Some, BaseCell, List, event_broker, tracker;
+var DAG, None, Some, BaseCell, List, Matter, event_broker, tracker;
 
 function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreUnset) {
     BaseCell.apply(this);
@@ -150,14 +151,25 @@ function SetPrototype() {
 
         var value = this.content;
         if (this.usersCount===0) {
-            // TODO: implement
-            throw new Error();
+            var reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+            var data = this.list.unwrap();
+            var marker = {};
+            var id = 0;
+            for (var i=0;i<data.length;i++) {
+                if (data[i].metaType === Matter && data[i].instanceof(BaseCell)) {
+                    var item = data[i].unwrap(marker);
+                    if (item===marker) {
+                        reducer.add(id++, new None());
+                    } else {
+                        reducer.add(id++, new Some(item));
+                    }
+                } else {
+                    reducer.add(id++, new Some(data[i]));
+                }
+            }
+            value = reducer.value;
         }
-
-        if (arguments.length==0 && value.isEmpty()) {
-            throw new Error();
-        }
-        return value.isEmpty() ? alt : value.value();
+        return value.unwrap.apply(value, arguments);
     };
 
     // internal
@@ -176,7 +188,7 @@ function SetPrototype() {
     };
 
     AggregatedCell.prototype._addItem = function(key, value) {
-        if (value.instanceof(BaseCell)) {
+        if (value.metaType === Matter && value.instanceof(BaseCell)) {
             if (this.itemIdToNodeId.hasOwnProperty(key)) {
                 throw new Error();
             }

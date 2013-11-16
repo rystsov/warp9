@@ -4,7 +4,8 @@ var Cell = warp9.tng.reactive.Cell;
 var DAG = warp9.tng.dag.DAG;
 
 exports.ternary = function(test) {
-    test.expect(11);
+    test.expect(12);
+    test.equal(DAG.length, 0);
 
     var c  = new Cell();
     var b1 = new Cell(1);

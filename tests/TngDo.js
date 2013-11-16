@@ -5,7 +5,8 @@ var DAG = warp9.tng.dag.DAG;
 
 // TODO: useless test?
 exports.emptyUpdate = function(test) {
-    test.expect(2);
+    test.expect(3);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell();
     var add2 = warp9.tng.do(function(){
@@ -19,7 +20,8 @@ exports.emptyUpdate = function(test) {
 };
 
 exports.valueUpdate = function(test) {
-    test.expect(1);
+    test.expect(2);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell(1);
     var add2 = warp9.tng.do(function(){
@@ -32,7 +34,8 @@ exports.valueUpdate = function(test) {
 };
 
 exports.subscribe = function(test) {
-    test.expect(2);
+    test.expect(3);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell();
     var add2 = warp9.tng.do(function(){
@@ -51,8 +54,8 @@ exports.subscribe = function(test) {
 };
 
 exports.subscribeUseLeave = function(test) {
-    DAG.reset();
-    test.expect(6);
+    test.expect(7);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell();
     var add2 = warp9.tng.do(function(){
@@ -77,8 +80,8 @@ exports.subscribeUseLeave = function(test) {
 };
 
 exports.doubleLift = function(test) {
-    DAG.reset();
-    test.expect(5);
+    test.expect(6);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell(2);
     var add2 = warp9.tng.do(function(){
@@ -107,8 +110,8 @@ exports.doubleLift = function(test) {
 };
 
 exports.fork = function(test) {
-    DAG.reset();
-    test.expect(11);
+    test.expect(12);
+    test.equal(DAG.length, 0);
 
     var cell = new Cell(2);
     var add2 = warp9.tng.do(function(){

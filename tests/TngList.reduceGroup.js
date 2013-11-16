@@ -3,15 +3,20 @@ var Summer = require('./utils/Summer');
 
 var Cell = warp9.tng.reactive.Cell;
 var List = warp9.tng.reactive.lists.List;
+var DAG = warp9.tng.dag.DAG;
 
 exports.ctor = function(test) {
-    test.expect(0);
+    test.expect(1);
+    test.equal(DAG.length, 0);
+
     var list = new List();
     test.done();
 };
 
 exports.blink = function(test) {
-    test.expect(2);
+    test.expect(3);
+    test.equal(DAG.length, 0);
+
     var a = new Cell(1);
     var b = new Cell(2);
     var list = new List([a, b]);
