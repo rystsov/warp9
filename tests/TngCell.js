@@ -28,17 +28,19 @@ exports.subscribeEmptyChange = function(test) {
     test.expect(3);
     var event = null;
     var cell = new Cell();
-    cell.onChange(function(cell, message){
+    var dispose = cell.onChange(function(cell, message){
         event = cell.unwrap(null);
     });
     test.equal(event, null);
 
     var marker = {};
     cell.set(marker);
-    test.equal(event, null);
-
-    cell.leak();
     test.equal(event, marker);
+
+    dispose();
+    event = null;
+    cell.set(42);
+    test.equal(event, null);
 
     test.done();
 };
@@ -46,30 +48,16 @@ exports.subscribeEmptyChange = function(test) {
 exports.subscribeValueChange = function(test) {
     test.expect(2);
     var event = null;
-    var cell = new Cell();
-    cell.leak();
-    cell.onChange(function(cell){
+    var cell = new Cell(42);
+    var dispose = cell.onChange(function(cell){
         event = cell.unwrap(null);
     });
-    test.equal(event, null);
+    test.equal(event, 42);
 
     var marker = {};
     cell.set(marker);
     test.equal(event, marker);
-    test.done();
-};
-
-exports.subscribeLeak = function(test) {
-    test.expect(2);
-    var event = null;
-    var cell = new Cell(42);
-    cell.onChange(function(cell){
-        event = cell.unwrap(null);
-    });
-    test.equal(event, null);
-
-    cell.leak();
-    test.equal(event, 42);
+    dispose();
 
     test.done();
 };

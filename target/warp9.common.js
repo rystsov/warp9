@@ -2309,7 +2309,6 @@ var warp9 = (function(){
                         BaseCell.apply(this);
                         this.attach(AggregatedCell);
                     
-                        this.handler = null;
                         this.list = list;
                         this.Reducer = Reducer;
                     
@@ -2317,6 +2316,7 @@ var warp9 = (function(){
                         this.nodeIdToItemIds = {};
                         this.dependencies = {};
                         this.reducer = null;
+                        this.content = null;
                     
                         this._monoid = algebraicStructure;
                         this._wrap = wrap;
@@ -2400,75 +2400,66 @@ var warp9 = (function(){
                             };
                         };
                     
-                        // may be called during propagating or outside it
+                        // _leak & _seal are called only by onChange
                     
-                        AggregatedCell.prototype.leak = function(id) {
-                            id = arguments.length==0 ? this.nodeId : id;
-                    
-                            if (!event_broker.isOnProcessCall) {
-                                event_broker.invokeOnProcess(this, this.leak, [id]);
-                                return;
-                            }
-                    
+                        AggregatedCell.prototype._leak = function(id) {
                             BaseCell.prototype._leak.apply(this, [id]);
                     
                             if (this.usersCount === 1) {
                                 DAG.addNode(this);
-                                this.list.leak(this.nodeId);
+                                this.list._leak(this.nodeId);
                                 DAG.addRelation(this.list, this);
                     
-                                this.changed = {};
-                                this.changed[this.list.nodeId] = [["reset", this.list.data.slice()]];
-                                this.dependenciesChanged();
+                                this.reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+                                for (var j=0;j<this.list.data.length;j++) {
+                                    this._addItem(this.list.data[j].key, this.list.data[j].value);
+                                }
+                                this.content = this.reducer.value.lift(this._unwrap);
                             }
                         };
                     
-                        AggregatedCell.prototype.seal = function(id) {
+                        AggregatedCell.prototype._seal = function(id) {
                             id = arguments.length==0 ? this.nodeId : id;
                             BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount === 0) {
-                                this.dispose();
+                                this._dispose();
                                 DAG.removeRelation(this.list, this);
-                                this.list.seal(this.nodeId);
+                                this.list._seal(this.nodeId);
                                 DAG.removeNode(this);
+                                this.content = null;
                             }
                         };
                     
                         // gets
                     
                         AggregatedCell.prototype.hasValue = function() {
-                            if (this.usersCount==0) throw new Error();
-                    
-                            tracker.track(this);
-                            return !this.content.isEmpty();
+                            var marker = {};
+                            return this.unwrap(marker) !== marker;
                         };
                     
                         AggregatedCell.prototype.unwrap = function(alt) {
-                            if (this.usersCount==0) {
+                            tracker.track(this);
+                    
+                            var value = this.content;
+                            if (this.usersCount===0) {
                                 // TODO: implement
                                 throw new Error();
                             }
                     
-                            tracker.track(this);
-                    
-                            var content = this.content;
-                            if (this.delta != null) {
-                                content = this.delta;
+                            if (arguments.length==0 && value.isEmpty()) {
+                                throw new Error();
                             }
-                            if (arguments.length==0 && content.isEmpty()) {
-                                throw new EmptyError();
-                            }
-                            return content.isEmpty() ? alt : content.value();
+                            return value.isEmpty() ? alt : value.value();
                         };
                     
-                        // util
+                        // internal
                     
                         AggregatedCell.prototype._dispose = function() {
                             for (var nodeId in this.dependencies) {
                                 if (!this.dependencies.hasOwnProperty(nodeId)) continue;
                                 DAG.removeRelation(this.dependencies[nodeId], this);
-                                this.dependencies[nodeId].seal(this.nodeId);
+                                this.dependencies[nodeId]._seal(this.nodeId);
                             }
                             this.itemIdToNodeId = {};
                             this.nodeIdToItemIds = {};
@@ -2490,7 +2481,7 @@ var warp9 = (function(){
                     
                                 if (this.nodeIdToItemIds[value.nodeId].length==1) {
                                     this.dependencies[value.nodeId] = value;
-                                    value.leak(this.nodeId);
+                                    value._leak(this.nodeId);
                                     DAG.addRelation(value, this);
                                 }
                     
@@ -2513,7 +2504,7 @@ var warp9 = (function(){
                                 if (this.nodeIdToItemIds[nodeId].length==0) {
                                     var node = this.dependencies[nodeId];
                                     DAG.removeRelation(node, this);
-                                    node.seal(this.nodeId);
+                                    node._seal(this.nodeId);
                                     delete this.dependencies[nodeId];
                                     delete this.nodeIdToItemIds[nodeId];
                                 }
@@ -2596,8 +2587,10 @@ var warp9 = (function(){
                             return event_broker.invokeOnProcess(this, this.onChange, [f]);
                         }
                     
+                        this._leak(this.nodeId);
+                    
                         var self = this;
-                        
+                    
                         var dependant = {
                             key: uid(),
                             f: function(obj) {
@@ -2609,22 +2602,22 @@ var warp9 = (function(){
                         };
                     
                         this.dependants.push(dependant);
-                        
+                    
                         if (this.usersCount > 0) {
                             event_broker.notifySingle(this, dependant);
                         }
                     
                         return function() {
+                            if (dependant.disposed) return;
+                            self._seal(self.nodeId);
                             dependant.disposed = true;
                             self.dependants = self.dependants.filter(function(d) {
-                                return d.key != id;
+                                return d.key != dependant.key;
                             });
                         };
                     };
                     
                     BaseCell.prototype._leak = function(id) {
-                        id = arguments.length==0 ? this.nodeId : id;
-                    
                         if (this.users.hasOwnProperty(id)) {
                             this.users[id] = 0;
                         }
@@ -2633,8 +2626,6 @@ var warp9 = (function(){
                     };
                     
                     BaseCell.prototype._seal = function(id) {
-                        id = arguments.length==0 ? this.nodeId : id;
-                    
                         if (!this.users.hasOwnProperty(id)) {
                             throw new Error();
                         }
@@ -2715,27 +2706,17 @@ var warp9 = (function(){
                             };
                         };
                     
-                        // may be called during propagating or outside it
+                        // _leak & _seal are called only by onChange
                     
-                        Cell.prototype.leak = function(id) {
-                            id = arguments.length==0 ? this.nodeId : id;
-                    
-                            if (!event_broker.isOnProcessCall) {
-                                event_broker.invokeOnProcess(this, this.leak, [id]);
-                                return;
-                            }
-                    
+                        Cell.prototype._leak = function(id) {
                             BaseCell.prototype._leak.apply(this, [id]);
                     
                             if (this.usersCount===1) {
                                 DAG.addNode(this);
-                                this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
-                                event_broker.notify(this);
                             }
                         };
                     
-                        Cell.prototype.seal = function(id) {
-                            id = arguments.length==0 ? this.nodeId : id;
+                        Cell.prototype._seal = function(id) {
                             BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount===0) {
@@ -2801,18 +2782,8 @@ var warp9 = (function(){
                         this.users = {};
                         this.usersCount = 0;
                         this.f = f;
-                    
-                        tracker.inScope(function(){
-                            try {
-                                this.content = new Some(this.f());
-                            } catch (e) {
-                                if (e instanceof EmptyError) {
-                                    this.content = new None();
-                                } else {
-                                    throw e;
-                                }
-                            }
-                        }, this);
+                        this.dependencies = null;
+                        this.content = null;
                     }
                     
                     function SetDependentCellPrototype() {
@@ -2857,10 +2828,10 @@ var warp9 = (function(){
                     
                             for (i=0;i<deleted.length;i++) {
                                 DAG.removeRelation(deleted[i], this);
-                                deleted[i].seal(this.nodeId);
+                                deleted[i]._seal(this.nodeId);
                             }
                             for (i=0;i<added.length;i++) {
-                                added[i].leak(this.nodeId);
+                                added[i]._leak(this.nodeId);
                                 DAG.addRelation(added[i], this);
                             }
                     
@@ -2885,16 +2856,9 @@ var warp9 = (function(){
                             };
                         };
                     
-                        // may be called during propagating or outside it
+                        // _leak & _seal are called only by onChange
                     
-                        DependentCell.prototype.leak = function() {
-                            id = arguments.length==0 ? this.nodeId : id;
-                    
-                            if (!event_broker.isOnProcessCall) {
-                                event_broker.invokeOnProcess(this, this.leak, [id]);
-                                return;
-                            }
-                    
+                        DependentCell.prototype._leak = function(id) {
                             BaseCell.prototype._leak.apply(this, [id]);
                     
                             if (this.usersCount===1) {
@@ -2913,25 +2877,23 @@ var warp9 = (function(){
                     
                                 DAG.addNode(this);
                                 for (var i=0;i<this.dependencies.length;i++) {
-                                    this.dependencies[i].leak(this.nodeId);
+                                    this.dependencies[i]._leak(this.nodeId);
                                     DAG.addRelation(this.dependencies[i], this);
                                 }
-                    
-                                this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
-                                event_broker.notify(this);
                             }
                         };
                     
-                        DependentCell.prototype.seal = function(event) {
-                            id = arguments.length==0 ? this.nodeId : id;
+                        DependentCell.prototype._seal = function(id) {
                             BaseCell.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount===0) {
                                 for (var i=0;i<this.dependencies.length;i++) {
                                     DAG.removeRelation(this.dependencies[i], this);
-                                    this.dependencies[i].seal(this.nodeId);
+                                    this.dependencies[i]._seal(this.nodeId);
                                 }
                                 DAG.removeNode(this);
+                                this.dependencies = null;
+                                this.content = null;
                             }
                         };
                     
@@ -2949,7 +2911,7 @@ var warp9 = (function(){
                             var args = arguments.length==0 ? [] : [alt];
                     
                             var value = this.content;
-                            if (this.usersCount==0) {
+                            if (this.usersCount===0) {
                                 value = tracker.outScope(function(){
                                     try {
                                         return new Some(f());
@@ -3122,6 +3084,8 @@ var warp9 = (function(){
                             return event_broker.invokeOnProcess(this, this.onEvent, [f]);
                         }
                     
+                        this._leak(this.nodeId);
+                    
                         var self = this;
                     
                         var dependant = {
@@ -3141,16 +3105,16 @@ var warp9 = (function(){
                         }
                     
                         return function() {
+                            if (dependant.disposed) return;
+                            self._seal(self.nodeId);
                             dependant.disposed = true;
                             self.dependants = self.dependants.filter(function(d) {
-                                return d.key != id;
+                                return d.key != dependant.key;
                             });
                         };
                     };
                     
                     BaseList.prototype._leak = function(id) {
-                        id = arguments.length==0 ? this.nodeId : id;
-                    
                         if (!this.users.hasOwnProperty(id)) {
                             this.users[id] = 0;
                         }
@@ -3159,8 +3123,6 @@ var warp9 = (function(){
                     };
                     
                     BaseList.prototype._seal = function(id) {
-                        id = arguments.length==0 ? this.nodeId : id;
-                    
                         if (!this.users.hasOwnProperty(id)) {
                             throw new Error();
                         }
@@ -3179,8 +3141,6 @@ var warp9 = (function(){
                             this.dependants[i].mailbox.push(event);
                         }
                     };
-                    
-                    
                     
                     
                     BaseList.prototype.reduceGroup = function(group, opt) {
@@ -3364,32 +3324,22 @@ var warp9 = (function(){
                                 hasChanges: this.changeSet.length > 0,
                                 changeSet: this.changeSet
                             };
-                            this.changeSet = []
+                            this.changeSet = [];
                             return info;
                         };
                     
                         // may be called during propagating or outside it
                     
-                        List.prototype.leak = function(id) {
-                            id = arguments.length==0 ? this.nodeId : id;
-                    
-                            if (!event_broker.isOnProcessCall) {
-                                event_broker.invokeOnProcess(this, this.leak, [id]);
-                                return;
-                            }
-                    
+                        List.prototype._leak = function(id) {
                             BaseList.prototype._leak.apply(this, [id]);
                     
                             if (this.usersCount===1) {
                                 DAG.addNode(this);
-                                this._putEventToDependants(["reset", this.data.slice()]);
-                                event_broker.notify(this);
                             }
                         };
                     
-                        List.prototype.seal = function(id) {
-                            id = arguments.length==0 ? this.nodeId : id;
-                            BaseList.prototype.seal.apply(this, [id]);
+                        List.prototype._seal = function(id) {
+                            BaseList.prototype._seal.apply(this, [id]);
                     
                             if (this.usersCount===0) {
                                 DAG.removeNode(this);
@@ -3407,13 +3357,12 @@ var warp9 = (function(){
                             var value = {key: key, value: f(key)};
                             this.data.push(value);
                     
-                            var event = ["add", value];
-                            this.changeSet.push(event);
                             if (this.usersCount>0) {
+                                var event = ["add", value];
+                                this.changeSet.push(event);
                                 this._putEventToDependants(event);
                                 event_broker.notify(this);
                             }
-                    
                             return true;
                         };
                     
@@ -3422,9 +3371,9 @@ var warp9 = (function(){
                                 return item.key != key;
                             });
                     
-                            var event = ["remove", key];
-                            this.changeSet.push(event);
                             if (this.usersCount>0) {
+                                var event = ["remove", key];
+                                this.changeSet.push(event);
                                 this._putEventToDependants(event);
                                 event_broker.notify(this);
                             }
@@ -3439,9 +3388,9 @@ var warp9 = (function(){
                                     value: item
                                 }
                             });
-                            var event = ["reset", data.slice()];
-                            this.changeSet.push(event);
                             if (this.usersCount>0) {
+                                var event = ["reset", data.slice()];
+                                this.changeSet.push(event);
                                 this._putEventToDependants(event);
                                 event_broker.notify(this);
                             }

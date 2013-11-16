@@ -16,7 +16,6 @@ function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreU
     BaseCell.apply(this);
     this.attach(AggregatedCell);
 
-    this.handler = null;
     this.list = list;
     this.Reducer = Reducer;
 
@@ -24,6 +23,7 @@ function AggregatedCell(list, Reducer, algebraicStructure, wrap, unwrap, ignoreU
     this.nodeIdToItemIds = {};
     this.dependencies = {};
     this.reducer = null;
+    this.content = null;
 
     this._monoid = algebraicStructure;
     this._wrap = wrap;
@@ -107,75 +107,66 @@ function SetPrototype() {
         };
     };
 
-    // may be called during propagating or outside it
+    // _leak & _seal are called only by onChange
 
-    AggregatedCell.prototype.leak = function(id) {
-        id = arguments.length==0 ? this.nodeId : id;
-
-        if (!event_broker.isOnProcessCall) {
-            event_broker.invokeOnProcess(this, this.leak, [id]);
-            return;
-        }
-
+    AggregatedCell.prototype._leak = function(id) {
         BaseCell.prototype._leak.apply(this, [id]);
 
         if (this.usersCount === 1) {
             DAG.addNode(this);
-            this.list.leak(this.nodeId);
+            this.list._leak(this.nodeId);
             DAG.addRelation(this.list, this);
 
-            this.changed = {};
-            this.changed[this.list.nodeId] = [["reset", this.list.data.slice()]];
-            this.dependenciesChanged();
+            this.reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
+            for (var j=0;j<this.list.data.length;j++) {
+                this._addItem(this.list.data[j].key, this.list.data[j].value);
+            }
+            this.content = this.reducer.value.lift(this._unwrap);
         }
     };
 
-    AggregatedCell.prototype.seal = function(id) {
+    AggregatedCell.prototype._seal = function(id) {
         id = arguments.length==0 ? this.nodeId : id;
         BaseCell.prototype._seal.apply(this, [id]);
 
         if (this.usersCount === 0) {
-            this.dispose();
+            this._dispose();
             DAG.removeRelation(this.list, this);
-            this.list.seal(this.nodeId);
+            this.list._seal(this.nodeId);
             DAG.removeNode(this);
+            this.content = null;
         }
     };
 
     // gets
 
     AggregatedCell.prototype.hasValue = function() {
-        if (this.usersCount==0) throw new Error();
-
-        tracker.track(this);
-        return !this.content.isEmpty();
+        var marker = {};
+        return this.unwrap(marker) !== marker;
     };
 
     AggregatedCell.prototype.unwrap = function(alt) {
-        if (this.usersCount==0) {
+        tracker.track(this);
+
+        var value = this.content;
+        if (this.usersCount===0) {
             // TODO: implement
             throw new Error();
         }
 
-        tracker.track(this);
-
-        var content = this.content;
-        if (this.delta != null) {
-            content = this.delta;
+        if (arguments.length==0 && value.isEmpty()) {
+            throw new Error();
         }
-        if (arguments.length==0 && content.isEmpty()) {
-            throw new EmptyError();
-        }
-        return content.isEmpty() ? alt : content.value();
+        return value.isEmpty() ? alt : value.value();
     };
 
-    // util
+    // internal
 
     AggregatedCell.prototype._dispose = function() {
         for (var nodeId in this.dependencies) {
             if (!this.dependencies.hasOwnProperty(nodeId)) continue;
             DAG.removeRelation(this.dependencies[nodeId], this);
-            this.dependencies[nodeId].seal(this.nodeId);
+            this.dependencies[nodeId]._seal(this.nodeId);
         }
         this.itemIdToNodeId = {};
         this.nodeIdToItemIds = {};
@@ -197,7 +188,7 @@ function SetPrototype() {
 
             if (this.nodeIdToItemIds[value.nodeId].length==1) {
                 this.dependencies[value.nodeId] = value;
-                value.leak(this.nodeId);
+                value._leak(this.nodeId);
                 DAG.addRelation(value, this);
             }
 
@@ -220,7 +211,7 @@ function SetPrototype() {
             if (this.nodeIdToItemIds[nodeId].length==0) {
                 var node = this.dependencies[nodeId];
                 DAG.removeRelation(node, this);
-                node.seal(this.nodeId);
+                node._seal(this.nodeId);
                 delete this.dependencies[nodeId];
                 delete this.nodeIdToItemIds[nodeId];
             }

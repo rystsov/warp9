@@ -18,9 +18,9 @@ exports.blink = function(test) {
 
     var r = list.reduceGroup(new Summer());
 
-    r.leak();
+
     var event = null;
-    r.onChange(function(r){
+    var dispose = r.onChange(function(r){
         event = r.hasValue() ? [r.unwrap()] : [];
     });
 
@@ -29,6 +29,8 @@ exports.blink = function(test) {
     a.set(2);
 
     test.equal(event[0], 4);
+
+    dispose();
 
     test.done();
 };

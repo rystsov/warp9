@@ -39,6 +39,8 @@ BaseList.prototype.onEvent = function(f) {
         return event_broker.invokeOnProcess(this, this.onEvent, [f]);
     }
 
+    this._leak(this.nodeId);
+
     var self = this;
 
     var dependant = {
@@ -58,16 +60,16 @@ BaseList.prototype.onEvent = function(f) {
     }
 
     return function() {
+        if (dependant.disposed) return;
+        self._seal(self.nodeId);
         dependant.disposed = true;
         self.dependants = self.dependants.filter(function(d) {
-            return d.key != id;
+            return d.key != dependant.key;
         });
     };
 };
 
 BaseList.prototype._leak = function(id) {
-    id = arguments.length==0 ? this.nodeId : id;
-
     if (!this.users.hasOwnProperty(id)) {
         this.users[id] = 0;
     }
@@ -76,8 +78,6 @@ BaseList.prototype._leak = function(id) {
 };
 
 BaseList.prototype._seal = function(id) {
-    id = arguments.length==0 ? this.nodeId : id;
-
     if (!this.users.hasOwnProperty(id)) {
         throw new Error();
     }
@@ -96,8 +96,6 @@ BaseList.prototype._putEventToDependants = function(event) {
         this.dependants[i].mailbox.push(event);
     }
 };
-
-
 
 
 BaseList.prototype.reduceGroup = function(group, opt) {

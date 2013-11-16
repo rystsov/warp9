@@ -55,27 +55,17 @@ function SetCellPrototype() {
         };
     };
 
-    // may be called during propagating or outside it
+    // _leak & _seal are called only by onChange
 
-    Cell.prototype.leak = function(id) {
-        id = arguments.length==0 ? this.nodeId : id;
-
-        if (!event_broker.isOnProcessCall) {
-            event_broker.invokeOnProcess(this, this.leak, [id]);
-            return;
-        }
-
+    Cell.prototype._leak = function(id) {
         BaseCell.prototype._leak.apply(this, [id]);
 
         if (this.usersCount===1) {
             DAG.addNode(this);
-            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
-            event_broker.notify(this);
         }
     };
 
-    Cell.prototype.seal = function(id) {
-        id = arguments.length==0 ? this.nodeId : id;
+    Cell.prototype._seal = function(id) {
         BaseCell.prototype._seal.apply(this, [id]);
 
         if (this.usersCount===0) {

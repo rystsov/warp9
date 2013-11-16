@@ -22,18 +22,8 @@ function DependentCell(f) {
     this.users = {};
     this.usersCount = 0;
     this.f = f;
-
-    tracker.inScope(function(){
-        try {
-            this.content = new Some(this.f());
-        } catch (e) {
-            if (e instanceof EmptyError) {
-                this.content = new None();
-            } else {
-                throw e;
-            }
-        }
-    }, this);
+    this.dependencies = null;
+    this.content = null;
 }
 
 function SetDependentCellPrototype() {
@@ -78,10 +68,10 @@ function SetDependentCellPrototype() {
 
         for (i=0;i<deleted.length;i++) {
             DAG.removeRelation(deleted[i], this);
-            deleted[i].seal(this.nodeId);
+            deleted[i]._seal(this.nodeId);
         }
         for (i=0;i<added.length;i++) {
-            added[i].leak(this.nodeId);
+            added[i]._leak(this.nodeId);
             DAG.addRelation(added[i], this);
         }
 
@@ -106,16 +96,9 @@ function SetDependentCellPrototype() {
         };
     };
 
-    // may be called during propagating or outside it
+    // _leak & _seal are called only by onChange
 
-    DependentCell.prototype.leak = function() {
-        id = arguments.length==0 ? this.nodeId : id;
-
-        if (!event_broker.isOnProcessCall) {
-            event_broker.invokeOnProcess(this, this.leak, [id]);
-            return;
-        }
-
+    DependentCell.prototype._leak = function(id) {
         BaseCell.prototype._leak.apply(this, [id]);
 
         if (this.usersCount===1) {
@@ -134,25 +117,23 @@ function SetDependentCellPrototype() {
 
             DAG.addNode(this);
             for (var i=0;i<this.dependencies.length;i++) {
-                this.dependencies[i].leak(this.nodeId);
+                this.dependencies[i]._leak(this.nodeId);
                 DAG.addRelation(this.dependencies[i], this);
             }
-
-            this._putEventToDependants(this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]);
-            event_broker.notify(this);
         }
     };
 
-    DependentCell.prototype.seal = function(event) {
-        id = arguments.length==0 ? this.nodeId : id;
+    DependentCell.prototype._seal = function(id) {
         BaseCell.prototype._seal.apply(this, [id]);
 
         if (this.usersCount===0) {
             for (var i=0;i<this.dependencies.length;i++) {
                 DAG.removeRelation(this.dependencies[i], this);
-                this.dependencies[i].seal(this.nodeId);
+                this.dependencies[i]._seal(this.nodeId);
             }
             DAG.removeNode(this);
+            this.dependencies = null;
+            this.content = null;
         }
     };
 
@@ -170,7 +151,7 @@ function SetDependentCellPrototype() {
         var args = arguments.length==0 ? [] : [alt];
 
         var value = this.content;
-        if (this.usersCount==0) {
+        if (this.usersCount===0) {
             value = tracker.outScope(function(){
                 try {
                     return new Some(f());

@@ -41,8 +41,10 @@ BaseCell.prototype.onChange = function(f) {
         return event_broker.invokeOnProcess(this, this.onChange, [f]);
     }
 
+    this._leak(this.nodeId);
+
     var self = this;
-    
+
     var dependant = {
         key: uid(),
         f: function(obj) {
@@ -54,22 +56,22 @@ BaseCell.prototype.onChange = function(f) {
     };
 
     this.dependants.push(dependant);
-    
+
     if (this.usersCount > 0) {
         event_broker.notifySingle(this, dependant);
     }
 
     return function() {
+        if (dependant.disposed) return;
+        self._seal(self.nodeId);
         dependant.disposed = true;
         self.dependants = self.dependants.filter(function(d) {
-            return d.key != id;
+            return d.key != dependant.key;
         });
     };
 };
 
 BaseCell.prototype._leak = function(id) {
-    id = arguments.length==0 ? this.nodeId : id;
-
     if (this.users.hasOwnProperty(id)) {
         this.users[id] = 0;
     }
@@ -78,8 +80,6 @@ BaseCell.prototype._leak = function(id) {
 };
 
 BaseCell.prototype._seal = function(id) {
-    id = arguments.length==0 ? this.nodeId : id;
-
     if (!this.users.hasOwnProperty(id)) {
         throw new Error();
     }

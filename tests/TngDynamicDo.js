@@ -15,11 +15,9 @@ exports.ternary = function(test) {
     });
 
     var event = null;
-    r.onChange(function(r){
+    var dispose = r.onChange(function(r){
         event = r.hasValue() ? [r.unwrap()] : [];
     });
-
-    r.leak();
     test.equal(DAG.length, 2);
     test.equal(event.length, 0);
 
@@ -45,7 +43,7 @@ exports.ternary = function(test) {
     b1.set(20);
     test.equal(event, null);
 
-    r.seal();
+    dispose();
     test.equal(DAG.length, 0);
 
     test.done();

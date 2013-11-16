@@ -4,51 +4,49 @@ var List = warp9.tng.reactive.lists.List;
 module.exports = ListEventStore;
 
 function ListEventStore(list) {
-    this.store = [];
+    this.data = [];
     this.changes = 0;
-    if (arguments.length==1) {
-        list.onEvent(List.handler(this));
-    }
+
+    var dispose = list.onEvent(List.handler(this));
+    this.dispose = function() {
+        dispose();
+        this.clear();
+    };
 }
 
 ListEventStore.prototype.reset = function(data) {
     this.changes++;
-    this.store = data.map(function(item){
-        return ["add", item];
-    });
+    this.store = data;
 };
 
 ListEventStore.prototype.add = function(item) {
     this.changes++;
-    this.store.push(["add", item]);
+    this.store.push(item);
 };
 
 ListEventStore.prototype.remove = function(key) {
     this.changes++;
-    this.store.push(["remove", key]);
+
+    this.store = this.store.filter(function(item){
+        return item.key != key;
+    });
+};
+
+ListEventStore.prototype.has = function(item) {
+    for (var i=0;i<this.store.length;i++) {
+        if (this.store[i].value===item) return true;
+    }
+    return false;
+};
+
+ListEventStore.prototype.equalTo = function(values) {
+    for (var i=0;i<this.store.length;i++) {
+        if (this.store[i].value!==values[i]) return false;
+    }
+    return true;
 };
 
 ListEventStore.prototype.clear = function() {
     this.changes=0;
     this.store = [];
-};
-
-ListEventStore.prototype.play = function() {
-    var hash = {};
-    this.store.forEach(function(e){
-        if (e[0]==="add") {
-            if (hash.hasOwnProperty(e[1])) throw new Error();
-            hash[e[1].key] = e[1].value;
-        }
-        if (e[0]==="remove") delete hash[e[1]];
-    });
-    var data = [];
-    for (var i in hash) {
-        if (!hash.hasOwnProperty(i)) continue;
-        data.push(hash[i]);
-    }
-    data.has = function(value) {
-        return this.some(function(x) { return x==value; });
-    };
-    return data;
 };

@@ -3,6 +3,7 @@ var warp9 = require('../target/warp9.common');
 var Cell = warp9.tng.reactive.Cell;
 var List = warp9.tng.reactive.lists.List;
 var EventStore = require('./utils/TngList.EventStore');
+var DAG = warp9.tng.dag.DAG;
 
 exports.ctor = function(test) {
     test.expect(0);
@@ -11,73 +12,40 @@ exports.ctor = function(test) {
 };
 
 exports.subscribeEmptyChange = function(test) {
-    test.expect(4);
+    test.expect(6);
+    DAG.reset();
 
     var list = new List();
     var store = new EventStore(list);
-    test.equal(store.changes, 0);
+    test.equal(DAG.length, 1);
+    test.equal(store.changes, 1);
 
     list.add(42);
-    test.equal(store.changes, 0);
+    test.equal(store.changes, 2);
+    test.ok(store.equalTo([42]));
 
-    list.leak();
-    var data = store.play();
-
-    test.equal(data.length, 1);
-    test.ok(data.has(42));
-
-    test.done();
-};
-
-exports.subscribeEmptyChangeChange = function(test) {
-    test.expect(5);
-
-    var list = new List();
-    var store = new EventStore(list);
-    test.equal(store.changes, 0);
-
-    list.add(42);
-    test.equal(store.changes, 0);
-
-    list.leak();
+    store.dispose();
+    test.equal(DAG.length, 0);
     list.add(13);
-
-    var data = store.play();
-
-    test.equal(data.length, 2);
-    test.ok(data.has(13));
-    test.ok(data.has(42));
+    test.equal(store.changes, 0);
 
     test.done();
 };
 
-//exports.subscribeValueChange = function(test) {
-//    test.expect(2);
-//    var event = null;
-//    var cell = new Cell();
-//    cell.leak();
-//    cell.onChange(function(cell){
-//        event = cell.unwrap(null);
-//    });
-//    test.equal(event, null);
-//
-//    var marker = {};
-//    cell.set(marker);
-//    test.equal(event, marker);
-//    test.done();
-//};
+exports.subscribeValueChange = function(test) {
+    test.expect(5);
+    DAG.reset();
 
-//exports.subscribeLeak = function(test) {
-//    test.expect(2);
-//    var event = null;
-//    var cell = new Cell(42);
-//    cell.onChange(function(cell){
-//        event = cell.unwrap(null);
-//    });
-//    test.equal(event, null);
-//
-//    cell.leak();
-//    test.equal(event, 42);
-//
-//    test.done();
-//};
+    var list = new List([42]);
+    var store = new EventStore(list);
+    test.equal(DAG.length, 1);
+    test.equal(store.changes, 1);
+    test.ok(store.equalTo([42]));
+
+    list.add(13);
+    test.ok(store.equalTo([42, 13]));
+    store.dispose();
+    test.equal(store.changes, 0);
+
+    test.done();
+};

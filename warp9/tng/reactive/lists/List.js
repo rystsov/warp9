@@ -55,32 +55,22 @@ function SetListPrototype() {
             hasChanges: this.changeSet.length > 0,
             changeSet: this.changeSet
         };
-        this.changeSet = []
+        this.changeSet = [];
         return info;
     };
 
     // may be called during propagating or outside it
 
-    List.prototype.leak = function(id) {
-        id = arguments.length==0 ? this.nodeId : id;
-
-        if (!event_broker.isOnProcessCall) {
-            event_broker.invokeOnProcess(this, this.leak, [id]);
-            return;
-        }
-
+    List.prototype._leak = function(id) {
         BaseList.prototype._leak.apply(this, [id]);
 
         if (this.usersCount===1) {
             DAG.addNode(this);
-            this._putEventToDependants(["reset", this.data.slice()]);
-            event_broker.notify(this);
         }
     };
 
-    List.prototype.seal = function(id) {
-        id = arguments.length==0 ? this.nodeId : id;
-        BaseList.prototype.seal.apply(this, [id]);
+    List.prototype._seal = function(id) {
+        BaseList.prototype._seal.apply(this, [id]);
 
         if (this.usersCount===0) {
             DAG.removeNode(this);
@@ -98,13 +88,12 @@ function SetListPrototype() {
         var value = {key: key, value: f(key)};
         this.data.push(value);
 
-        var event = ["add", value];
-        this.changeSet.push(event);
         if (this.usersCount>0) {
+            var event = ["add", value];
+            this.changeSet.push(event);
             this._putEventToDependants(event);
             event_broker.notify(this);
         }
-
         return true;
     };
 
@@ -113,9 +102,9 @@ function SetListPrototype() {
             return item.key != key;
         });
 
-        var event = ["remove", key];
-        this.changeSet.push(event);
         if (this.usersCount>0) {
+            var event = ["remove", key];
+            this.changeSet.push(event);
             this._putEventToDependants(event);
             event_broker.notify(this);
         }
@@ -130,9 +119,9 @@ function SetListPrototype() {
                 value: item
             }
         });
-        var event = ["reset", data.slice()];
-        this.changeSet.push(event);
         if (this.usersCount>0) {
+            var event = ["reset", data.slice()];
+            this.changeSet.push(event);
             this._putEventToDependants(event);
             event_broker.notify(this);
         }
