@@ -8,9 +8,10 @@ expose(BaseCell, function(){
     EmptyError = root.tng.reactive.EmptyError;
     DAG = root.tng.dag.DAG;
     uid = root.idgenerator;
+    empty = root.tng.empty;
 });
 
-var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid;
+var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty;
 
 function BaseCell() {
     root.tng.Matter.apply(this, []);
@@ -72,7 +73,7 @@ BaseCell.prototype.onChange = function(f) {
 };
 
 BaseCell.prototype._leak = function(id) {
-    if (this.users.hasOwnProperty(id)) {
+    if (!this.users.hasOwnProperty(id)) {
         this.users[id] = 0;
     }
     this.users[id]++;
@@ -110,5 +111,30 @@ BaseCell.prototype.coalesce = function(value) {
 BaseCell.prototype.lift = function(f) {
     return root.tng.do(function(){
         return f(this.unwrap());
+    }, this);
+};
+
+BaseCell.prototype.when = function(condition, transform, alternative) {
+    var test = typeof condition === "function" ? condition : function(value) {
+        return value === condition;
+    };
+
+    var map = null;
+    if (arguments.length > 1) {
+        map = typeof transform === "function" ? transform : function() { return transform; };
+    }
+
+    var alt = null;
+    if (arguments.length==3) {
+        alt = typeof alternative === "function" ? alternative : function() { return alternative; };
+    }
+
+    return root.tng.do(function(){
+        var value = this.unwrap();
+        if (test(value)) {
+            return map != null ? map(value) : value;
+        } else {
+            return alt != null ? alt(value) : empty();
+        }
     }, this);
 };

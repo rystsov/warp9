@@ -32,6 +32,18 @@ exports.unwrapEmpty = function(test) {
     test.done();
 };
 
+exports.doubleSubscribe = function(test) {
+    test.equal(DAG.length, 0);
+
+    var cell = new Cell(42);
+    var store1 = new CellStore(cell);
+    var store2 = new CellStore(cell);
+    store1.dispose();
+    store2.dispose();
+
+    test.done();
+};
+
 exports.subscribeEmptyChange = function(test) {
     test.expect(5);
     test.equal(DAG.length, 0);
