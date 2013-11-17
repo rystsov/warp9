@@ -1,4 +1,5 @@
 var warp9 = require('../target/warp9.common');
+var CellStore = require('./utils/TngCell.EventStore');
 
 var Cell = warp9.tng.reactive.Cell;
 var DAG = warp9.tng.dag.DAG;
@@ -41,20 +42,18 @@ exports.subscribe = function(test) {
     var add2 = warp9.tng.do(function(){
         return cell.unwrap()+2;
     });
-    var event = null;
-    var dispose = add2.onChange(function(add2){
-        event = add2.hasValue() ? [add2.unwrap()] : [];
-    });
-    test.equal(event.length, 0);
+    var store = new CellStore(add2);
+    test.ok(store.isEmpty() && store.changes==1);
+
     cell.set(1);
-    test.equal(event[0], 3);
-    dispose();
+    test.ok(store.has(3));
+    store.dispose();
 
     test.done();
 };
 
 exports.subscribeUseLeave = function(test) {
-    test.expect(7);
+    test.expect(8);
     test.equal(DAG.length, 0);
 
     var cell = new Cell();
@@ -62,25 +61,26 @@ exports.subscribeUseLeave = function(test) {
         return cell.unwrap()+2;
     });
     test.equal(DAG.length, 0);
-    var event = null;
-    var dispose = add2.onChange(function(add2){
-        event = add2.hasValue() ? [add2.unwrap()] : [];
-    });
+
+    var store = new CellStore(add2);
     test.equal(DAG.length, 2);
-    test.equal(event.length, 0);
+    test.ok(store.isEmpty() && store.changes==1);
+
     cell.set(1);
-    test.equal(event[0], 3);
-    dispose();
+    test.ok(store.has(3));
+
+    store.dispose();
     test.equal(DAG.length, 0);
-    event = null;
+    test.equal(store.changes, 0);
+
     cell.set(2);
-    test.equal(event, null);
+    test.equal(store.changes, 0);
 
     test.done();
 };
 
 exports.doubleLift = function(test) {
-    test.expect(6);
+    test.expect(7);
     test.equal(DAG.length, 0);
 
     var cell = new Cell(2);
@@ -92,19 +92,16 @@ exports.doubleLift = function(test) {
     });
     test.equal(DAG.length, 0);
 
-    var event = null;
-    var dispose = add3.onChange(function(add3){
-        event = add3.hasValue() ? [add3.unwrap()] : [];
-    });
+    var store = new CellStore(add3);
     test.equal(DAG.length, 3);
-    test.equal(event[0], 7);
+    test.ok(store.has(7));
 
-    dispose();
+    store.dispose();
     test.equal(DAG.length, 0);
+    test.equal(store.changes, 0);
 
-    event = null;
     cell.set(2);
-    test.equal(event, null);
+    test.equal(store.changes, 0);
 
     test.done();
 };
@@ -122,31 +119,70 @@ exports.fork = function(test) {
     });
     test.equal(DAG.length, 0);
 
-    var event3 = null;
-    var dispose3 = add3.onChange(function(add3){
-        event3 = add3.hasValue() ? [add3.unwrap()] : [];
-    });
-    test.equal(event3[0], 5);
+    var store3 = new CellStore(add3);
     test.equal(DAG.length, 2);
+    test.ok(store3.has(5));
 
-    var event2 = null;
-    var dispose2 = add2.onChange(function(add2){
-        event2 = add2.hasValue() ? [add2.unwrap()] : [];
-    });
+    var store2 = new CellStore(add2);
     test.equal(DAG.length, 3);
-    test.equal(event2[0], 4);
+    test.ok(store2.has(4));
 
     cell.set(3);
-    test.equal(event3[0], 6);
-    test.equal(event2[0], 5);
+    test.ok(store3.has(6));
+    test.ok(store2.has(5));
 
-    dispose3();
+    store3.dispose();
     test.equal(DAG.length, 2);
-    cell.set(4);
-    test.equal(event3[0], 6);
-    test.equal(event2[0], 6);
 
-    dispose2();
+    cell.set(4);
+    test.ok(store3.isEmpty() && store3.changes==0);
+    test.ok(store2.has(6));
+
+    store2.dispose();
+    test.equal(DAG.length, 0);
+
+    test.done();
+};
+
+exports.ternary = function(test) {
+    test.expect(12);
+    test.equal(DAG.length, 0);
+
+    var c  = new Cell();
+    var b1 = new Cell(1);
+    var b2 = new Cell(2);
+
+    var r = warp9.tng.do(function(){
+        return c.unwrap() ? b1.unwrap() : b2.unwrap();
+    });
+
+    var store = new CellStore(r);
+    test.equal(DAG.length, 2);
+    test.ok(store.isEmpty() && store.changes==1);
+
+    c.set(true);
+    test.equal(DAG.length, 3);
+    test.ok(store.has(1));
+
+    b1.set(-1);
+    test.ok(store.has(-1));
+
+    c.set(false);
+    test.equal(DAG.length, 3);
+    test.ok(store.has(2));
+
+    b2.set(-2);
+    test.ok(store.has(-2));
+
+    c.unset();
+    test.equal(DAG.length, 2);
+
+    var changes = store.changes;
+    b1.set(10);
+    b1.set(20);
+    test.equal(store.changes, changes);
+
+    store.dispose();
     test.equal(DAG.length, 0);
 
     test.done();
