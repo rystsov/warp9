@@ -14,7 +14,7 @@ expose(DependentCell, function(){
 
 var Matter, Node, None, Some, event_broker, tracker, EmptyError, DAG, BaseCell;
 
-function DependentCell(f) {
+function DependentCell(f, context) {
     BaseCell.apply(this, []);
     this.attach(DependentCell);
 
@@ -22,6 +22,7 @@ function DependentCell(f) {
     this.users = {};
     this.usersCount = 0;
     this.f = f;
+    this.context = context;
     this.dependencies = null;
     this.content = null;
 }
@@ -41,7 +42,7 @@ function SetDependentCellPrototype() {
         var value, tracked, nova = {};
         tracker.inScope(function(){
             try {
-                value = new Some(this.f());
+                value = new Some(this.f.apply(this.context, []));
             } catch (e) {
                 if (e instanceof EmptyError) {
                     value = new None();
@@ -104,7 +105,7 @@ function SetDependentCellPrototype() {
         if (this.usersCount===1) {
             tracker.inScope(function(){
                 try {
-                    this.content = new Some(this.f());
+                    this.content = new Some(this.f.apply(this.context, []));
                 } catch (e) {
                     if (e instanceof EmptyError) {
                         this.content = new None();
@@ -145,7 +146,6 @@ function SetDependentCellPrototype() {
     };
 
     DependentCell.prototype.unwrap = function(alt) {
-        var f = this.f;
         tracker.track(this);
 
         var args = arguments.length==0 ? [] : [alt];
@@ -154,7 +154,7 @@ function SetDependentCellPrototype() {
         if (this.usersCount===0) {
             value = tracker.outScope(function(){
                 try {
-                    return new Some(f());
+                    return new Some(this.f.apply(this.context, []));
                 } catch (e) {
                     if (e instanceof EmptyError) {
                         return new None();
@@ -162,7 +162,7 @@ function SetDependentCellPrototype() {
                         throw e;
                     }
                 }
-            });
+            }, this);
         }
 
         return unwrap.apply(value, args);

@@ -98,3 +98,17 @@ BaseCell.prototype._putEventToDependants = function(event) {
         this.dependants[i].mailbox.push(event);
     }
 };
+
+// extensions
+
+BaseCell.prototype.coalesce = function(value) {
+    return root.tng.do(function(){
+        return this.unwrap(value);
+    }, this);
+};
+
+BaseCell.prototype.lift = function(f) {
+    return root.tng.do(function(){
+        return f(this.unwrap());
+    }, this);
+};

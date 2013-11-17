@@ -4,6 +4,6 @@ expose(_do, function(){
 
 var DependentCell;
 
-function _do(f) {
-    return new DependentCell(f);
+function _do(f, context) {
+    return new DependentCell(f, context);
 }

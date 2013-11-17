@@ -2214,8 +2214,8 @@ var warp9 = (function(){
                     
                     var DependentCell;
                     
-                    function _do(f) {
-                        return new DependentCell(f);
+                    function _do(f, context) {
+                        return new DependentCell(f, context);
                     }
                 }
             },
@@ -2676,6 +2676,20 @@ var warp9 = (function(){
                             this.dependants[i].mailbox.push(event);
                         }
                     };
+                    
+                    // extensions
+                    
+                    BaseCell.prototype.coalesce = function(value) {
+                        return root.tng.do(function(){
+                            return this.unwrap(value);
+                        }, this);
+                    };
+                    
+                    BaseCell.prototype.lift = function(f) {
+                        return root.tng.do(function(){
+                            return f(this.unwrap());
+                        }, this);
+                    };
                 }
             },
             {
@@ -2808,7 +2822,7 @@ var warp9 = (function(){
                     
                     var Matter, Node, None, Some, event_broker, tracker, EmptyError, DAG, BaseCell;
                     
-                    function DependentCell(f) {
+                    function DependentCell(f, context) {
                         BaseCell.apply(this, []);
                         this.attach(DependentCell);
                     
@@ -2816,6 +2830,7 @@ var warp9 = (function(){
                         this.users = {};
                         this.usersCount = 0;
                         this.f = f;
+                        this.context = context;
                         this.dependencies = null;
                         this.content = null;
                     }
@@ -2835,7 +2850,7 @@ var warp9 = (function(){
                             var value, tracked, nova = {};
                             tracker.inScope(function(){
                                 try {
-                                    value = new Some(this.f());
+                                    value = new Some(this.f.apply(this.context, []));
                                 } catch (e) {
                                     if (e instanceof EmptyError) {
                                         value = new None();
@@ -2898,7 +2913,7 @@ var warp9 = (function(){
                             if (this.usersCount===1) {
                                 tracker.inScope(function(){
                                     try {
-                                        this.content = new Some(this.f());
+                                        this.content = new Some(this.f.apply(this.context, []));
                                     } catch (e) {
                                         if (e instanceof EmptyError) {
                                             this.content = new None();
@@ -2939,7 +2954,6 @@ var warp9 = (function(){
                         };
                     
                         DependentCell.prototype.unwrap = function(alt) {
-                            var f = this.f;
                             tracker.track(this);
                     
                             var args = arguments.length==0 ? [] : [alt];
@@ -2948,7 +2962,7 @@ var warp9 = (function(){
                             if (this.usersCount===0) {
                                 value = tracker.outScope(function(){
                                     try {
-                                        return new Some(f());
+                                        return new Some(this.f.apply(this.context, []));
                                     } catch (e) {
                                         if (e instanceof EmptyError) {
                                             return new None();
@@ -2956,7 +2970,7 @@ var warp9 = (function(){
                                             throw e;
                                         }
                                     }
-                                });
+                                }, this);
                             }
                     
                             return unwrap.apply(value, args);
@@ -3470,22 +3484,22 @@ var warp9 = (function(){
                         this.tracked.push(cell);
                     };
                     
-                    Tracker.prototype.inScope = function(fn, obj) {
+                    Tracker.prototype.inScope = function(fn, context) {
                         this.active = true;
                         this.tracked = [];
                         try {
-                            return fn.apply(obj, []);
+                            return fn.apply(context, []);
                         } finally {
                             this.active = false;
                             this.tracked = null;
                         }
                     };
                     
-                    Tracker.prototype.outScope = function(fn) {
+                    Tracker.prototype.outScope = function(fn, context) {
                         var active = this.active;
                         this.active = false;
                         try {
-                            return fn();
+                            return fn.apply(context, []);
                         } finally {
                             this.active = active;
                         }
