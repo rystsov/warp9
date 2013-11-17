@@ -4,10 +4,12 @@ expose(BaseList, function() {
     Matter = root.tng.Matter;
     AggregatedCell = root.tng.reactive.AggregatedCell;
     GroupReducer = root.tng.reactive.algebra.GroupReducer;
-
+    LiftedList = root.tng.reactive.lists.LiftedList;
+    BaseCell = root.tng.reactive.BaseCell;
+    checkBool = root.utils.checkBool;
 });
 
-var uid, event_broker, Matter, AggregatedCell, GroupReducer;
+var uid, event_broker, Matter, AggregatedCell, GroupReducer, LiftedList, BaseCell, checkBool;
 
 function BaseList() {
     root.tng.Matter.apply(this, []);
@@ -105,4 +107,37 @@ BaseList.prototype.reduceGroup = function(group, opt) {
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
     return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+};
+
+BaseList.prototype.lift = function(f) {
+    return new LiftedList(this, f);
+};
+
+// extensions
+
+BaseList.prototype.all = function(predicate) {
+    return this.lift(predicate).reduceGroup({
+        identity: function() { return [0,0]; },
+        add: function(x,y) { return [x[0]+y[0],x[1]+y[1]]; },
+        invert: function(x) { return [-x[0],-x[1]]; }
+    },{
+        wrap: function(x) { return checkBool(x) ? [1,1] : [0,1]; },
+        unwrap: function(x) { return x[0]==x[1]; }
+    });
+};
+
+BaseList.prototype.count = function() {
+    var predicate = arguments.length===0 ? function() { return true; } : arguments[0];
+
+    return this.lift(function(x){
+        x = predicate(x);
+        if (x.metaType === Matter && x.instanceof(BaseCell)) {
+            return x.lift(function(x) { return checkBool(x) ? 1 : 0; });
+        }
+        return checkBool(x) ? 1 : 0;
+    }).reduceGroup({
+        identity: function() { return 0; },
+        add: function(x,y) { return x+y; },
+        invert: function(x) { return -x; }
+    });
 };

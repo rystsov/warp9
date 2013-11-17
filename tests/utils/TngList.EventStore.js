@@ -4,8 +4,8 @@ var List = warp9.tng.reactive.lists.List;
 module.exports = ListEventStore;
 
 function ListEventStore(list) {
-    this.data = [];
     this.changes = 0;
+    this.store = [];
 
     var dispose = list.onEvent(List.handler(this));
     this.dispose = function() {
@@ -44,6 +44,16 @@ ListEventStore.prototype.equalTo = function(values) {
         if (this.store[i].value!==values[i]) return false;
     }
     return true;
+};
+
+ListEventStore.prototype.isEmpty = function() {
+    return this.store.length==0;
+};
+
+ListEventStore.prototype.data = function() {
+    return this.store.map(function(item){
+        return item.value;
+    });
 };
 
 ListEventStore.prototype.clear = function() {

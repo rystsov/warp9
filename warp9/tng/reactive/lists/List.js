@@ -136,6 +136,19 @@ function SetListPrototype() {
 
         return true;
     };
+
+    // extensions
+
+    List.prototype.forEach = function(f) {
+        if (!event_broker.isOnProcessCall) {
+            event_broker.invokeOnProcess(this, this.forEach, [f]);
+            return;
+        }
+
+        for (var i=0;i<this.data.length;i++) {
+            f(this.data[i].value);
+        }
+    };
 }
 
 List.handler = function(handlers) {
