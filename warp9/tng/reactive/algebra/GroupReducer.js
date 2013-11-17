@@ -32,7 +32,7 @@ GroupReducer.prototype.add = function(key, value) {
         this.blocks++;
     }
 
-    if (this.blocks==0) {
+    if (this.blocks==0 || this.ignoreUnset) {
         this.value = new Some(this.sum);
     } else if (this.blocks==1) {
         this.value = new None();
@@ -57,7 +57,7 @@ GroupReducer.prototype.remove = function(key) {
         this.blocks--;
     }
 
-    if (this.blocks==0) {
+    if (this.blocks==0 || this.ignoreUnset) {
         this.value = new Some(this.sum);
     }
 };

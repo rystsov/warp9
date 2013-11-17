@@ -3059,7 +3059,7 @@ define([], function() {
                                 this.blocks++;
                             }
                         
-                            if (this.blocks==0) {
+                            if (this.blocks==0 || this.ignoreUnset) {
                                 this.value = new Some(this.sum);
                             } else if (this.blocks==1) {
                                 this.value = new None();
@@ -3084,7 +3084,7 @@ define([], function() {
                                 this.blocks--;
                             }
                         
-                            if (this.blocks==0) {
+                            if (this.blocks==0 || this.ignoreUnset) {
                                 this.value = new Some(this.sum);
                             }
                         };
@@ -3524,7 +3524,7 @@ define([], function() {
                                     }
                                 });
                                 if (this.usersCount>0) {
-                                    var event = ["reset", data.slice()];
+                                    var event = ["reset", this.data.slice()];
                                     this.changeSet.push(event);
                                     this._putEventToDependants(event);
                                     event_broker.notify(this);

@@ -128,7 +128,7 @@ function SetListPrototype() {
             }
         });
         if (this.usersCount>0) {
-            var event = ["reset", data.slice()];
+            var event = ["reset", this.data.slice()];
             this.changeSet.push(event);
             this._putEventToDependants(event);
             event_broker.notify(this);

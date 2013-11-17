@@ -1,41 +1,12 @@
 var warp9 = require('../target/warp9.common');
+
 var Summer = require('./utils/Summer');
-
-var Cell = warp9.tng.reactive.Cell;
-var List = warp9.tng.reactive.lists.List;
-var DAG = warp9.tng.dag.DAG;
-
-exports.ctor = function(test) {
-    test.expect(1);
-    test.equal(DAG.length, 0);
-
-    var list = new List();
-    test.done();
-};
-
-exports.blink = function(test) {
-    test.expect(3);
-    test.equal(DAG.length, 0);
-
-    var a = new Cell(1);
-    var b = new Cell(2);
-    var list = new List([a, b]);
-
-    var r = list.reduceGroup(new Summer());
+var ReduceTests = require('./utils/TngList.ReduceTests');
 
 
-    var event = null;
-    var dispose = r.onChange(function(r){
-        event = r.hasValue() ? [r.unwrap()] : [];
-    });
-
-    test.equal(event[0], 3);
-
-    a.set(2);
-
-    test.equal(event[0], 4);
-
-    dispose();
-
-    test.done();
-};
+module.exports = new ReduceTests(function(list, opt){
+    if (opt) {
+        return list.reduceGroup(new Summer(), opt);
+    }
+    return list.reduceGroup(new Summer());
+});
