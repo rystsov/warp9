@@ -187,3 +187,38 @@ exports.ternary = function(test) {
 
     test.done();
 };
+
+exports.nested = function(test) {
+    test.expect(7);
+    test.equal(DAG.length, 0);
+
+    var a = new Cell();
+    var b = new Cell();
+    var o = new Cell(2);
+    var r = warp9.tng.do(function(){
+        var inner = a.unwrap();
+        var v = warp9.tng.do(function(){
+            return inner.unwrap()+2;
+        }).unwrap();
+        return v + o.unwrap();
+    });
+
+    var store = new CellStore(r);
+    test.equal(DAG.length, 2); // r, a
+
+    a.set(b);
+    test.equal(DAG.length, 4); // r, a, inner (b), inner-do
+
+    b.set(1);
+    test.equal(DAG.length, 5); // r, a, inner (b), inner-do, o
+    test.equal(store.unwrap(-1), 5);
+
+    b.unset();
+    test.equal(DAG.length, 4); // r, a, inner (b), inner-do
+
+    a.unset();
+    test.equal(DAG.length, 2);
+
+    store.dispose();
+    test.done();
+};

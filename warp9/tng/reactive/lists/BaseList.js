@@ -4,12 +4,13 @@ expose(BaseList, function() {
     Matter = root.tng.Matter;
     AggregatedCell = root.tng.reactive.AggregatedCell;
     GroupReducer = root.tng.reactive.algebra.GroupReducer;
+    MonoidReducer = root.tng.reactive.algebra.MonoidReducer;
     LiftedList = root.tng.reactive.lists.LiftedList;
     BaseCell = root.tng.reactive.BaseCell;
     checkBool = root.utils.checkBool;
 });
 
-var uid, event_broker, Matter, AggregatedCell, GroupReducer, LiftedList, BaseCell, checkBool;
+var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
 
 function BaseList() {
     root.tng.Matter.apply(this, []);
@@ -107,6 +108,15 @@ BaseList.prototype.reduceGroup = function(group, opt) {
     if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
 
     return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+};
+
+BaseList.prototype.reduceMonoid = function(monoid, opt) {
+    if (!opt) opt = {};
+    if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+    if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+
+    return new AggregatedCell(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
 };
 
 BaseList.prototype.lift = function(f) {

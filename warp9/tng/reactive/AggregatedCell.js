@@ -230,30 +230,4 @@ function SetPrototype() {
         }
         delete this.itemIdToNodeId[key];
     };
-
-//    AggregatedCell.prototype.unwrap = function() {
-//        var blocked = false;
-//        var data = this.list.unwrap().map(function(value){
-//            if (typeof value === "object" && value.type === Cell) {
-//                var marker = {};
-//                value = value.unwrap(marker);
-//                if (marker===value) {
-//                    blocked = true;
-//                    return this._monoid.identity();
-//                }
-//                return value;
-//            }
-//            return value;
-//        }.bind(this));
-//        if (!this._ignoreUnset && blocked) {
-//            if (arguments.length === 0) throw new Error();
-//            return arguments[0];
-//        }
-//
-//        var sum = this._monoid.identity();
-//        data.forEach(function(item){
-//            sum = this._monoid.add(sum, this._wrap(item));
-//        }.bind(this));
-//        return this._unwrap(sum);
-//    };
 }

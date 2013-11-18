@@ -170,7 +170,7 @@ function SetDependentCellPrototype() {
 
     function unwrap(alt) {
         if (arguments.length==0 && this.isEmpty()) {
-            throw new Error();
+            throw new EmptyError();
         }
         return this.isEmpty() ? alt : this.value();
     }

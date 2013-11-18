@@ -152,7 +152,7 @@ var warp9 = (function(){
                         };
                         this.unwrap = function(alt) {
                             if (arguments.length==0) {
-                                throw new Error();
+                                throw new root.tng.reactive.EmptyError();
                             }
                             return alt;
                         };
@@ -2543,32 +2543,6 @@ var warp9 = (function(){
                             }
                             delete this.itemIdToNodeId[key];
                         };
-                    
-                    //    AggregatedCell.prototype.unwrap = function() {
-                    //        var blocked = false;
-                    //        var data = this.list.unwrap().map(function(value){
-                    //            if (typeof value === "object" && value.type === Cell) {
-                    //                var marker = {};
-                    //                value = value.unwrap(marker);
-                    //                if (marker===value) {
-                    //                    blocked = true;
-                    //                    return this._monoid.identity();
-                    //                }
-                    //                return value;
-                    //            }
-                    //            return value;
-                    //        }.bind(this));
-                    //        if (!this._ignoreUnset && blocked) {
-                    //            if (arguments.length === 0) throw new Error();
-                    //            return arguments[0];
-                    //        }
-                    //
-                    //        var sum = this._monoid.identity();
-                    //        data.forEach(function(item){
-                    //            sum = this._monoid.add(sum, this._wrap(item));
-                    //        }.bind(this));
-                    //        return this._unwrap(sum);
-                    //    };
                     }
                     
                 }
@@ -3004,7 +2978,7 @@ var warp9 = (function(){
                     
                         function unwrap(alt) {
                             if (arguments.length==0 && this.isEmpty()) {
-                                throw new Error();
+                                throw new EmptyError();
                             }
                             return this.isEmpty() ? alt : this.value();
                         }
@@ -3090,6 +3064,167 @@ var warp9 = (function(){
                 }
             },
             {
+                path: ["tng","reactive","algebra","MonoidReducer"],
+                content: function(root, expose) {
+                    expose(MonoidReducer, function() {
+                        None = root.adt.maybe.None;
+                        Some = root.adt.maybe.Some;
+                        MonoidTree = root.tng.reactive.algebra.MonoidTree;
+                    });
+                    
+                    var None, Some, MonoidTree;
+                    
+                    function MonoidReducer(monoid, wrap, ignoreUnset) {
+                        this.monoid = monoid;
+                        this.wrap = wrap;
+                        this.ignoreUnset = ignoreUnset;
+                    
+                        this.value = new Some(monoid.identity());
+                    
+                        this.root = null;
+                        this.keyToIndex = {};
+                        this.indexToKey = [];
+                    
+                        this.info = {};
+                        this.blocks = 0;
+                    }
+                    
+                    MonoidReducer.prototype.add = function(key, value) {
+                        if (this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        var info = {
+                            blocked: value.isEmpty()
+                        };
+                        if (info.blocked) {
+                            this.blocks++;
+                        }
+                        this.info[key] = info;
+                    
+                        value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.unwrap());
+                    
+                        this.keyToIndex[key] = MonoidTree.size(this.root);
+                        this.indexToKey.push(key);
+                        this.root = this.root==null ? MonoidTree.leaf(value) : this.root.put(this.monoid, value);
+                        assert(MonoidTree.size(this.root) == this.indexToKey.length);
+                    
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            this.value = new Some(this.root.value);
+                        } else if (this.blocks==1) {
+                            this.value = new None();
+                        }
+                    };
+                    
+                    MonoidReducer.prototype.update = function(key, value) {
+                        this.remove(key);
+                        this.add(key, value);
+                    };
+                    
+                    MonoidReducer.prototype.remove = function(key) {
+                        if (!this.keyToIndex.hasOwnProperty(key)) {
+                            throw new Error("Unknown key: " + key);
+                        }
+                        // the element being deleted is not the last
+                        if (this.keyToIndex[key]+1 !== this.indexToKey.length) {
+                            this.root = this.root.change(this.monoid, this.keyToIndex[key], this.root.peek());
+                            var lastKey = this.indexToKey.pop();
+                            this.indexToKey[this.keyToIndex[key]] = lastKey;
+                            this.keyToIndex[lastKey] = this.keyToIndex[key];
+                        } else {
+                            this.indexToKey.pop();
+                        }
+                        this.root = this.root.pop(this.monoid);
+                        delete this.keyToIndex[key];
+                    
+                        if (!this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        if (this.info[key].blocked) {
+                            this.blocks--;
+                        }
+                        delete this.info[key];
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            if (this.root == null) {
+                                this.value = new Some(this.monoid.identity());
+                            } else {
+                                this.value = new Some(this.root.value);
+                            }
+                        }
+                    };
+                    
+                    function assert(value) {
+                        if (!value) throw new Error();
+                    }
+                }
+            },
+            {
+                path: ["tng","reactive","algebra","MonoidTree"],
+                content: function(root, expose) {
+                    expose(MonoidTree);
+                    
+                    function MonoidTree(value, size, left, right) {
+                        this.value = value;
+                        this.size = size;
+                        this.left = left;
+                        this.right = right;
+                    }
+                    MonoidTree.leaf = function(value) {
+                        return new MonoidTree(value, 1, null, null);
+                    };
+                    MonoidTree.of = function(monoid, left, right) {
+                        return new MonoidTree(monoid.add(left.value, right.value), left.size + right.size, left, right);
+                    };
+                    
+                    MonoidTree.prototype.change = function(monoid, index, value) {
+                        if (index === 0 && this.size === 1) {
+                            return MonoidTree.leaf(value);
+                        }
+                        if (index < this.left.size) {
+                            return MonoidTree.of(monoid, this.left.change(monoid, index, value), this.right);
+                        } else {
+                            return MonoidTree.of(monoid, this.left, this.right.change(monoid, index - this.left.size, value));
+                        }
+                    };
+                    
+                    MonoidTree.prototype.peek = function() {
+                        return this.size === 1 ? this.value : this.right.peek();
+                    };
+                    
+                    MonoidTree.prototype.put = function(monoid, value) {
+                        assert (MonoidTree.size(this.left)>=MonoidTree.size(this.right));
+                        var left, right;
+                        if (MonoidTree.size(this.left)==MonoidTree.size(this.right)) {
+                            left = this;
+                            right = MonoidTree.leaf(value);
+                        } else {
+                            left = this.left;
+                            right = this.right.put(monoid, value);
+                        }
+                        return MonoidTree.of(monoid, left, right);
+                    };
+                    
+                    MonoidTree.prototype.pop = function(monoid) {
+                        if (this.size==1) return null;
+                        assert (this.right!=null);
+                        assert (this.left!=null);
+                        var right = this.right.pop(monoid);
+                        if (right==null) {
+                            return this.left;
+                        } else {
+                            return MonoidTree.of(monoid, this.left, right);
+                        }
+                    };
+                    
+                    MonoidTree.size = function(node) {
+                        return node==null ? 0 : node.size;
+                    };
+                    
+                    function assert(value) {
+                        if (!value) throw new Error();
+                    }
+                }
+            },
+            {
                 path: ["tng","reactive","algebra","Reducer"],
                 content: function(root, expose) {
                     expose(Reducer, function() {
@@ -3123,12 +3258,13 @@ var warp9 = (function(){
                         Matter = root.tng.Matter;
                         AggregatedCell = root.tng.reactive.AggregatedCell;
                         GroupReducer = root.tng.reactive.algebra.GroupReducer;
+                        MonoidReducer = root.tng.reactive.algebra.MonoidReducer;
                         LiftedList = root.tng.reactive.lists.LiftedList;
                         BaseCell = root.tng.reactive.BaseCell;
                         checkBool = root.utils.checkBool;
                     });
                     
-                    var uid, event_broker, Matter, AggregatedCell, GroupReducer, LiftedList, BaseCell, checkBool;
+                    var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
                     
                     function BaseList() {
                         root.tng.Matter.apply(this, []);
@@ -3226,6 +3362,15 @@ var warp9 = (function(){
                         if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
                     
                         return new AggregatedCell(this, GroupReducer, group, opt.wrap, opt.unwrap, opt.ignoreUnset);
+                    };
+                    
+                    BaseList.prototype.reduceMonoid = function(monoid, opt) {
+                        if (!opt) opt = {};
+                        if (!opt.hasOwnProperty("wrap")) opt.wrap = function(x) { return x; };
+                        if (!opt.hasOwnProperty("unwrap")) opt.unwrap = function(x) { return x; };
+                        if (!opt.hasOwnProperty("ignoreUnset")) opt.ignoreUnset = false;
+                    
+                        return new AggregatedCell(this, MonoidReducer, monoid, opt.wrap, opt.unwrap, opt.ignoreUnset);
                     };
                     
                     BaseList.prototype.lift = function(f) {
@@ -3566,6 +3711,8 @@ var warp9 = (function(){
                     
                     function Tracker() {
                         this.active = false;
+                        this.tracked = null;
+                        this.stack = [];
                     }
                     
                     Tracker.prototype.track = function(cell) {
@@ -3576,13 +3723,16 @@ var warp9 = (function(){
                     };
                     
                     Tracker.prototype.inScope = function(fn, context) {
+                        this.stack.push([this.active, this.tracked]);
+                    
                         this.active = true;
                         this.tracked = [];
                         try {
                             return fn.apply(context, []);
                         } finally {
-                            this.active = false;
-                            this.tracked = null;
+                            var last = this.stack.pop();
+                            this.active = last[0];
+                            this.tracked = last[1];
                         }
                     };
                     
@@ -3595,6 +3745,63 @@ var warp9 = (function(){
                             this.active = active;
                         }
                     };
+                    
+                }
+            },
+            {
+                path: ["tng","unwrapObject"],
+                content: function(root, expose) {
+                    expose(unwrapObject, function(){
+                        Cell = root.tng.reactive.BaseCell;
+                        List = root.tng.reactive.lists.List;
+                    });
+                    
+                    var Cell, List;
+                    
+                    function unwrapObject(obj, opt) {
+                        if (typeof obj == "function") {
+                            throw new Error("Can't unwrap functions");
+                        }
+                        if (typeof obj != "object") {
+                            return new Cell(obj);
+                        }
+                        if (obj instanceof Skip) return new Cell(obj);
+                        if (obj.metaType && obj.instanceof(BaseCell)) {
+                            return root.tng.do(function(){
+                                return unwrapObject(obj.unwrap()).unwrap();
+                            });
+                        }
+                        if (obj.metaType && obj.instanceof(List)) {
+                            return obj.lift(unwrapObject).reduce(
+                                [], function(a,b) { return a.concat(b); }, {
+                                    wrap: function(x) { return [x]; },
+                                    ignoreUnset: true
+                                }
+                            );
+                        }
+                        var disassembled = [];
+                        for (var key in obj) {
+                            if (!obj.hasOwnProperty(key)) continue;
+                            if (typeof obj[key] == "function") continue;
+                            (function(key){
+                                disassembled.push(unwrapObject(obj[key]).lift(function(value){
+                                    return new Skip({key: key, value: value});
+                                }));
+                            })(key);
+                        }
+                        return unwrapObject(new List(disassembled)).lift(function(items){
+                            var obj = {};
+                            for (var i=0;i<items.length;i++) {
+                                var kv = items[i].value;
+                                obj[kv.key] = kv.value;
+                            }
+                            return obj;
+                        });
+                    }
+                    
+                    function Skip(value) {
+                        this.value = value;
+                    }
                     
                 }
             },
