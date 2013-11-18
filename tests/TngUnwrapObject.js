@@ -1,10 +1,9 @@
-var EventSink = require('./utils/Cell.EventSink');
 var warp9 = require('../target/warp9.common');
 
-var List = warp9.reactive.List;
-var Cell = warp9.reactive.Cell;
+var List = warp9.tng.reactive.lists.List;
+var Cell = warp9.tng.reactive.Cell;
 
-var unwrapObject = warp9.reactive.utils.unwrapObject;
+var unwrapObject = warp9.tng.unwrapObject;
 
 exports.unwrapCell = function(test) {
     test.expect(1);

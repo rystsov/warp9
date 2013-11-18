@@ -125,6 +125,13 @@ BaseList.prototype.lift = function(f) {
 
 // extensions
 
+BaseList.prototype.reduce = function(identity, add, opt) {
+    return this.reduceMonoid({
+        identity: function() {return identity; },
+        add: add
+    }, opt);
+};
+
 BaseList.prototype.all = function(predicate) {
     return this.lift(predicate).reduceGroup({
         identity: function() { return [0,0]; },

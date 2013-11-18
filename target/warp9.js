@@ -3379,6 +3379,13 @@ var warp9 = (function(){
                     
                     // extensions
                     
+                    BaseList.prototype.reduce = function(identity, add, opt) {
+                        return this.reduceMonoid({
+                            identity: function() {return identity; },
+                            add: add
+                        }, opt);
+                    };
+                    
                     BaseList.prototype.all = function(predicate) {
                         return this.lift(predicate).reduceGroup({
                             identity: function() { return [0,0]; },
@@ -3752,11 +3759,13 @@ var warp9 = (function(){
                 path: ["tng","unwrapObject"],
                 content: function(root, expose) {
                     expose(unwrapObject, function(){
-                        Cell = root.tng.reactive.BaseCell;
+                        Cell = root.tng.reactive.Cell;
+                        BaseCell = root.tng.reactive.BaseCell;
+                        BaseList = root.tng.reactive.lists.BaseList;
                         List = root.tng.reactive.lists.List;
                     });
                     
-                    var Cell, List;
+                    var Cell, BaseCell, List, BaseList;
                     
                     function unwrapObject(obj, opt) {
                         if (typeof obj == "function") {
@@ -3771,7 +3780,7 @@ var warp9 = (function(){
                                 return unwrapObject(obj.unwrap()).unwrap();
                             });
                         }
-                        if (obj.metaType && obj.instanceof(List)) {
+                        if (obj.metaType && obj.instanceof(BaseList)) {
                             return obj.lift(unwrapObject).reduce(
                                 [], function(a,b) { return a.concat(b); }, {
                                     wrap: function(x) { return [x]; },
