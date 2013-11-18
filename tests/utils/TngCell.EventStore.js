@@ -10,7 +10,7 @@ function CellStore(cell) {
     var dispose = cell.onChange(function(){
         this.changes++;
         var marker = {};
-        var value = cell.unwrap(marker);
+        var value = cell.get(marker);
         this.value = value === marker ? null : {
             value: value
         };
@@ -25,7 +25,7 @@ CellStore.prototype.has = function(value) {
     return this.value != null && this.value.value === value;
 };
 
-CellStore.prototype.unwrap = function(alt) {
+CellStore.prototype.get = function(alt) {
     return this.value == null ? alt : this.value.value;
 };
 

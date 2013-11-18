@@ -11,11 +11,11 @@ exports.emptyUpdate = function(test) {
 
     var cell = new Cell();
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
-    test.equal(add2.unwrap(null), null);
+    test.equal(add2.get(null), null);
     cell.set(1);
-    test.equal(add2.unwrap(null), 3);
+    test.equal(add2.get(null), 3);
 
     test.done();
 };
@@ -26,10 +26,10 @@ exports.valueUpdate = function(test) {
 
     var cell = new Cell(1);
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
     cell.set(2);
-    test.equal(add2.unwrap(), 4);
+    test.equal(add2.get(), 4);
 
     test.done();
 };
@@ -40,7 +40,7 @@ exports.subscribe = function(test) {
 
     var cell = new Cell();
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
     var store = new CellStore(add2);
     test.ok(store.isEmpty() && store.changes==1);
@@ -58,7 +58,7 @@ exports.subscribeUseLeave = function(test) {
 
     var cell = new Cell();
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
     test.equal(DAG.length, 0);
 
@@ -85,10 +85,10 @@ exports.doubleLift = function(test) {
 
     var cell = new Cell(2);
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
     var add3 = warp9.do(function(){
-        return add2.unwrap()+3;
+        return add2.get()+3;
     });
     test.equal(DAG.length, 0);
 
@@ -112,10 +112,10 @@ exports.fork = function(test) {
 
     var cell = new Cell(2);
     var add2 = warp9.do(function(){
-        return cell.unwrap()+2;
+        return cell.get()+2;
     });
     var add3 = warp9.do(function(){
-        return cell.unwrap()+3;
+        return cell.get()+3;
     });
     test.equal(DAG.length, 0);
 
@@ -153,7 +153,7 @@ exports.ternary = function(test) {
     var b2 = new Cell(2);
 
     var r = warp9.do(function(){
-        return c.unwrap() ? b1.unwrap() : b2.unwrap();
+        return c.get() ? b1.get() : b2.get();
     });
 
     var store = new CellStore(r);
@@ -196,11 +196,11 @@ exports.nested = function(test) {
     var b = new Cell();
     var o = new Cell(2);
     var r = warp9.do(function(){
-        var inner = a.unwrap();
+        var inner = a.get();
         var v = warp9.do(function(){
-            return inner.unwrap()+2;
-        }).unwrap();
-        return v + o.unwrap();
+            return inner.get()+2;
+        }).get();
+        return v + o.get();
     });
 
     var store = new CellStore(r);
@@ -211,7 +211,7 @@ exports.nested = function(test) {
 
     b.set(1);
     test.equal(DAG.length, 5); // r, a, inner (b), inner-do, o
-    test.equal(store.unwrap(-1), 5);
+    test.equal(store.get(-1), 5);
 
     b.unset();
     test.equal(DAG.length, 4); // r, a, inner (b), inner-do

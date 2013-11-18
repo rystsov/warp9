@@ -143,21 +143,21 @@ function SetPrototype() {
 
     AggregatedCell.prototype.hasValue = function() {
         var marker = {};
-        return this.unwrap(marker) !== marker;
+        return this.get(marker) !== marker;
     };
 
-    AggregatedCell.prototype.unwrap = function(alt) {
+    AggregatedCell.prototype.get = function(alt) {
         tracker.track(this);
 
         var value = this.content;
         if (this.usersCount===0) {
             var reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
-            var data = this.list.unwrap();
+            var data = this.list.get();
             var marker = {};
             var id = 0;
             for (var i=0;i<data.length;i++) {
                 if (data[i].metaType === Matter && data[i].instanceof(BaseCell)) {
-                    var item = data[i].unwrap(marker);
+                    var item = data[i].get(marker);
                     if (item===marker) {
                         reducer.add(id++, new None());
                     } else {
@@ -169,7 +169,7 @@ function SetPrototype() {
             }
             value = reducer.value;
         }
-        return value.unwrap.apply(value, arguments);
+        return value.get.apply(value, arguments);
     };
 
     // internal

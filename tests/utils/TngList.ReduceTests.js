@@ -39,10 +39,10 @@ function ReducerTests(reduce) {
         var list = new List();
         var sum = reduce(list);
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 0);
+        test.equal(store.get(-1), 0);
 
         list.add(13);
-        test.equal(store.unwrap(-1), 13);
+        test.equal(store.get(-1), 13);
 
         store.dispose();
         test.done();
@@ -58,10 +58,10 @@ function ReducerTests(reduce) {
 
         var store = new CellStore(sum);
         test.equal(DAG.length, 2);
-        test.equal(store.unwrap(-1), 0);
+        test.equal(store.get(-1), 0);
 
         list.add(13);
-        test.equal(store.unwrap(-1), 13);
+        test.equal(store.get(-1), 13);
 
         store.dispose();
         test.equal(store.changes, 0);
@@ -77,7 +77,7 @@ function ReducerTests(reduce) {
 
         var list = new List([new Cell(1), new Cell(2), new Cell(3)]);
         var sum = reduce(list);
-        test.equal(sum.unwrap(-1), 6);
+        test.equal(sum.get(-1), 6);
         test.done();
     };
 
@@ -88,7 +88,7 @@ function ReducerTests(reduce) {
         var list = new List([new Cell(1), new Cell(2), new Cell(3)]);
         var sum = reduce(list);
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 6);
+        test.equal(store.get(-1), 6);
 
         store.dispose();
         test.done();
@@ -100,7 +100,7 @@ function ReducerTests(reduce) {
 
         var list = new List([new Cell(1), new Cell()]);
         var sum = reduce(list);
-        test.equal(sum.unwrap(-1), -1);
+        test.equal(sum.get(-1), -1);
         test.done();
     };
 
@@ -123,7 +123,7 @@ function ReducerTests(reduce) {
 
         var list = new List([new Cell(1), new Cell()]);
         var sum = reduce(list, {ignoreUnset: true});
-        test.equal(sum.unwrap(-1), 1);
+        test.equal(sum.get(-1), 1);
         test.done();
     };
 
@@ -134,7 +134,7 @@ function ReducerTests(reduce) {
         var list = new List([new Cell(1), new Cell()]);
         var sum = reduce(list, {ignoreUnset: true});
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 1);
+        test.equal(store.get(-1), 1);
 
         store.dispose();
         test.done();
@@ -149,7 +149,7 @@ function ReducerTests(reduce) {
         var list = new List([cell1, cell2]);
         var sum = reduce(list);
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), -1);
+        test.equal(store.get(-1), -1);
 
         store.dispose();
         test.done();
@@ -164,15 +164,15 @@ function ReducerTests(reduce) {
         var list = new List([cell1, cell2]);
         var sum = reduce(list);
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 3);
+        test.equal(store.get(-1), 3);
         test.equal(store.changes, 1);
 
         cell1.unset();
-        test.equal(store.unwrap(-1), -1);
+        test.equal(store.get(-1), -1);
         test.equal(store.changes, 2);
 
         cell2.unset();
-        test.equal(store.unwrap(-1), -1);
+        test.equal(store.get(-1), -1);
         test.equal(store.changes, 2);
 
         store.dispose();
@@ -186,9 +186,9 @@ function ReducerTests(reduce) {
         var cell = new Cell(2);
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list, {ignoreUnset: true});
-        test.equal(sum.unwrap(-1), 3);
+        test.equal(sum.get(-1), 3);
         cell.unset();
-        test.equal(sum.unwrap(-1), 1);
+        test.equal(sum.get(-1), 1);
         test.done();
     };
 
@@ -200,10 +200,10 @@ function ReducerTests(reduce) {
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list, {ignoreUnset: true});
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 3);
+        test.equal(store.get(-1), 3);
 
         cell.unset();
-        test.equal(store.unwrap(-1), 1);
+        test.equal(store.get(-1), 1);
 
         store.dispose();
         test.done();
@@ -216,10 +216,10 @@ function ReducerTests(reduce) {
         var cell = new Cell();
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list, {ignoreUnset: true});
-        test.equal(sum.unwrap(-1), 1);
+        test.equal(sum.get(-1), 1);
 
         cell.set(2);
-        test.equal(sum.unwrap(-1), 3);
+        test.equal(sum.get(-1), 3);
 
         test.done();
     };
@@ -232,10 +232,10 @@ function ReducerTests(reduce) {
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list, {ignoreUnset: true});
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 1);
+        test.equal(store.get(-1), 1);
 
         cell.set(2);
-        test.equal(store.unwrap(-1), 3);
+        test.equal(store.get(-1), 3);
 
         store.dispose();
         test.done();
@@ -248,10 +248,10 @@ function ReducerTests(reduce) {
         var cell = new Cell(2);
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list);
-        test.equal(sum.unwrap(-1), 3);
+        test.equal(sum.get(-1), 3);
 
         cell.set(6);
-        test.equal(sum.unwrap(-1), 7);
+        test.equal(sum.get(-1), 7);
 
         test.done();
     };
@@ -264,10 +264,10 @@ function ReducerTests(reduce) {
         var list = new List([new Cell(1), cell]);
         var sum = reduce(list);
         var store = new CellStore(sum);
-        test.equal(store.unwrap(-1), 3);
+        test.equal(store.get(-1), 3);
 
         cell.set(6);
-        test.equal(store.unwrap(-1), 7);
+        test.equal(store.get(-1), 7);
 
         store.dispose();
         test.done();
@@ -309,11 +309,11 @@ function ReducerTests(reduce) {
         var store = new CellStore(sum);
 
         test.equal(DAG.length, 4);
-        test.equal(store.unwrap(-1), 3);
+        test.equal(store.get(-1), 3);
 
         list.setData([cell3, cell4]);
         test.equal(DAG.length, 4);
-        test.equal(store.unwrap(-1), 7);
+        test.equal(store.get(-1), 7);
 
         store.dispose();
         test.done();

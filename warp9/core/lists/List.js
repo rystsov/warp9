@@ -79,7 +79,7 @@ function SetListPrototype() {
 
     // gets
 
-    List.prototype.unwrap = function() {
+    List.prototype.get = function() {
         return this.data.map(function(item){
             return item.value;
         });

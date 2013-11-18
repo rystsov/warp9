@@ -106,13 +106,13 @@ function SetLiftedPrototype() {
 
     // gets
 
-    LiftedList.prototype.unwrap = function() {
+    LiftedList.prototype.get = function() {
         if (this.usersCount > 0) {
             return this.data.map(function(item){
                 return item.value;
             });
         } else {
-            var data = this.source.unwrap();
+            var data = this.source.get();
             var result = [];
             for (var j=0;j<data.length;j++) {
                 result.push(this.f(data[j]));

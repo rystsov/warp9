@@ -186,7 +186,7 @@ define([], function() {
                                 if (brother==null) return false;
                                 return !brother.isEmpty() && brother.value() === value;
                             };
-                            this.unwrap = function() {
+                            this.get = function() {
                                 return value;
                             };
                         }
@@ -205,7 +205,7 @@ define([], function() {
                                 if (brother==null) return false;
                                 return brother.isEmpty();
                             };
-                            this.unwrap = function(alt) {
+                            this.get = function(alt) {
                                 if (arguments.length==0) {
                                     throw new root.core.cells.EmptyError();
                                 }
@@ -321,7 +321,7 @@ define([], function() {
                             }
                             this.info[key] = info;
                         
-                            value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.unwrap());
+                            value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.get());
                         
                             this.keyToIndex[key] = MonoidTree.size(this.root);
                             this.indexToKey.push(key);
@@ -617,21 +617,21 @@ define([], function() {
                         
                             AggregatedCell.prototype.hasValue = function() {
                                 var marker = {};
-                                return this.unwrap(marker) !== marker;
+                                return this.get(marker) !== marker;
                             };
                         
-                            AggregatedCell.prototype.unwrap = function(alt) {
+                            AggregatedCell.prototype.get = function(alt) {
                                 tracker.track(this);
                         
                                 var value = this.content;
                                 if (this.usersCount===0) {
                                     var reducer = new this.Reducer(this._monoid, this._wrap, this._ignoreUnset);
-                                    var data = this.list.unwrap();
+                                    var data = this.list.get();
                                     var marker = {};
                                     var id = 0;
                                     for (var i=0;i<data.length;i++) {
                                         if (data[i].metaType === Matter && data[i].instanceof(BaseCell)) {
-                                            var item = data[i].unwrap(marker);
+                                            var item = data[i].get(marker);
                                             if (item===marker) {
                                                 reducer.add(id++, new None());
                                             } else {
@@ -643,7 +643,7 @@ define([], function() {
                                     }
                                     value = reducer.value;
                                 }
-                                return value.unwrap.apply(value, arguments);
+                                return value.get.apply(value, arguments);
                             };
                         
                             // internal
@@ -817,13 +817,13 @@ define([], function() {
                         
                         BaseCell.prototype.coalesce = function(value) {
                             return root.do(function(){
-                                return this.unwrap(value);
+                                return this.get(value);
                             }, this);
                         };
                         
                         BaseCell.prototype.lift = function(f) {
                             return root.do(function(){
-                                return f(this.unwrap());
+                                return f(this.get());
                             }, this);
                         };
                         
@@ -843,7 +843,7 @@ define([], function() {
                             }
                         
                             return root.do(function(){
-                                var value = this.unwrap();
+                                var value = this.get();
                                 if (test(value)) {
                                     return map != null ? map(value) : value;
                                 } else {
@@ -939,7 +939,7 @@ define([], function() {
                                 return !this.content.isEmpty();
                             };
                         
-                            Cell.prototype.unwrap = function(alt) {
+                            Cell.prototype.get = function(alt) {
                                 tracker.track(this);
                         
                                 if (arguments.length==0 && this.content.isEmpty()) {
@@ -1111,10 +1111,10 @@ define([], function() {
                         
                             DependentCell.prototype.hasValue = function() {
                                 var marker = {};
-                                return this.unwrap(marker) !== marker;
+                                return this.get(marker) !== marker;
                             };
                         
-                            DependentCell.prototype.unwrap = function(alt) {
+                            DependentCell.prototype.get = function(alt) {
                                 tracker.track(this);
                         
                                 var args = arguments.length==0 ? [] : [alt];
@@ -1674,13 +1674,13 @@ define([], function() {
                         
                             // gets
                         
-                            LiftedList.prototype.unwrap = function() {
+                            LiftedList.prototype.get = function() {
                                 if (this.usersCount > 0) {
                                     return this.data.map(function(item){
                                         return item.value;
                                     });
                                 } else {
-                                    var data = this.source.unwrap();
+                                    var data = this.source.get();
                                     var result = [];
                                     for (var j=0;j<data.length;j++) {
                                         result.push(this.f(data[j]));
@@ -1775,7 +1775,7 @@ define([], function() {
                         
                             // gets
                         
-                            List.prototype.unwrap = function() {
+                            List.prototype.get = function() {
                                 return this.data.map(function(item){
                                     return item.value;
                                 });
@@ -1926,7 +1926,7 @@ define([], function() {
                             if (obj instanceof Skip) return new Cell(obj);
                             if (obj.metaType && obj.instanceof(BaseCell)) {
                                 return root.do(function(){
-                                    return unwrapObject(obj.unwrap()).unwrap();
+                                    return unwrapObject(obj.get()).get();
                                 });
                             }
                             if (obj.metaType && obj.instanceof(BaseList)) {

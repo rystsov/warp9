@@ -81,7 +81,7 @@ function SetCellPrototype() {
         return !this.content.isEmpty();
     };
 
-    Cell.prototype.unwrap = function(alt) {
+    Cell.prototype.get = function(alt) {
         tracker.track(this);
 
         if (arguments.length==0 && this.content.isEmpty()) {

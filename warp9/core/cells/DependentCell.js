@@ -142,10 +142,10 @@ function SetDependentCellPrototype() {
 
     DependentCell.prototype.hasValue = function() {
         var marker = {};
-        return this.unwrap(marker) !== marker;
+        return this.get(marker) !== marker;
     };
 
-    DependentCell.prototype.unwrap = function(alt) {
+    DependentCell.prototype.get = function(alt) {
         tracker.track(this);
 
         var args = arguments.length==0 ? [] : [alt];

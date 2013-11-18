@@ -118,7 +118,7 @@ exports.count = function(test) {
 
     var list = new List();
     var count = list.count();
-    test.equal(count.unwrap(), 0);
+    test.equal(count.get(), 0);
 
     var store = new CellStore(count);
     test.ok(store.has(0));

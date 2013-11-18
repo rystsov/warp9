@@ -104,13 +104,13 @@ BaseCell.prototype._putEventToDependants = function(event) {
 
 BaseCell.prototype.coalesce = function(value) {
     return root.do(function(){
-        return this.unwrap(value);
+        return this.get(value);
     }, this);
 };
 
 BaseCell.prototype.lift = function(f) {
     return root.do(function(){
-        return f(this.unwrap());
+        return f(this.get());
     }, this);
 };
 
@@ -130,7 +130,7 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
     }
 
     return root.do(function(){
-        var value = this.unwrap();
+        var value = this.get();
         if (test(value)) {
             return map != null ? map(value) : value;
         } else {

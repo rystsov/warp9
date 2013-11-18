@@ -17,7 +17,7 @@ function Some(value) {
         if (brother==null) return false;
         return !brother.isEmpty() && brother.value() === value;
     };
-    this.unwrap = function() {
+    this.get = function() {
         return value;
     };
 }
@@ -36,7 +36,7 @@ function None() {
         if (brother==null) return false;
         return brother.isEmpty();
     };
-    this.unwrap = function(alt) {
+    this.get = function(alt) {
         if (arguments.length==0) {
             throw new root.core.cells.EmptyError();
         }

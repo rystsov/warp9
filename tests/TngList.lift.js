@@ -27,7 +27,7 @@ exports.unwrap = function(test) {
         return x+2;
     });
     list.add(1);
-    test.deepEqual(add2.unwrap(), [3]);
+    test.deepEqual(add2.get(), [3]);
 
     test.done();
 };

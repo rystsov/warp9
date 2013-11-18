@@ -30,7 +30,7 @@ exports.dag1 = function(test) {
     });
 
     var dag = warp9.do(function(){
-        return hasItem.unwrap() ? left.unwrap() : empty();
+        return hasItem.get() ? left.get() : empty();
     });
 
     var store = new CellStore(dag);
@@ -50,7 +50,7 @@ exports.unary = function(test) {
 
     var cell = new Cell();
     var add3 = warp9.do(function(){
-        return cell.unwrap() + 3;
+        return cell.get() + 3;
     });
 
     var store = new CellStore(add3);
@@ -73,7 +73,7 @@ exports.binary = function(test) {
     var a = new Cell(2);
     var b = new Cell(3);
     var c = warp9.do(function(){
-        return a.unwrap() + b.unwrap();
+        return a.get() + b.get();
     });
     test.equal(DAG.length, 0);
 
@@ -106,7 +106,7 @@ exports.binaryIntensive = function(test) {
     var a = new Cell(0);
     var b = new Cell(0);
     var c = warp9.do(function(){
-        return a.unwrap() + b.unwrap();
+        return a.get() + b.get();
     });
     var store = new CellStore(c);
     test.equal(DAG.length, 3);
@@ -126,7 +126,7 @@ exports.binaryIntensive = function(test) {
     test.done();
 };
 
-exports.unwrapIntensive = function(test) {
+exports.getIntensive = function(test) {
     var A_CHANGES = 5;
     var B_CHANGES = 10;
 
@@ -135,7 +135,7 @@ exports.unwrapIntensive = function(test) {
     var a = new Cell(0);
     var b = new Cell(0);
     var c = warp9.do(function(){
-        return a.unwrap() + b.unwrap();
+        return a.get() + b.get();
     });
     test.equal(DAG.length, 0);
 
@@ -143,7 +143,7 @@ exports.unwrapIntensive = function(test) {
         a.set(i);
         for(var j=0;j<B_CHANGES;j++) {
             b.set(j);
-            test.equal(c.unwrap(), i+j);
+            test.equal(c.get(), i+j);
         }
     }
 

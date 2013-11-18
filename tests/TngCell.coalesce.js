@@ -12,10 +12,10 @@ exports.pooling = function(test) {
     var cell = new Cell();
     var or2 = cell.coalesce(2);
     test.equal(DAG.length, 0);
-    test.equal(or2.unwrap(-1), 2);
+    test.equal(or2.get(-1), 2);
 
     cell.set(1);
-    test.equal(or2.unwrap(-1), 1);
+    test.equal(or2.get(-1), 1);
 
     test.equal(DAG.length, 0);
     test.done();

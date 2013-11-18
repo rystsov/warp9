@@ -33,7 +33,7 @@ MonoidReducer.prototype.add = function(key, value) {
     }
     this.info[key] = info;
 
-    value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.unwrap());
+    value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.get());
 
     this.keyToIndex[key] = MonoidTree.size(this.root);
     this.indexToKey.push(key);
