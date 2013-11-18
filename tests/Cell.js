@@ -1,5 +1,5 @@
 var warp9 = require('../target/warp9.common');
-var CellStore = require('./utils/TngCell.EventStore');
+var CellStore = require('./utils/Cell.EventStore');
 
 var DAG = warp9.core.dag.DAG;
 

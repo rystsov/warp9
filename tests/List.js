@@ -2,8 +2,8 @@ var warp9 = require('../target/warp9.common');
 
 var Cell = warp9.core.cells.Cell;
 var List = warp9.core.lists.List;
-var ListStore = require('./utils/TngList.EventStore');
-var CellStore = require('./utils/TngCell.EventStore');
+var ListStore = require('./utils/List.EventStore');
+var CellStore = require('./utils/Cell.EventStore');
 var DAG = warp9.core.dag.DAG;
 
 exports.ctor = function(test) {

@@ -1,7 +1,7 @@
 var warp9 = require('../target/warp9.common');
 
 var Summer = require('./utils/Summer');
-var ReduceTests = require('./utils/TngList.ReduceTests');
+var ReduceTests = require('./utils/List.ReduceTests');
 
 
 module.exports = new ReduceTests(function(list, opt){
