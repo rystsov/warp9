@@ -1,7 +1,8 @@
 expose(DefaultAttributeSetter, function(){
     jq = root.ui.jq;
     AttributeSetter = root.ui.attributes.AttributeSetter;
-    Cell = root.reactive.Cell;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
 });
 
 var AttributeSetter, jq, Cell;

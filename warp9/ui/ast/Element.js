@@ -1,6 +1,7 @@
 expose(Element, function(){
     jq = root.ui.jq;
-    Cell = root.reactive.Cell;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
     register = root.ui.attributes.register;
 });
 

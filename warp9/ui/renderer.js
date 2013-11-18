@@ -4,8 +4,9 @@ expose({
     render: render,
     addTag: addTag
 }, function() {
-    Cell = root.reactive.Cell;
-    List = root.reactive.List;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
+    //List = root.reactive.List;
     Element = root.ui.ast.Element;
     Component = root.ui.ast.Component;
     Fragment = root.ui.ast.Fragment;

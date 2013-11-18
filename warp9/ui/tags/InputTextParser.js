@@ -1,5 +1,6 @@
 expose(InputTextParser, function() {
-    Cell = root.reactive.Cell;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
 });
 
 var Cell;

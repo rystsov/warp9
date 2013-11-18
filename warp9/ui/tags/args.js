@@ -3,8 +3,9 @@ expose({
     tryIntercept: tryIntercept,
     H: H
 }, function(){
-    Cell = root.reactive.Cell;
-    List = root.reactive.List;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
+    //List = root.reactive.List;
     register = root.ui.attributes.register;
 });
 

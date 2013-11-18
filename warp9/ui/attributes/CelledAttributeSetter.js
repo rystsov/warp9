@@ -1,6 +1,7 @@
 expose(CelledAttributeSetter, function(){
     AttributeSetter = root.ui.attributes.AttributeSetter;
-    Cell = root.reactive.Cell;
+    //TODO: TOTNG
+    //Cell = root.reactive.Cell;
 });
 
 var AttributeSetter, Cell;

@@ -1,5 +1,6 @@
 expose(TagParserFactory, function(){
-    List = root.reactive.List;
+    //TODO: TOTNG
+    //List = root.reactive.List;
 });
 
 var List;
