@@ -2,11 +2,11 @@ expose(BaseList, function() {
     uid = root.idgenerator;
     event_broker = root.tng.event_broker;
     Matter = root.tng.Matter;
-    AggregatedCell = root.tng.reactive.AggregatedCell;
+    AggregatedCell = root.core.cells.AggregatedCell;
     GroupReducer = root.core.algebra.GroupReducer;
     MonoidReducer = root.core.algebra.MonoidReducer;
     LiftedList = root.tng.reactive.lists.LiftedList;
-    BaseCell = root.tng.reactive.BaseCell;
+    BaseCell = root.core.cells.BaseCell;
     checkBool = root.utils.checkBool;
 });
 

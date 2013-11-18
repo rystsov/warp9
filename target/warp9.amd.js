@@ -416,314 +416,12 @@ define([], function() {
                     }
                 },
                 {
-                    path: ["core","dag","DAG"],
-                    content: function(root, expose) {
-                        var dag = new DAG();
-                        
-                        expose(dag, function(){
-                            Node = root.core.dag.Node;
-                            Set = root.core.adt.Set;
-                            SortedList = root.core.adt.SortedList;
-                            event_broker = root.tng.event_broker;
-                        
-                            dag.reset();
-                        });
-                        
-                        var Node, SortedList, Set, event_broker;
-                        
-                        function DAG() {}
-                        
-                        DAG.prototype.reset = function() {
-                            this.nodes = {};
-                            this.length = 0;
-                            this.dependencies = {};
-                            this.dependants = {};
-                        
-                            this.changed = new SortedList(function(a,b){
-                                return a.nodeRank - b.nodeRank;
-                            });
-                        };
-                        
-                        DAG.prototype.addNode = function(node) {
-                            if (knownNode(this, node)) {
-                                throw new Error();
-                            }
-                            this.nodes[node.nodeId] = node;
-                            this.dependencies[node.nodeId] = [];
-                            this.dependants[node.nodeId] = [];
-                            this.length++;
-                        };
-                        
-                        DAG.prototype.removeNode = function(node) {
-                            if (!knownNode(this, node)) {
-                                throw new Error();
-                            }
-                            if (this.dependants[node.nodeId].length!=0) {
-                                throw new Error();
-                            }
-                            if (this.dependencies[node.nodeId].length!=0) {
-                                throw new Error();
-                            }
-                            delete this.nodes[node.nodeId];
-                            delete this.dependants[node.nodeId];
-                            delete this.dependencies[node.nodeId];
-                            this.length--;
-                        };
-                        
-                        DAG.prototype.addRelation = function(from, to) {
-                            if (inRelation(this, from, to) || inRelation(this, to, from)) {
-                                throw new Error();
-                            }
-                            this.dependencies[to.nodeId].push(from.nodeId);
-                            this.dependants[from.nodeId].push(to.nodeId);
-                            calcRank(this, to);
-                        };
-                        
-                        DAG.prototype.removeRelation = function(from, to) {
-                            if (!inRelation(this, from, to)) {
-                                throw new Error();
-                            }
-                        
-                            var len = this.dependencies[to.nodeId].length;
-                            this.dependencies[to.nodeId] = this.dependencies[to.nodeId].filter(function(item){
-                                return item != from.nodeId;
-                            });
-                            if (len != this.dependencies[to.nodeId].length+1) throw new Error();
-                        
-                            len = this.dependants[from.nodeId].length;
-                            this.dependants[from.nodeId] = this.dependants[from.nodeId].filter(function(item){
-                                return item != to.nodeId;
-                            });
-                            if (len != this.dependants[from.nodeId].length+1) throw new Error();
-                        
-                            calcRank(this, to);
-                        };
-                        
-                        DAG.prototype.notifyChanged = function(node) {
-                            if (!knownNode(this, node)) {
-                                throw new Error();
-                            }
-                            this.changed.push(node);
-                        };
-                        
-                        DAG.prototype.propagate = function() {
-                            while (this.changed.length>0) {
-                                var front = this.changed.pop();
-                                var info = front.dependenciesChanged();
-                                if (!info.hasChanges) continue;
-                        
-                                for (var i=0;i<this.dependants[front.nodeId].length;i++) {
-                                    var node = this.nodes[this.dependants[front.nodeId][i]];
-                                    if (!node.changed.hasOwnProperty(front.nodeId)) {
-                                        node.changed[front.nodeId] = [];
-                                    }
-                                    for (var j=0;j<info.changeSet.length;j++) {
-                                        node.changed[front.nodeId].push(info.changeSet[j]);
-                                    }
-                                    this.changed.push(node);
-                                }
-                            }
-                        };
-                        
-                        function knownNode(dag, node) {
-                            if (!node.instanceof(Node)) {
-                                throw new Error();
-                            }
-                            return dag.nodes.hasOwnProperty(node.nodeId);
-                        }
-                        
-                        function inRelation(dag, from, to) {
-                            if (!knownNode(dag, from) || !knownNode(dag, to)) {
-                                throw new Error();
-                            }
-                            if (dag.dependencies[to.nodeId].indexOf(from.nodeId) >= 0) {
-                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)<0) {
-                                    throw new Error();
-                                }
-                                return true;
-                            } else {
-                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)>=0) {
-                                    throw new Error();
-                                }
-                            }
-                            return false;
-                        }
-                        
-                        function calcRank(dag, node) {
-                            var rank = 0;
-                            dag.dependencies[node.nodeId].forEach(function(nodeId){
-                                rank = Math.max(dag.nodes[nodeId].nodeRank+1, rank);
-                            });
-                            node.nodeRank = rank;
-                        }
-                    }
-                },
-                {
-                    path: ["core","dag","Node"],
-                    content: function(root, expose) {
-                        expose(Node, function(){});
-                        
-                        
-                        function Node() {
-                            this.attach(Node);
-                            this.nodeId = root.idgenerator();
-                            this.changed = {};
-                            this.delta = null;
-                            this.nodeRank = 0;
-                        }
-                        
-                    }
-                },
-                {
-                    path: ["idgenerator"],
-                    content: function(root, expose) {
-                        expose(idgenerator);
-                        
-                        var id = 0;
-                        
-                        function idgenerator() {
-                            return id++;
-                        }
-                    }
-                },
-                {
-                    path: ["tng","Matter"],
-                    content: function(root, expose) {
-                        expose(Matter);
-                        
-                        
-                        function Matter() {
-                            this._atoms = [];
-                            this.instanceof = of;
-                            this.attach = attach;
-                            this.metaType = Matter;
-                        }
-                        
-                        function attach(atom) {
-                            if (this.instanceof(atom)) {
-                                return;
-                            }
-                            this._atoms.push(atom);
-                        }
-                        
-                        function of(atom) {
-                            for (var i=0;i<this._atoms.length;i++) {
-                                if (this._atoms[i]===atom) return true;
-                            }
-                            return false;
-                        }
-                    }
-                },
-                {
-                    path: ["tng","do"],
-                    content: function(root, expose) {
-                        expose(_do, function(){
-                            DependentCell = root.tng.reactive.DependentCell;
-                        });
-                        
-                        var DependentCell;
-                        
-                        function _do(f, context) {
-                            return new DependentCell(f, context);
-                        }
-                    }
-                },
-                {
-                    path: ["tng","empty"],
-                    content: function(root, expose) {
-                        expose(empty);
-                        
-                        function empty() {
-                            throw new root.tng.reactive.EmptyError();
-                        }
-                    }
-                },
-                {
-                    path: ["tng","event_broker"],
-                    content: function(root, expose) {
-                        expose(new EventBroker());
-                        
-                        function EventBroker() {
-                            this.changeRequests = [];
-                        
-                            // TODO: replace to set
-                            this.nodesToNotify = [];
-                            this.dependantsToNotify = [];
-                        
-                            this.active = false;
-                            this.isOnProcessCall = false;
-                        }
-                        
-                        EventBroker.prototype.postponeChange = function(node, change) {
-                            this.changeRequests.push({
-                                node: node,
-                                change: change
-                            });
-                            this.loop();
-                        };
-                        
-                        EventBroker.prototype.notify = function(node) {
-                            this.nodesToNotify.push(node);
-                        };
-                        
-                        EventBroker.prototype.notifySingle = function(node, dependant) {
-                            this.dependantsToNotify.push({node: node, dependant: dependant});
-                        };
-                        
-                        EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
-                            if (this.isOnProcessCall) {
-                                return f.apply(obj, args);
-                            } else {
-                                this.isOnProcessCall = true;
-                                var result = f.apply(obj, args);
-                                this.isOnProcessCall = false;
-                                this.loop();
-                                return result;
-                            }
-                        };
-                        
-                        EventBroker.prototype.loop = function() {
-                            if (this.active) return;
-                            this.active = true;
-                        
-                            while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
-                                var hasChanges = false;
-                                while (this.changeRequests.length!=0) {
-                                    var request = this.changeRequests.shift();
-                                    if (request.node.applyChange(request.change)) {
-                                        hasChanges = true;
-                                        if (request.node.usersCount > 0) {
-                                            root.core.dag.DAG.notifyChanged(request.node);
-                                        }
-                                    }
-                                }
-                                if (hasChanges) {
-                                    root.core.dag.DAG.propagate();
-                                }
-                                if (this.nodesToNotify.length!=0) {
-                                    var node = this.nodesToNotify.shift();
-                                    node.sendAllMessages();
-                                    continue;
-                                }
-                                if (this.dependantsToNotify.length!=0) {
-                                    var info = this.dependantsToNotify.shift();
-                                    info.node.sendItsMessages(info.dependant);
-                                    continue;
-                                }
-                            }
-                        
-                            this.active = false;
-                        };
-                        
-                    }
-                },
-                {
-                    path: ["tng","reactive","AggregatedCell"],
+                    path: ["core","cells","AggregatedCell"],
                     content: function(root, expose) {
                         expose(AggregatedCell, function(){
                             None = root.core.adt.maybe.None;
                             Some = root.core.adt.maybe.Some;
-                            BaseCell = root.tng.reactive.BaseCell;
+                            BaseCell = root.core.cells.BaseCell;
                             List = root.tng.reactive.lists.List;
                             DAG = root.core.dag.DAG;
                             event_broker = root.tng.event_broker;
@@ -957,7 +655,7 @@ define([], function() {
                     }
                 },
                 {
-                    path: ["tng","reactive","BaseCell"],
+                    path: ["core","cells","BaseCell"],
                     content: function(root, expose) {
                         expose(BaseCell, function(){
                             Matter = root.tng.Matter;
@@ -1102,10 +800,10 @@ define([], function() {
                     }
                 },
                 {
-                    path: ["tng","reactive","Cell"],
+                    path: ["core","cells","Cell"],
                     content: function(root, expose) {
                         expose(Cell, function(){
-                            BaseCell = root.tng.reactive.BaseCell;
+                            BaseCell = root.core.cells.BaseCell;
                             Matter = root.tng.Matter;
                             Node = root.core.dag.Node;
                             None = root.core.adt.maybe.None;
@@ -1213,7 +911,7 @@ define([], function() {
                     }
                 },
                 {
-                    path: ["tng","reactive","DependentCell"],
+                    path: ["core","cells","DependentCell"],
                     content: function(root, expose) {
                         expose(DependentCell, function(){
                             Matter = root.tng.Matter;
@@ -1224,7 +922,7 @@ define([], function() {
                             tracker = root.tng.tracker;
                             EmptyError = root.tng.reactive.EmptyError;
                             DAG = root.core.dag.DAG;
-                            BaseCell = root.tng.reactive.BaseCell;
+                            BaseCell = root.core.cells.BaseCell;
                         
                             SetDependentCellPrototype();
                         });
@@ -1395,6 +1093,308 @@ define([], function() {
                     }
                 },
                 {
+                    path: ["core","dag","DAG"],
+                    content: function(root, expose) {
+                        var dag = new DAG();
+                        
+                        expose(dag, function(){
+                            Node = root.core.dag.Node;
+                            Set = root.core.adt.Set;
+                            SortedList = root.core.adt.SortedList;
+                            event_broker = root.tng.event_broker;
+                        
+                            dag.reset();
+                        });
+                        
+                        var Node, SortedList, Set, event_broker;
+                        
+                        function DAG() {}
+                        
+                        DAG.prototype.reset = function() {
+                            this.nodes = {};
+                            this.length = 0;
+                            this.dependencies = {};
+                            this.dependants = {};
+                        
+                            this.changed = new SortedList(function(a,b){
+                                return a.nodeRank - b.nodeRank;
+                            });
+                        };
+                        
+                        DAG.prototype.addNode = function(node) {
+                            if (knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            this.nodes[node.nodeId] = node;
+                            this.dependencies[node.nodeId] = [];
+                            this.dependants[node.nodeId] = [];
+                            this.length++;
+                        };
+                        
+                        DAG.prototype.removeNode = function(node) {
+                            if (!knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            if (this.dependants[node.nodeId].length!=0) {
+                                throw new Error();
+                            }
+                            if (this.dependencies[node.nodeId].length!=0) {
+                                throw new Error();
+                            }
+                            delete this.nodes[node.nodeId];
+                            delete this.dependants[node.nodeId];
+                            delete this.dependencies[node.nodeId];
+                            this.length--;
+                        };
+                        
+                        DAG.prototype.addRelation = function(from, to) {
+                            if (inRelation(this, from, to) || inRelation(this, to, from)) {
+                                throw new Error();
+                            }
+                            this.dependencies[to.nodeId].push(from.nodeId);
+                            this.dependants[from.nodeId].push(to.nodeId);
+                            calcRank(this, to);
+                        };
+                        
+                        DAG.prototype.removeRelation = function(from, to) {
+                            if (!inRelation(this, from, to)) {
+                                throw new Error();
+                            }
+                        
+                            var len = this.dependencies[to.nodeId].length;
+                            this.dependencies[to.nodeId] = this.dependencies[to.nodeId].filter(function(item){
+                                return item != from.nodeId;
+                            });
+                            if (len != this.dependencies[to.nodeId].length+1) throw new Error();
+                        
+                            len = this.dependants[from.nodeId].length;
+                            this.dependants[from.nodeId] = this.dependants[from.nodeId].filter(function(item){
+                                return item != to.nodeId;
+                            });
+                            if (len != this.dependants[from.nodeId].length+1) throw new Error();
+                        
+                            calcRank(this, to);
+                        };
+                        
+                        DAG.prototype.notifyChanged = function(node) {
+                            if (!knownNode(this, node)) {
+                                throw new Error();
+                            }
+                            this.changed.push(node);
+                        };
+                        
+                        DAG.prototype.propagate = function() {
+                            while (this.changed.length>0) {
+                                var front = this.changed.pop();
+                                var info = front.dependenciesChanged();
+                                if (!info.hasChanges) continue;
+                        
+                                for (var i=0;i<this.dependants[front.nodeId].length;i++) {
+                                    var node = this.nodes[this.dependants[front.nodeId][i]];
+                                    if (!node.changed.hasOwnProperty(front.nodeId)) {
+                                        node.changed[front.nodeId] = [];
+                                    }
+                                    for (var j=0;j<info.changeSet.length;j++) {
+                                        node.changed[front.nodeId].push(info.changeSet[j]);
+                                    }
+                                    this.changed.push(node);
+                                }
+                            }
+                        };
+                        
+                        function knownNode(dag, node) {
+                            if (!node.instanceof(Node)) {
+                                throw new Error();
+                            }
+                            return dag.nodes.hasOwnProperty(node.nodeId);
+                        }
+                        
+                        function inRelation(dag, from, to) {
+                            if (!knownNode(dag, from) || !knownNode(dag, to)) {
+                                throw new Error();
+                            }
+                            if (dag.dependencies[to.nodeId].indexOf(from.nodeId) >= 0) {
+                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)<0) {
+                                    throw new Error();
+                                }
+                                return true;
+                            } else {
+                                if (dag.dependants[from.nodeId].indexOf(to.nodeId)>=0) {
+                                    throw new Error();
+                                }
+                            }
+                            return false;
+                        }
+                        
+                        function calcRank(dag, node) {
+                            var rank = 0;
+                            dag.dependencies[node.nodeId].forEach(function(nodeId){
+                                rank = Math.max(dag.nodes[nodeId].nodeRank+1, rank);
+                            });
+                            node.nodeRank = rank;
+                        }
+                    }
+                },
+                {
+                    path: ["core","dag","Node"],
+                    content: function(root, expose) {
+                        expose(Node, function(){});
+                        
+                        
+                        function Node() {
+                            this.attach(Node);
+                            this.nodeId = root.idgenerator();
+                            this.changed = {};
+                            this.delta = null;
+                            this.nodeRank = 0;
+                        }
+                        
+                    }
+                },
+                {
+                    path: ["idgenerator"],
+                    content: function(root, expose) {
+                        expose(idgenerator);
+                        
+                        var id = 0;
+                        
+                        function idgenerator() {
+                            return id++;
+                        }
+                    }
+                },
+                {
+                    path: ["tng","Matter"],
+                    content: function(root, expose) {
+                        expose(Matter);
+                        
+                        
+                        function Matter() {
+                            this._atoms = [];
+                            this.instanceof = of;
+                            this.attach = attach;
+                            this.metaType = Matter;
+                        }
+                        
+                        function attach(atom) {
+                            if (this.instanceof(atom)) {
+                                return;
+                            }
+                            this._atoms.push(atom);
+                        }
+                        
+                        function of(atom) {
+                            for (var i=0;i<this._atoms.length;i++) {
+                                if (this._atoms[i]===atom) return true;
+                            }
+                            return false;
+                        }
+                    }
+                },
+                {
+                    path: ["tng","do"],
+                    content: function(root, expose) {
+                        expose(_do, function(){
+                            DependentCell = root.core.cells.DependentCell;
+                        });
+                        
+                        var DependentCell;
+                        
+                        function _do(f, context) {
+                            return new DependentCell(f, context);
+                        }
+                    }
+                },
+                {
+                    path: ["tng","empty"],
+                    content: function(root, expose) {
+                        expose(empty);
+                        
+                        function empty() {
+                            throw new root.tng.reactive.EmptyError();
+                        }
+                    }
+                },
+                {
+                    path: ["tng","event_broker"],
+                    content: function(root, expose) {
+                        expose(new EventBroker());
+                        
+                        function EventBroker() {
+                            this.changeRequests = [];
+                        
+                            // TODO: replace to set
+                            this.nodesToNotify = [];
+                            this.dependantsToNotify = [];
+                        
+                            this.active = false;
+                            this.isOnProcessCall = false;
+                        }
+                        
+                        EventBroker.prototype.postponeChange = function(node, change) {
+                            this.changeRequests.push({
+                                node: node,
+                                change: change
+                            });
+                            this.loop();
+                        };
+                        
+                        EventBroker.prototype.notify = function(node) {
+                            this.nodesToNotify.push(node);
+                        };
+                        
+                        EventBroker.prototype.notifySingle = function(node, dependant) {
+                            this.dependantsToNotify.push({node: node, dependant: dependant});
+                        };
+                        
+                        EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
+                            if (this.isOnProcessCall) {
+                                return f.apply(obj, args);
+                            } else {
+                                this.isOnProcessCall = true;
+                                var result = f.apply(obj, args);
+                                this.isOnProcessCall = false;
+                                this.loop();
+                                return result;
+                            }
+                        };
+                        
+                        EventBroker.prototype.loop = function() {
+                            if (this.active) return;
+                            this.active = true;
+                        
+                            while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
+                                var hasChanges = false;
+                                while (this.changeRequests.length!=0) {
+                                    var request = this.changeRequests.shift();
+                                    if (request.node.applyChange(request.change)) {
+                                        hasChanges = true;
+                                        if (request.node.usersCount > 0) {
+                                            root.core.dag.DAG.notifyChanged(request.node);
+                                        }
+                                    }
+                                }
+                                if (hasChanges) {
+                                    root.core.dag.DAG.propagate();
+                                }
+                                if (this.nodesToNotify.length!=0) {
+                                    var node = this.nodesToNotify.shift();
+                                    node.sendAllMessages();
+                                    continue;
+                                }
+                                if (this.dependantsToNotify.length!=0) {
+                                    var info = this.dependantsToNotify.shift();
+                                    info.node.sendItsMessages(info.dependant);
+                                    continue;
+                                }
+                            }
+                        
+                            this.active = false;
+                        };
+                        
+                    }
+                },
+                {
                     path: ["tng","reactive","EmptyError"],
                     content: function(root, expose) {
                         expose(EmptyError);
@@ -1411,11 +1411,11 @@ define([], function() {
                             uid = root.idgenerator;
                             event_broker = root.tng.event_broker;
                             Matter = root.tng.Matter;
-                            AggregatedCell = root.tng.reactive.AggregatedCell;
+                            AggregatedCell = root.core.cells.AggregatedCell;
                             GroupReducer = root.core.algebra.GroupReducer;
                             MonoidReducer = root.core.algebra.MonoidReducer;
                             LiftedList = root.tng.reactive.lists.LiftedList;
-                            BaseCell = root.tng.reactive.BaseCell;
+                            BaseCell = root.core.cells.BaseCell;
                             checkBool = root.utils.checkBool;
                         });
                         
@@ -1914,8 +1914,8 @@ define([], function() {
                     path: ["tng","unwrapObject"],
                     content: function(root, expose) {
                         expose(unwrapObject, function(){
-                            Cell = root.tng.reactive.Cell;
-                            BaseCell = root.tng.reactive.BaseCell;
+                            Cell = root.core.cells.Cell;
+                            BaseCell = root.core.cells.BaseCell;
                             BaseList = root.tng.reactive.lists.BaseList;
                             List = root.tng.reactive.lists.List;
                         });

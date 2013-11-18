@@ -1,7 +1,7 @@
 expose(AggregatedCell, function(){
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
-    BaseCell = root.tng.reactive.BaseCell;
+    BaseCell = root.core.cells.BaseCell;
     List = root.tng.reactive.lists.List;
     DAG = root.core.dag.DAG;
     event_broker = root.tng.event_broker;

@@ -1,5 +1,5 @@
 expose(_do, function(){
-    DependentCell = root.tng.reactive.DependentCell;
+    DependentCell = root.core.cells.DependentCell;
 });
 
 var DependentCell;

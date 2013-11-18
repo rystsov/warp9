@@ -7,7 +7,7 @@ expose(DependentCell, function(){
     tracker = root.tng.tracker;
     EmptyError = root.tng.reactive.EmptyError;
     DAG = root.core.dag.DAG;
-    BaseCell = root.tng.reactive.BaseCell;
+    BaseCell = root.core.cells.BaseCell;
 
     SetDependentCellPrototype();
 });

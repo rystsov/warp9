@@ -1,7 +1,7 @@
 var warp9 = require('../target/warp9.common');
 var CellStore = require('./utils/TngCell.EventStore');
 
-var Cell = warp9.tng.reactive.Cell;
+var Cell = warp9.core.cells.Cell;
 var List = warp9.tng.reactive.lists.List;
 var DAG = warp9.core.dag.DAG;
 var empty = warp9.tng.empty;

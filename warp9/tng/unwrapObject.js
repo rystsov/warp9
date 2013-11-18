@@ -1,6 +1,6 @@
 expose(unwrapObject, function(){
-    Cell = root.tng.reactive.Cell;
-    BaseCell = root.tng.reactive.BaseCell;
+    Cell = root.core.cells.Cell;
+    BaseCell = root.core.cells.BaseCell;
     BaseList = root.tng.reactive.lists.BaseList;
     List = root.tng.reactive.lists.List;
 });
