@@ -2,7 +2,7 @@ expose(List, function(){
     BaseList = root.tng.reactive.lists.BaseList;
     uid = root.idgenerator;
     event_broker = root.tng.event_broker;
-    DAG = root.tng.dag.DAG;
+    DAG = root.core.dag.DAG;
 
     SetListPrototype();
 });

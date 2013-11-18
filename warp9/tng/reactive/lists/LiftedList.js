@@ -1,7 +1,7 @@
 expose(LiftedList, function(){
     BaseList = root.tng.reactive.lists.BaseList;
     event_broker = root.tng.event_broker;
-    DAG = root.tng.dag.DAG;
+    DAG = root.core.dag.DAG;
 
     SetLiftedPrototype();
 });

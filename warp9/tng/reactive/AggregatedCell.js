@@ -3,7 +3,7 @@ expose(AggregatedCell, function(){
     Some = root.core.adt.maybe.Some;
     BaseCell = root.tng.reactive.BaseCell;
     List = root.tng.reactive.lists.List;
-    DAG = root.tng.dag.DAG;
+    DAG = root.core.dag.DAG;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
     Matter = root.tng.Matter;

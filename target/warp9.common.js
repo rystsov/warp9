@@ -415,52 +415,12 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["idgenerator"],
-                content: function(root, expose) {
-                    expose(idgenerator);
-                    
-                    var id = 0;
-                    
-                    function idgenerator() {
-                        return id++;
-                    }
-                }
-            },
-            {
-                path: ["tng","Matter"],
-                content: function(root, expose) {
-                    expose(Matter);
-                    
-                    
-                    function Matter() {
-                        this._atoms = [];
-                        this.instanceof = of;
-                        this.attach = attach;
-                        this.metaType = Matter;
-                    }
-                    
-                    function attach(atom) {
-                        if (this.instanceof(atom)) {
-                            return;
-                        }
-                        this._atoms.push(atom);
-                    }
-                    
-                    function of(atom) {
-                        for (var i=0;i<this._atoms.length;i++) {
-                            if (this._atoms[i]===atom) return true;
-                        }
-                        return false;
-                    }
-                }
-            },
-            {
-                path: ["tng","dag","DAG"],
+                path: ["core","dag","DAG"],
                 content: function(root, expose) {
                     var dag = new DAG();
                     
                     expose(dag, function(){
-                        Node = root.tng.dag.Node;
+                        Node = root.core.dag.Node;
                         Set = root.core.adt.Set;
                         SortedList = root.core.adt.SortedList;
                         event_broker = root.tng.event_broker;
@@ -598,7 +558,7 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["tng","dag","Node"],
+                path: ["core","dag","Node"],
                 content: function(root, expose) {
                     expose(Node, function(){});
                     
@@ -611,6 +571,46 @@ var warp9 = (function(){
                         this.nodeRank = 0;
                     }
                     
+                }
+            },
+            {
+                path: ["idgenerator"],
+                content: function(root, expose) {
+                    expose(idgenerator);
+                    
+                    var id = 0;
+                    
+                    function idgenerator() {
+                        return id++;
+                    }
+                }
+            },
+            {
+                path: ["tng","Matter"],
+                content: function(root, expose) {
+                    expose(Matter);
+                    
+                    
+                    function Matter() {
+                        this._atoms = [];
+                        this.instanceof = of;
+                        this.attach = attach;
+                        this.metaType = Matter;
+                    }
+                    
+                    function attach(atom) {
+                        if (this.instanceof(atom)) {
+                            return;
+                        }
+                        this._atoms.push(atom);
+                    }
+                    
+                    function of(atom) {
+                        for (var i=0;i<this._atoms.length;i++) {
+                            if (this._atoms[i]===atom) return true;
+                        }
+                        return false;
+                    }
                 }
             },
             {
@@ -692,12 +692,12 @@ var warp9 = (function(){
                                 if (request.node.applyChange(request.change)) {
                                     hasChanges = true;
                                     if (request.node.usersCount > 0) {
-                                        root.tng.dag.DAG.notifyChanged(request.node);
+                                        root.core.dag.DAG.notifyChanged(request.node);
                                     }
                                 }
                             }
                             if (hasChanges) {
-                                root.tng.dag.DAG.propagate();
+                                root.core.dag.DAG.propagate();
                             }
                             if (this.nodesToNotify.length!=0) {
                                 var node = this.nodesToNotify.shift();
@@ -724,7 +724,7 @@ var warp9 = (function(){
                         Some = root.core.adt.maybe.Some;
                         BaseCell = root.tng.reactive.BaseCell;
                         List = root.tng.reactive.lists.List;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         Matter = root.tng.Matter;
@@ -960,13 +960,13 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose(BaseCell, function(){
                         Matter = root.tng.Matter;
-                        Node = root.tng.dag.Node;
+                        Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                         uid = root.idgenerator;
                         empty = root.tng.empty;
                     });
@@ -975,7 +975,7 @@ var warp9 = (function(){
                     
                     function BaseCell() {
                         root.tng.Matter.apply(this, []);
-                        root.tng.dag.Node.apply(this, []);
+                        root.core.dag.Node.apply(this, []);
                         this.attach(BaseCell);
                     
                         this.dependants = [];
@@ -1106,13 +1106,13 @@ var warp9 = (function(){
                     expose(Cell, function(){
                         BaseCell = root.tng.reactive.BaseCell;
                         Matter = root.tng.Matter;
-                        Node = root.tng.dag.Node;
+                        Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                     
                         SetCellPrototype();
                     });
@@ -1216,13 +1216,13 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose(DependentCell, function(){
                         Matter = root.tng.Matter;
-                        Node = root.tng.dag.Node;
+                        Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                         BaseCell = root.tng.reactive.BaseCell;
                     
                         SetDependentCellPrototype();
@@ -1422,7 +1422,7 @@ var warp9 = (function(){
                     
                     function BaseList() {
                         root.tng.Matter.apply(this, []);
-                        root.tng.dag.Node.apply(this, []);
+                        root.core.dag.Node.apply(this, []);
                         this.attach(BaseList);
                     
                         this.dependants = [];
@@ -1574,7 +1574,7 @@ var warp9 = (function(){
                     expose(LiftedList, function(){
                         BaseList = root.tng.reactive.lists.BaseList;
                         event_broker = root.tng.event_broker;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                     
                         SetLiftedPrototype();
                     });
@@ -1703,7 +1703,7 @@ var warp9 = (function(){
                         BaseList = root.tng.reactive.lists.BaseList;
                         uid = root.idgenerator;
                         event_broker = root.tng.event_broker;
-                        DAG = root.tng.dag.DAG;
+                        DAG = root.core.dag.DAG;
                     
                         SetListPrototype();
                     });

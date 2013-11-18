@@ -1,12 +1,12 @@
 expose(BaseCell, function(){
     Matter = root.tng.Matter;
-    Node = root.tng.dag.Node;
+    Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
     EmptyError = root.tng.reactive.EmptyError;
-    DAG = root.tng.dag.DAG;
+    DAG = root.core.dag.DAG;
     uid = root.idgenerator;
     empty = root.tng.empty;
 });
@@ -15,7 +15,7 @@ var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty
 
 function BaseCell() {
     root.tng.Matter.apply(this, []);
-    root.tng.dag.Node.apply(this, []);
+    root.core.dag.Node.apply(this, []);
     this.attach(BaseCell);
 
     this.dependants = [];

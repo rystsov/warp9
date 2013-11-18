@@ -1,12 +1,12 @@
 expose(DependentCell, function(){
     Matter = root.tng.Matter;
-    Node = root.tng.dag.Node;
+    Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
     EmptyError = root.tng.reactive.EmptyError;
-    DAG = root.tng.dag.DAG;
+    DAG = root.core.dag.DAG;
     BaseCell = root.tng.reactive.BaseCell;
 
     SetDependentCellPrototype();

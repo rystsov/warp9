@@ -14,7 +14,7 @@ var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, Lift
 
 function BaseList() {
     root.tng.Matter.apply(this, []);
-    root.tng.dag.Node.apply(this, []);
+    root.core.dag.Node.apply(this, []);
     this.attach(BaseList);
 
     this.dependants = [];

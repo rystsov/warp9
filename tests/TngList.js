@@ -4,7 +4,7 @@ var Cell = warp9.tng.reactive.Cell;
 var List = warp9.tng.reactive.lists.List;
 var ListStore = require('./utils/TngList.EventStore');
 var CellStore = require('./utils/TngCell.EventStore');
-var DAG = warp9.tng.dag.DAG;
+var DAG = warp9.core.dag.DAG;
 
 exports.ctor = function(test) {
     test.expect(1);

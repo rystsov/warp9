@@ -50,12 +50,12 @@ EventBroker.prototype.loop = function() {
             if (request.node.applyChange(request.change)) {
                 hasChanges = true;
                 if (request.node.usersCount > 0) {
-                    root.tng.dag.DAG.notifyChanged(request.node);
+                    root.core.dag.DAG.notifyChanged(request.node);
                 }
             }
         }
         if (hasChanges) {
-            root.tng.dag.DAG.propagate();
+            root.core.dag.DAG.propagate();
         }
         if (this.nodesToNotify.length!=0) {
             var node = this.nodesToNotify.shift();
