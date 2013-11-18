@@ -1406,10 +1406,9 @@ define([], function() {
                             MonoidReducer = root.core.algebra.MonoidReducer;
                             LiftedList = root.core.lists.LiftedList;
                             BaseCell = root.core.cells.BaseCell;
-                            checkBool = root.utils.checkBool;
                         });
                         
-                        var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
+                        var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell;
                         
                         function BaseList() {
                             root.core.Matter.apply(this, []);
@@ -1557,6 +1556,11 @@ define([], function() {
                                 invert: function(x) { return -x; }
                             });
                         };
+                        
+                        function checkBool(x) {
+                            if (typeof x == "boolean") return x;
+                            throw new Error();
+                        }
                     }
                 },
                 {
@@ -2913,39 +2917,6 @@ define([], function() {
                             return element;
                         }
                         
-                    }
-                },
-                {
-                    path: ["utils"],
-                    content: function(root, expose) {
-                        expose({
-                            hashLen: hashLen,
-                            hashValues: hashValues,
-                            checkBool: checkBool
-                        });
-                        
-                        function checkBool(x) {
-                            if (typeof x == "boolean") return x;
-                            throw new Error();
-                        }
-                        
-                        function hashLen(hash) {
-                            var count = 0;
-                            for (var i in hash) {
-                                if (!hash.hasOwnProperty(i)) continue;
-                                count++;
-                            }
-                            return count;
-                        }
-                        
-                        function hashValues(hash) {
-                            var values = [];
-                            for (var i in hash) {
-                                if (!hash.hasOwnProperty(i)) continue;
-                                values.push(hash[i]);
-                            }
-                            return values;
-                        }
                     }
                 }
             ];

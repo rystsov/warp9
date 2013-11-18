@@ -7,10 +7,9 @@ expose(BaseList, function() {
     MonoidReducer = root.core.algebra.MonoidReducer;
     LiftedList = root.core.lists.LiftedList;
     BaseCell = root.core.cells.BaseCell;
-    checkBool = root.utils.checkBool;
 });
 
-var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
+var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell;
 
 function BaseList() {
     root.core.Matter.apply(this, []);
@@ -158,3 +157,8 @@ BaseList.prototype.count = function() {
         invert: function(x) { return -x; }
     });
 };
+
+function checkBool(x) {
+    if (typeof x == "boolean") return x;
+    throw new Error();
+}
