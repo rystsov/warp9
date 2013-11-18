@@ -1,5 +1,5 @@
 expose(BaseCell, function(){
-    Matter = root.tng.Matter;
+    Matter = root.core.Matter;
     Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
@@ -14,7 +14,7 @@ expose(BaseCell, function(){
 var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty;
 
 function BaseCell() {
-    root.tng.Matter.apply(this, []);
+    root.core.Matter.apply(this, []);
     root.core.dag.Node.apply(this, []);
     this.attach(BaseCell);
 

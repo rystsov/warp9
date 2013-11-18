@@ -1,7 +1,7 @@
 expose(BaseList, function() {
     uid = root.uid;
     event_broker = root.core.event_broker;
-    Matter = root.tng.Matter;
+    Matter = root.core.Matter;
     AggregatedCell = root.core.cells.AggregatedCell;
     GroupReducer = root.core.algebra.GroupReducer;
     MonoidReducer = root.core.algebra.MonoidReducer;
@@ -13,7 +13,7 @@ expose(BaseList, function() {
 var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
 
 function BaseList() {
-    root.tng.Matter.apply(this, []);
+    root.core.Matter.apply(this, []);
     root.core.dag.Node.apply(this, []);
     this.attach(BaseList);
 

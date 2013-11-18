@@ -1,6 +1,6 @@
 expose(Cell, function(){
     BaseCell = root.core.cells.BaseCell;
-    Matter = root.tng.Matter;
+    Matter = root.core.Matter;
     Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;

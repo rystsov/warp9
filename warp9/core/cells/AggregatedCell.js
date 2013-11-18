@@ -6,7 +6,7 @@ expose(AggregatedCell, function(){
     DAG = root.core.dag.DAG;
     event_broker = root.core.event_broker;
     tracker = root.core.tracker;
-    Matter = root.tng.Matter;
+    Matter = root.core.Matter;
 
     SetPrototype();
 });

@@ -80,6 +80,34 @@ define([], function() {
                     }
                 },
                 {
+                    path: ["core","Matter"],
+                    content: function(root, expose) {
+                        expose(Matter);
+                        
+                        
+                        function Matter() {
+                            this._atoms = [];
+                            this.instanceof = of;
+                            this.attach = attach;
+                            this.metaType = Matter;
+                        }
+                        
+                        function attach(atom) {
+                            if (this.instanceof(atom)) {
+                                return;
+                            }
+                            this._atoms.push(atom);
+                        }
+                        
+                        function of(atom) {
+                            for (var i=0;i<this._atoms.length;i++) {
+                                if (this._atoms[i]===atom) return true;
+                            }
+                            return false;
+                        }
+                    }
+                },
+                {
                     path: ["core","adt","Set"],
                     content: function(root, expose) {
                         expose(Set);
@@ -446,7 +474,7 @@ define([], function() {
                             DAG = root.core.dag.DAG;
                             event_broker = root.core.event_broker;
                             tracker = root.core.tracker;
-                            Matter = root.tng.Matter;
+                            Matter = root.core.Matter;
                         
                             SetPrototype();
                         });
@@ -678,7 +706,7 @@ define([], function() {
                     path: ["core","cells","BaseCell"],
                     content: function(root, expose) {
                         expose(BaseCell, function(){
-                            Matter = root.tng.Matter;
+                            Matter = root.core.Matter;
                             Node = root.core.dag.Node;
                             None = root.core.adt.maybe.None;
                             Some = root.core.adt.maybe.Some;
@@ -693,7 +721,7 @@ define([], function() {
                         var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty;
                         
                         function BaseCell() {
-                            root.tng.Matter.apply(this, []);
+                            root.core.Matter.apply(this, []);
                             root.core.dag.Node.apply(this, []);
                             this.attach(BaseCell);
                         
@@ -824,7 +852,7 @@ define([], function() {
                     content: function(root, expose) {
                         expose(Cell, function(){
                             BaseCell = root.core.cells.BaseCell;
-                            Matter = root.tng.Matter;
+                            Matter = root.core.Matter;
                             Node = root.core.dag.Node;
                             None = root.core.adt.maybe.None;
                             Some = root.core.adt.maybe.Some;
@@ -934,7 +962,7 @@ define([], function() {
                     path: ["core","cells","DependentCell"],
                     content: function(root, expose) {
                         expose(DependentCell, function(){
-                            Matter = root.tng.Matter;
+                            Matter = root.core.Matter;
                             Node = root.core.dag.Node;
                             None = root.core.adt.maybe.None;
                             Some = root.core.adt.maybe.Some;
@@ -1366,7 +1394,7 @@ define([], function() {
                         expose(BaseList, function() {
                             uid = root.uid;
                             event_broker = root.core.event_broker;
-                            Matter = root.tng.Matter;
+                            Matter = root.core.Matter;
                             AggregatedCell = root.core.cells.AggregatedCell;
                             GroupReducer = root.core.algebra.GroupReducer;
                             MonoidReducer = root.core.algebra.MonoidReducer;
@@ -1378,7 +1406,7 @@ define([], function() {
                         var uid, event_broker, Matter, AggregatedCell, GroupReducer, MonoidReducer, LiftedList, BaseCell, checkBool;
                         
                         function BaseList() {
-                            root.tng.Matter.apply(this, []);
+                            root.core.Matter.apply(this, []);
                             root.core.dag.Node.apply(this, []);
                             this.attach(BaseList);
                         
@@ -1864,34 +1892,6 @@ define([], function() {
                             }
                         };
                         
-                    }
-                },
-                {
-                    path: ["tng","Matter"],
-                    content: function(root, expose) {
-                        expose(Matter);
-                        
-                        
-                        function Matter() {
-                            this._atoms = [];
-                            this.instanceof = of;
-                            this.attach = attach;
-                            this.metaType = Matter;
-                        }
-                        
-                        function attach(atom) {
-                            if (this.instanceof(atom)) {
-                                return;
-                            }
-                            this._atoms.push(atom);
-                        }
-                        
-                        function of(atom) {
-                            for (var i=0;i<this._atoms.length;i++) {
-                                if (this._atoms[i]===atom) return true;
-                            }
-                            return false;
-                        }
                     }
                 },
                 {
