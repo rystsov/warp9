@@ -74,6 +74,12 @@ define([], function() {
                             root.empty = function() {
                                 throw new root.core.cells.EmptyError();
                             };
+                        
+                            root.unwrapObject = root.core.unwrapObject;
+                        
+                            root.Cell = root.core.cells.Cell;
+                        
+                            root.List = root.core.cells.List;
                         });
                         
                         var id = 0;
@@ -1895,7 +1901,7 @@ define([], function() {
                     }
                 },
                 {
-                    path: ["tng","unwrapObject"],
+                    path: ["core","unwrapObject"],
                     content: function(root, expose) {
                         expose(unwrapObject, function(){
                             Cell = root.core.cells.Cell;
