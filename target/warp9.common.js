@@ -161,6 +161,260 @@ var warp9 = (function(){
                 }
             },
             {
+                path: ["core","algebra","GroupReducer"],
+                content: function(root, expose) {
+                    expose(GroupReducer, function() {
+                        None = root.adt.maybe.None;
+                        Some = root.adt.maybe.Some;
+                    });
+                    
+                    var None, Some;
+                    
+                    function GroupReducer(monoid, wrap, ignoreUnset) {
+                        this.monoid = monoid;
+                        this.wrap = wrap;
+                        this.ignoreUnset = ignoreUnset;
+                    
+                        this.sum = monoid.identity();
+                        this.value = new Some(this.sum);
+                    
+                        this.info = {};
+                        this.blocks = 0;
+                    }
+                    
+                    GroupReducer.prototype.add = function(key, value) {
+                        if (this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        var info = {
+                            blocked: value.isEmpty(),
+                            last: value.isEmpty() ? this.monoid.identity() : this.wrap(value.value())
+                        };
+                        this.info[key] = info;
+                        this.sum = this.monoid.add(this.sum, info.last);
+                    
+                        if (info.blocked) {
+                            this.blocks++;
+                        }
+                    
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            this.value = new Some(this.sum);
+                        } else if (this.blocks==1) {
+                            this.value = new None();
+                        }
+                    };
+                    
+                    GroupReducer.prototype.update = function(key, value) {
+                        this.remove(key);
+                        this.add(key, value);
+                    };
+                    
+                    GroupReducer.prototype.remove = function(key) {
+                        if (!this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        var info = this.info[key];
+                        delete this.info[key];
+                    
+                        this.sum = this.monoid.add(this.sum, this.monoid.invert(info.last));
+                    
+                        if (info.blocked) {
+                            this.blocks--;
+                        }
+                    
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            this.value = new Some(this.sum);
+                        }
+                    };
+                }
+            },
+            {
+                path: ["core","algebra","MonoidReducer"],
+                content: function(root, expose) {
+                    expose(MonoidReducer, function() {
+                        None = root.adt.maybe.None;
+                        Some = root.adt.maybe.Some;
+                        MonoidTree = root.core.algebra.MonoidTree;
+                    });
+                    
+                    var None, Some, MonoidTree;
+                    
+                    function MonoidReducer(monoid, wrap, ignoreUnset) {
+                        this.monoid = monoid;
+                        this.wrap = wrap;
+                        this.ignoreUnset = ignoreUnset;
+                    
+                        this.value = new Some(monoid.identity());
+                    
+                        this.root = null;
+                        this.keyToIndex = {};
+                        this.indexToKey = [];
+                    
+                        this.info = {};
+                        this.blocks = 0;
+                    }
+                    
+                    MonoidReducer.prototype.add = function(key, value) {
+                        if (this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        var info = {
+                            blocked: value.isEmpty()
+                        };
+                        if (info.blocked) {
+                            this.blocks++;
+                        }
+                        this.info[key] = info;
+                    
+                        value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.unwrap());
+                    
+                        this.keyToIndex[key] = MonoidTree.size(this.root);
+                        this.indexToKey.push(key);
+                        this.root = this.root==null ? MonoidTree.leaf(value) : this.root.put(this.monoid, value);
+                        assert(MonoidTree.size(this.root) == this.indexToKey.length);
+                    
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            this.value = new Some(this.root.value);
+                        } else if (this.blocks==1) {
+                            this.value = new None();
+                        }
+                    };
+                    
+                    MonoidReducer.prototype.update = function(key, value) {
+                        this.remove(key);
+                        this.add(key, value);
+                    };
+                    
+                    MonoidReducer.prototype.remove = function(key) {
+                        if (!this.keyToIndex.hasOwnProperty(key)) {
+                            throw new Error("Unknown key: " + key);
+                        }
+                        // the element being deleted is not the last
+                        if (this.keyToIndex[key]+1 !== this.indexToKey.length) {
+                            this.root = this.root.change(this.monoid, this.keyToIndex[key], this.root.peek());
+                            var lastKey = this.indexToKey.pop();
+                            this.indexToKey[this.keyToIndex[key]] = lastKey;
+                            this.keyToIndex[lastKey] = this.keyToIndex[key];
+                        } else {
+                            this.indexToKey.pop();
+                        }
+                        this.root = this.root.pop(this.monoid);
+                        delete this.keyToIndex[key];
+                    
+                        if (!this.info.hasOwnProperty(key)) {
+                            throw new Error();
+                        }
+                        if (this.info[key].blocked) {
+                            this.blocks--;
+                        }
+                        delete this.info[key];
+                        if (this.blocks==0 || this.ignoreUnset) {
+                            if (this.root == null) {
+                                this.value = new Some(this.monoid.identity());
+                            } else {
+                                this.value = new Some(this.root.value);
+                            }
+                        }
+                    };
+                    
+                    function assert(value) {
+                        if (!value) throw new Error();
+                    }
+                }
+            },
+            {
+                path: ["core","algebra","MonoidTree"],
+                content: function(root, expose) {
+                    expose(MonoidTree);
+                    
+                    function MonoidTree(value, size, left, right) {
+                        this.value = value;
+                        this.size = size;
+                        this.left = left;
+                        this.right = right;
+                    }
+                    MonoidTree.leaf = function(value) {
+                        return new MonoidTree(value, 1, null, null);
+                    };
+                    MonoidTree.of = function(monoid, left, right) {
+                        return new MonoidTree(monoid.add(left.value, right.value), left.size + right.size, left, right);
+                    };
+                    
+                    MonoidTree.prototype.change = function(monoid, index, value) {
+                        if (index === 0 && this.size === 1) {
+                            return MonoidTree.leaf(value);
+                        }
+                        if (index < this.left.size) {
+                            return MonoidTree.of(monoid, this.left.change(monoid, index, value), this.right);
+                        } else {
+                            return MonoidTree.of(monoid, this.left, this.right.change(monoid, index - this.left.size, value));
+                        }
+                    };
+                    
+                    MonoidTree.prototype.peek = function() {
+                        return this.size === 1 ? this.value : this.right.peek();
+                    };
+                    
+                    MonoidTree.prototype.put = function(monoid, value) {
+                        assert (MonoidTree.size(this.left)>=MonoidTree.size(this.right));
+                        var left, right;
+                        if (MonoidTree.size(this.left)==MonoidTree.size(this.right)) {
+                            left = this;
+                            right = MonoidTree.leaf(value);
+                        } else {
+                            left = this.left;
+                            right = this.right.put(monoid, value);
+                        }
+                        return MonoidTree.of(monoid, left, right);
+                    };
+                    
+                    MonoidTree.prototype.pop = function(monoid) {
+                        if (this.size==1) return null;
+                        assert (this.right!=null);
+                        assert (this.left!=null);
+                        var right = this.right.pop(monoid);
+                        if (right==null) {
+                            return this.left;
+                        } else {
+                            return MonoidTree.of(monoid, this.left, right);
+                        }
+                    };
+                    
+                    MonoidTree.size = function(node) {
+                        return node==null ? 0 : node.size;
+                    };
+                    
+                    function assert(value) {
+                        if (!value) throw new Error();
+                    }
+                }
+            },
+            {
+                path: ["core","algebra","Reducer"],
+                content: function(root, expose) {
+                    expose(Reducer, function() {
+                        None = root.adt.maybe.None;
+                        Some = root.adt.maybe.Some;
+                    });
+                    
+                    var None, Some;
+                    
+                    function Reducer(monoid, wrap, ignoreUnset) {}
+                    
+                    Reducer.prototype.add = function(key, value) {
+                    
+                    };
+                    
+                    Reducer.prototype.update = function(key, value) {
+                    
+                    };
+                    
+                    Reducer.prototype.remove = function(key) {
+                    
+                    };
+                }
+            },
+            {
                 path: ["idgenerator"],
                 content: function(root, expose) {
                     expose(idgenerator);
@@ -1150,260 +1404,6 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["tng","reactive","algebra","GroupReducer"],
-                content: function(root, expose) {
-                    expose(GroupReducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
-                    });
-                    
-                    var None, Some;
-                    
-                    function GroupReducer(monoid, wrap, ignoreUnset) {
-                        this.monoid = monoid;
-                        this.wrap = wrap;
-                        this.ignoreUnset = ignoreUnset;
-                    
-                        this.sum = monoid.identity();
-                        this.value = new Some(this.sum);
-                    
-                        this.info = {};
-                        this.blocks = 0;
-                    }
-                    
-                    GroupReducer.prototype.add = function(key, value) {
-                        if (this.info.hasOwnProperty(key)) {
-                            throw new Error();
-                        }
-                        var info = {
-                            blocked: value.isEmpty(),
-                            last: value.isEmpty() ? this.monoid.identity() : this.wrap(value.value())
-                        };
-                        this.info[key] = info;
-                        this.sum = this.monoid.add(this.sum, info.last);
-                    
-                        if (info.blocked) {
-                            this.blocks++;
-                        }
-                    
-                        if (this.blocks==0 || this.ignoreUnset) {
-                            this.value = new Some(this.sum);
-                        } else if (this.blocks==1) {
-                            this.value = new None();
-                        }
-                    };
-                    
-                    GroupReducer.prototype.update = function(key, value) {
-                        this.remove(key);
-                        this.add(key, value);
-                    };
-                    
-                    GroupReducer.prototype.remove = function(key) {
-                        if (!this.info.hasOwnProperty(key)) {
-                            throw new Error();
-                        }
-                        var info = this.info[key];
-                        delete this.info[key];
-                    
-                        this.sum = this.monoid.add(this.sum, this.monoid.invert(info.last));
-                    
-                        if (info.blocked) {
-                            this.blocks--;
-                        }
-                    
-                        if (this.blocks==0 || this.ignoreUnset) {
-                            this.value = new Some(this.sum);
-                        }
-                    };
-                }
-            },
-            {
-                path: ["tng","reactive","algebra","MonoidReducer"],
-                content: function(root, expose) {
-                    expose(MonoidReducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
-                        MonoidTree = root.tng.reactive.algebra.MonoidTree;
-                    });
-                    
-                    var None, Some, MonoidTree;
-                    
-                    function MonoidReducer(monoid, wrap, ignoreUnset) {
-                        this.monoid = monoid;
-                        this.wrap = wrap;
-                        this.ignoreUnset = ignoreUnset;
-                    
-                        this.value = new Some(monoid.identity());
-                    
-                        this.root = null;
-                        this.keyToIndex = {};
-                        this.indexToKey = [];
-                    
-                        this.info = {};
-                        this.blocks = 0;
-                    }
-                    
-                    MonoidReducer.prototype.add = function(key, value) {
-                        if (this.info.hasOwnProperty(key)) {
-                            throw new Error();
-                        }
-                        var info = {
-                            blocked: value.isEmpty()
-                        };
-                        if (info.blocked) {
-                            this.blocks++;
-                        }
-                        this.info[key] = info;
-                    
-                        value = value.isEmpty() ? this.monoid.identity() : this.wrap(value.unwrap());
-                    
-                        this.keyToIndex[key] = MonoidTree.size(this.root);
-                        this.indexToKey.push(key);
-                        this.root = this.root==null ? MonoidTree.leaf(value) : this.root.put(this.monoid, value);
-                        assert(MonoidTree.size(this.root) == this.indexToKey.length);
-                    
-                        if (this.blocks==0 || this.ignoreUnset) {
-                            this.value = new Some(this.root.value);
-                        } else if (this.blocks==1) {
-                            this.value = new None();
-                        }
-                    };
-                    
-                    MonoidReducer.prototype.update = function(key, value) {
-                        this.remove(key);
-                        this.add(key, value);
-                    };
-                    
-                    MonoidReducer.prototype.remove = function(key) {
-                        if (!this.keyToIndex.hasOwnProperty(key)) {
-                            throw new Error("Unknown key: " + key);
-                        }
-                        // the element being deleted is not the last
-                        if (this.keyToIndex[key]+1 !== this.indexToKey.length) {
-                            this.root = this.root.change(this.monoid, this.keyToIndex[key], this.root.peek());
-                            var lastKey = this.indexToKey.pop();
-                            this.indexToKey[this.keyToIndex[key]] = lastKey;
-                            this.keyToIndex[lastKey] = this.keyToIndex[key];
-                        } else {
-                            this.indexToKey.pop();
-                        }
-                        this.root = this.root.pop(this.monoid);
-                        delete this.keyToIndex[key];
-                    
-                        if (!this.info.hasOwnProperty(key)) {
-                            throw new Error();
-                        }
-                        if (this.info[key].blocked) {
-                            this.blocks--;
-                        }
-                        delete this.info[key];
-                        if (this.blocks==0 || this.ignoreUnset) {
-                            if (this.root == null) {
-                                this.value = new Some(this.monoid.identity());
-                            } else {
-                                this.value = new Some(this.root.value);
-                            }
-                        }
-                    };
-                    
-                    function assert(value) {
-                        if (!value) throw new Error();
-                    }
-                }
-            },
-            {
-                path: ["tng","reactive","algebra","MonoidTree"],
-                content: function(root, expose) {
-                    expose(MonoidTree);
-                    
-                    function MonoidTree(value, size, left, right) {
-                        this.value = value;
-                        this.size = size;
-                        this.left = left;
-                        this.right = right;
-                    }
-                    MonoidTree.leaf = function(value) {
-                        return new MonoidTree(value, 1, null, null);
-                    };
-                    MonoidTree.of = function(monoid, left, right) {
-                        return new MonoidTree(monoid.add(left.value, right.value), left.size + right.size, left, right);
-                    };
-                    
-                    MonoidTree.prototype.change = function(monoid, index, value) {
-                        if (index === 0 && this.size === 1) {
-                            return MonoidTree.leaf(value);
-                        }
-                        if (index < this.left.size) {
-                            return MonoidTree.of(monoid, this.left.change(monoid, index, value), this.right);
-                        } else {
-                            return MonoidTree.of(monoid, this.left, this.right.change(monoid, index - this.left.size, value));
-                        }
-                    };
-                    
-                    MonoidTree.prototype.peek = function() {
-                        return this.size === 1 ? this.value : this.right.peek();
-                    };
-                    
-                    MonoidTree.prototype.put = function(monoid, value) {
-                        assert (MonoidTree.size(this.left)>=MonoidTree.size(this.right));
-                        var left, right;
-                        if (MonoidTree.size(this.left)==MonoidTree.size(this.right)) {
-                            left = this;
-                            right = MonoidTree.leaf(value);
-                        } else {
-                            left = this.left;
-                            right = this.right.put(monoid, value);
-                        }
-                        return MonoidTree.of(monoid, left, right);
-                    };
-                    
-                    MonoidTree.prototype.pop = function(monoid) {
-                        if (this.size==1) return null;
-                        assert (this.right!=null);
-                        assert (this.left!=null);
-                        var right = this.right.pop(monoid);
-                        if (right==null) {
-                            return this.left;
-                        } else {
-                            return MonoidTree.of(monoid, this.left, right);
-                        }
-                    };
-                    
-                    MonoidTree.size = function(node) {
-                        return node==null ? 0 : node.size;
-                    };
-                    
-                    function assert(value) {
-                        if (!value) throw new Error();
-                    }
-                }
-            },
-            {
-                path: ["tng","reactive","algebra","Reducer"],
-                content: function(root, expose) {
-                    expose(Reducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
-                    });
-                    
-                    var None, Some;
-                    
-                    function Reducer(monoid, wrap, ignoreUnset) {}
-                    
-                    Reducer.prototype.add = function(key, value) {
-                    
-                    };
-                    
-                    Reducer.prototype.update = function(key, value) {
-                    
-                    };
-                    
-                    Reducer.prototype.remove = function(key) {
-                    
-                    };
-                }
-            },
-            {
                 path: ["tng","reactive","lists","BaseList"],
                 content: function(root, expose) {
                     expose(BaseList, function() {
@@ -1411,8 +1411,8 @@ var warp9 = (function(){
                         event_broker = root.tng.event_broker;
                         Matter = root.tng.Matter;
                         AggregatedCell = root.tng.reactive.AggregatedCell;
-                        GroupReducer = root.tng.reactive.algebra.GroupReducer;
-                        MonoidReducer = root.tng.reactive.algebra.MonoidReducer;
+                        GroupReducer = root.core.algebra.GroupReducer;
+                        MonoidReducer = root.core.algebra.MonoidReducer;
                         LiftedList = root.tng.reactive.lists.LiftedList;
                         BaseCell = root.tng.reactive.BaseCell;
                         checkBool = root.utils.checkBool;

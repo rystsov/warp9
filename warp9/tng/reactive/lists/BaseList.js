@@ -3,8 +3,8 @@ expose(BaseList, function() {
     event_broker = root.tng.event_broker;
     Matter = root.tng.Matter;
     AggregatedCell = root.tng.reactive.AggregatedCell;
-    GroupReducer = root.tng.reactive.algebra.GroupReducer;
-    MonoidReducer = root.tng.reactive.algebra.MonoidReducer;
+    GroupReducer = root.core.algebra.GroupReducer;
+    MonoidReducer = root.core.algebra.MonoidReducer;
     LiftedList = root.tng.reactive.lists.LiftedList;
     BaseCell = root.tng.reactive.BaseCell;
     checkBool = root.utils.checkBool;

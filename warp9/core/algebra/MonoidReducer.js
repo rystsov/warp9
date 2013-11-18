@@ -1,7 +1,7 @@
 expose(MonoidReducer, function() {
     None = root.adt.maybe.None;
     Some = root.adt.maybe.Some;
-    MonoidTree = root.tng.reactive.algebra.MonoidTree;
+    MonoidTree = root.core.algebra.MonoidTree;
 });
 
 var None, Some, MonoidTree;
