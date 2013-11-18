@@ -1,6 +1,6 @@
 expose(MonoidReducer, function() {
-    None = root.adt.maybe.None;
-    Some = root.adt.maybe.Some;
+    None = root.core.adt.maybe.None;
+    Some = root.core.adt.maybe.Some;
     MonoidTree = root.core.algebra.MonoidTree;
 });
 

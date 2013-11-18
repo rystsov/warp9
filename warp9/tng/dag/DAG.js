@@ -2,8 +2,8 @@ var dag = new DAG();
 
 expose(dag, function(){
     Node = root.tng.dag.Node;
-    Set = root.adt.Set;
-    SortedList = root.adt.SortedList;
+    Set = root.core.adt.Set;
+    SortedList = root.core.adt.SortedList;
     event_broker = root.tng.event_broker;
 
     dag.reset();

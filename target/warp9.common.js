@@ -59,7 +59,7 @@ var warp9 = (function(){
         }
         return [
             {
-                path: ["adt","Set"],
+                path: ["core","adt","Set"],
                 content: function(root, expose) {
                     expose(Set);
                     
@@ -81,7 +81,7 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["adt","SortedList"],
+                path: ["core","adt","SortedList"],
                 content: function(root, expose) {
                     expose(SortedList);
                     
@@ -110,7 +110,7 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["adt","maybe"],
+                path: ["core","adt","maybe"],
                 content: function(root, expose) {
                     expose({
                         Some: Some,
@@ -164,8 +164,8 @@ var warp9 = (function(){
                 path: ["core","algebra","GroupReducer"],
                 content: function(root, expose) {
                     expose(GroupReducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                     });
                     
                     var None, Some;
@@ -232,8 +232,8 @@ var warp9 = (function(){
                 path: ["core","algebra","MonoidReducer"],
                 content: function(root, expose) {
                     expose(MonoidReducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                         MonoidTree = root.core.algebra.MonoidTree;
                     });
                     
@@ -393,8 +393,8 @@ var warp9 = (function(){
                 path: ["core","algebra","Reducer"],
                 content: function(root, expose) {
                     expose(Reducer, function() {
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                     });
                     
                     var None, Some;
@@ -461,8 +461,8 @@ var warp9 = (function(){
                     
                     expose(dag, function(){
                         Node = root.tng.dag.Node;
-                        Set = root.adt.Set;
-                        SortedList = root.adt.SortedList;
+                        Set = root.core.adt.Set;
+                        SortedList = root.core.adt.SortedList;
                         event_broker = root.tng.event_broker;
                     
                         dag.reset();
@@ -720,8 +720,8 @@ var warp9 = (function(){
                 path: ["tng","reactive","AggregatedCell"],
                 content: function(root, expose) {
                     expose(AggregatedCell, function(){
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                         BaseCell = root.tng.reactive.BaseCell;
                         List = root.tng.reactive.lists.List;
                         DAG = root.tng.dag.DAG;
@@ -961,8 +961,8 @@ var warp9 = (function(){
                     expose(BaseCell, function(){
                         Matter = root.tng.Matter;
                         Node = root.tng.dag.Node;
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
@@ -1107,8 +1107,8 @@ var warp9 = (function(){
                         BaseCell = root.tng.reactive.BaseCell;
                         Matter = root.tng.Matter;
                         Node = root.tng.dag.Node;
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;
@@ -1217,8 +1217,8 @@ var warp9 = (function(){
                     expose(DependentCell, function(){
                         Matter = root.tng.Matter;
                         Node = root.tng.dag.Node;
-                        None = root.adt.maybe.None;
-                        Some = root.adt.maybe.Some;
+                        None = root.core.adt.maybe.None;
+                        Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
                         EmptyError = root.tng.reactive.EmptyError;

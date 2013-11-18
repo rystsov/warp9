@@ -1,8 +1,8 @@
 expose(BaseCell, function(){
     Matter = root.tng.Matter;
     Node = root.tng.dag.Node;
-    None = root.adt.maybe.None;
-    Some = root.adt.maybe.Some;
+    None = root.core.adt.maybe.None;
+    Some = root.core.adt.maybe.Some;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
     EmptyError = root.tng.reactive.EmptyError;

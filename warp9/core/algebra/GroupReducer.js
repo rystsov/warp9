@@ -1,6 +1,6 @@
 expose(GroupReducer, function() {
-    None = root.adt.maybe.None;
-    Some = root.adt.maybe.Some;
+    None = root.core.adt.maybe.None;
+    Some = root.core.adt.maybe.Some;
 });
 
 var None, Some;
