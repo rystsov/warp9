@@ -4,7 +4,7 @@ var EventSink = require('./Cell.EventSink');
 var List = warp9.reactive.List;
 var Cell = warp9.reactive.Cell;
 
-var idgenerator = warp9.idgenerator;
+var idgenerator = warp9.uid;
 
 module.exports = ReducerTests;
 

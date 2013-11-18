@@ -4,7 +4,7 @@ var CellStore = require('./utils/TngCell.EventStore');
 var Cell = warp9.core.cells.Cell;
 var List = warp9.core.lists.List;
 var DAG = warp9.core.dag.DAG;
-var empty = warp9.tng.empty;
+var empty = warp9.empty;
 
 exports.dag1 = function(test) {
     test.expect(4);
@@ -29,7 +29,7 @@ exports.dag1 = function(test) {
         wrap: function() { return 1; }
     });
 
-    var dag = warp9.tng.do(function(){
+    var dag = warp9.do(function(){
         return hasItem.unwrap() ? left.unwrap() : empty();
     });
 
@@ -49,7 +49,7 @@ exports.unary = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell();
-    var add3 = warp9.tng.do(function(){
+    var add3 = warp9.do(function(){
         return cell.unwrap() + 3;
     });
 
@@ -72,7 +72,7 @@ exports.binary = function(test) {
 
     var a = new Cell(2);
     var b = new Cell(3);
-    var c = warp9.tng.do(function(){
+    var c = warp9.do(function(){
         return a.unwrap() + b.unwrap();
     });
     test.equal(DAG.length, 0);
@@ -105,7 +105,7 @@ exports.binaryIntensive = function(test) {
 
     var a = new Cell(0);
     var b = new Cell(0);
-    var c = warp9.tng.do(function(){
+    var c = warp9.do(function(){
         return a.unwrap() + b.unwrap();
     });
     var store = new CellStore(c);
@@ -134,7 +134,7 @@ exports.unwrapIntensive = function(test) {
     test.equal(DAG.length, 0);
     var a = new Cell(0);
     var b = new Cell(0);
-    var c = warp9.tng.do(function(){
+    var c = warp9.do(function(){
         return a.unwrap() + b.unwrap();
     });
     test.equal(DAG.length, 0);

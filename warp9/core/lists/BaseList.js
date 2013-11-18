@@ -1,6 +1,6 @@
 expose(BaseList, function() {
-    uid = root.idgenerator;
-    event_broker = root.tng.event_broker;
+    uid = root.uid;
+    event_broker = root.core.event_broker;
     Matter = root.tng.Matter;
     AggregatedCell = root.core.cells.AggregatedCell;
     GroupReducer = root.core.algebra.GroupReducer;

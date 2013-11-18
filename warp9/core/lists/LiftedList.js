@@ -1,6 +1,6 @@
 expose(LiftedList, function(){
     BaseList = root.core.lists.BaseList;
-    event_broker = root.tng.event_broker;
+    event_broker = root.core.event_broker;
     DAG = root.core.dag.DAG;
 
     SetLiftedPrototype();

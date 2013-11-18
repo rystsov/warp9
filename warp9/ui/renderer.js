@@ -13,7 +13,7 @@ expose({
     TextNode = root.ui.ast.TextNode;
     jq = root.ui.jq;
     hacks = root.ui.hacks;
-    idgenerator = root.idgenerator;
+    idgenerator = root.uid;
 
     addTag("div", root.ui.tags.TagParserFactory("div"));
     addTag("a", root.ui.tags.TagParserFactory("a"));

@@ -4,7 +4,7 @@ expose(dag, function(){
     Node = root.core.dag.Node;
     Set = root.core.adt.Set;
     SortedList = root.core.adt.SortedList;
-    event_broker = root.tng.event_broker;
+    event_broker = root.core.event_broker;
 
     dag.reset();
 });

@@ -3,8 +3,8 @@ expose(DependentCell, function(){
     Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
-    event_broker = root.tng.event_broker;
-    tracker = root.tng.tracker;
+    event_broker = root.core.event_broker;
+    tracker = root.core.tracker;
     EmptyError = root.core.cells.EmptyError;
     DAG = root.core.dag.DAG;
     BaseCell = root.core.cells.BaseCell;

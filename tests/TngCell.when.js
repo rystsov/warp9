@@ -3,7 +3,7 @@ var CellStore = require('./utils/TngCell.EventStore');
 
 var Cell = warp9.core.cells.Cell;
 var DAG = warp9.core.dag.DAG;
-var empty = warp9.tng.empty;
+var empty = warp9.empty;
 
 exports.repeatEventOnLeak = function(test) {
     test.expect(5);

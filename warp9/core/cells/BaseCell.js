@@ -3,12 +3,12 @@ expose(BaseCell, function(){
     Node = root.core.dag.Node;
     None = root.core.adt.maybe.None;
     Some = root.core.adt.maybe.Some;
-    event_broker = root.tng.event_broker;
-    tracker = root.tng.tracker;
+    event_broker = root.core.event_broker;
+    tracker = root.core.tracker;
     EmptyError = root.core.cells.EmptyError;
     DAG = root.core.dag.DAG;
-    uid = root.idgenerator;
-    empty = root.tng.empty;
+    uid = root.uid;
+    empty = root.empty;
 });
 
 var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty;
@@ -103,13 +103,13 @@ BaseCell.prototype._putEventToDependants = function(event) {
 // extensions
 
 BaseCell.prototype.coalesce = function(value) {
-    return root.tng.do(function(){
+    return root.do(function(){
         return this.unwrap(value);
     }, this);
 };
 
 BaseCell.prototype.lift = function(f) {
-    return root.tng.do(function(){
+    return root.do(function(){
         return f(this.unwrap());
     }, this);
 };
@@ -129,7 +129,7 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
         alt = typeof alternative === "function" ? alternative : function() { return alternative; };
     }
 
-    return root.tng.do(function(){
+    return root.do(function(){
         var value = this.unwrap();
         if (test(value)) {
             return map != null ? map(value) : value;

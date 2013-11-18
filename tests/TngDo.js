@@ -10,7 +10,7 @@ exports.emptyUpdate = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell();
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
     test.equal(add2.unwrap(null), null);
@@ -25,7 +25,7 @@ exports.valueUpdate = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell(1);
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
     cell.set(2);
@@ -39,7 +39,7 @@ exports.subscribe = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell();
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
     var store = new CellStore(add2);
@@ -57,7 +57,7 @@ exports.subscribeUseLeave = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell();
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
     test.equal(DAG.length, 0);
@@ -84,10 +84,10 @@ exports.doubleLift = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell(2);
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
-    var add3 = warp9.tng.do(function(){
+    var add3 = warp9.do(function(){
         return add2.unwrap()+3;
     });
     test.equal(DAG.length, 0);
@@ -111,10 +111,10 @@ exports.fork = function(test) {
     test.equal(DAG.length, 0);
 
     var cell = new Cell(2);
-    var add2 = warp9.tng.do(function(){
+    var add2 = warp9.do(function(){
         return cell.unwrap()+2;
     });
-    var add3 = warp9.tng.do(function(){
+    var add3 = warp9.do(function(){
         return cell.unwrap()+3;
     });
     test.equal(DAG.length, 0);
@@ -152,7 +152,7 @@ exports.ternary = function(test) {
     var b1 = new Cell(1);
     var b2 = new Cell(2);
 
-    var r = warp9.tng.do(function(){
+    var r = warp9.do(function(){
         return c.unwrap() ? b1.unwrap() : b2.unwrap();
     });
 
@@ -195,9 +195,9 @@ exports.nested = function(test) {
     var a = new Cell();
     var b = new Cell();
     var o = new Cell(2);
-    var r = warp9.tng.do(function(){
+    var r = warp9.do(function(){
         var inner = a.unwrap();
-        var v = warp9.tng.do(function(){
+        var v = warp9.do(function(){
             return inner.unwrap()+2;
         }).unwrap();
         return v + o.unwrap();

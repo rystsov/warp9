@@ -16,7 +16,7 @@ function unwrapObject(obj, opt) {
     }
     if (obj instanceof Skip) return new Cell(obj);
     if (obj.metaType && obj.instanceof(BaseCell)) {
-        return root.tng.do(function(){
+        return root.do(function(){
             return unwrapObject(obj.unwrap()).unwrap();
         });
     }

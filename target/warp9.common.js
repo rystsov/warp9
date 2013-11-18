@@ -59,6 +59,26 @@ var warp9 = (function(){
         }
         return [
             {
+                path: ["__init__"],
+                content: function(root, expose) {
+                    expose(null, function() {
+                        root.uid = function() {
+                            return id++;
+                        };
+                    
+                        root.do = function(f, context) {
+                            return new root.core.cells.DependentCell(f, context);
+                        };
+                    
+                        root.empty = function() {
+                            throw new root.core.cells.EmptyError();
+                        };
+                    });
+                    
+                    var id = 0;
+                }
+            },
+            {
                 path: ["core","adt","Set"],
                 content: function(root, expose) {
                     expose(Set);
@@ -423,8 +443,8 @@ var warp9 = (function(){
                         BaseCell = root.core.cells.BaseCell;
                         List = root.core.lists.List;
                         DAG = root.core.dag.DAG;
-                        event_broker = root.tng.event_broker;
-                        tracker = root.tng.tracker;
+                        event_broker = root.core.event_broker;
+                        tracker = root.core.tracker;
                         Matter = root.tng.Matter;
                     
                         SetPrototype();
@@ -661,12 +681,12 @@ var warp9 = (function(){
                         Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
-                        event_broker = root.tng.event_broker;
-                        tracker = root.tng.tracker;
+                        event_broker = root.core.event_broker;
+                        tracker = root.core.tracker;
                         EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
-                        uid = root.idgenerator;
-                        empty = root.tng.empty;
+                        uid = root.uid;
+                        empty = root.empty;
                     });
                     
                     var Matter, Node, None, Some, event_broker, EmptyError, DAG, tracker, uid, empty;
@@ -761,13 +781,13 @@ var warp9 = (function(){
                     // extensions
                     
                     BaseCell.prototype.coalesce = function(value) {
-                        return root.tng.do(function(){
+                        return root.do(function(){
                             return this.unwrap(value);
                         }, this);
                     };
                     
                     BaseCell.prototype.lift = function(f) {
-                        return root.tng.do(function(){
+                        return root.do(function(){
                             return f(this.unwrap());
                         }, this);
                     };
@@ -787,7 +807,7 @@ var warp9 = (function(){
                             alt = typeof alternative === "function" ? alternative : function() { return alternative; };
                         }
                     
-                        return root.tng.do(function(){
+                        return root.do(function(){
                             var value = this.unwrap();
                             if (test(value)) {
                                 return map != null ? map(value) : value;
@@ -807,8 +827,8 @@ var warp9 = (function(){
                         Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
-                        event_broker = root.tng.event_broker;
-                        tracker = root.tng.tracker;
+                        event_broker = root.core.event_broker;
+                        tracker = root.core.tracker;
                         EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
                     
@@ -917,8 +937,8 @@ var warp9 = (function(){
                         Node = root.core.dag.Node;
                         None = root.core.adt.maybe.None;
                         Some = root.core.adt.maybe.Some;
-                        event_broker = root.tng.event_broker;
-                        tracker = root.tng.tracker;
+                        event_broker = root.core.event_broker;
+                        tracker = root.core.tracker;
                         EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
                         BaseCell = root.core.cells.BaseCell;
@@ -1110,7 +1130,7 @@ var warp9 = (function(){
                         Node = root.core.dag.Node;
                         Set = root.core.adt.Set;
                         SortedList = root.core.adt.SortedList;
-                        event_broker = root.tng.event_broker;
+                        event_broker = root.core.event_broker;
                     
                         dag.reset();
                     });
@@ -1252,7 +1272,7 @@ var warp9 = (function(){
                     
                     function Node() {
                         this.attach(Node);
-                        this.nodeId = root.idgenerator();
+                        this.nodeId = root.uid();
                         this.changed = {};
                         this.delta = null;
                         this.nodeRank = 0;
@@ -1261,11 +1281,90 @@ var warp9 = (function(){
                 }
             },
             {
+                path: ["core","event_broker"],
+                content: function(root, expose) {
+                    expose(new EventBroker());
+                    
+                    function EventBroker() {
+                        this.changeRequests = [];
+                    
+                        // TODO: replace to set
+                        this.nodesToNotify = [];
+                        this.dependantsToNotify = [];
+                    
+                        this.active = false;
+                        this.isOnProcessCall = false;
+                    }
+                    
+                    EventBroker.prototype.postponeChange = function(node, change) {
+                        this.changeRequests.push({
+                            node: node,
+                            change: change
+                        });
+                        this.loop();
+                    };
+                    
+                    EventBroker.prototype.notify = function(node) {
+                        this.nodesToNotify.push(node);
+                    };
+                    
+                    EventBroker.prototype.notifySingle = function(node, dependant) {
+                        this.dependantsToNotify.push({node: node, dependant: dependant});
+                    };
+                    
+                    EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
+                        if (this.isOnProcessCall) {
+                            return f.apply(obj, args);
+                        } else {
+                            this.isOnProcessCall = true;
+                            var result = f.apply(obj, args);
+                            this.isOnProcessCall = false;
+                            this.loop();
+                            return result;
+                        }
+                    };
+                    
+                    EventBroker.prototype.loop = function() {
+                        if (this.active) return;
+                        this.active = true;
+                    
+                        while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
+                            var hasChanges = false;
+                            while (this.changeRequests.length!=0) {
+                                var request = this.changeRequests.shift();
+                                if (request.node.applyChange(request.change)) {
+                                    hasChanges = true;
+                                    if (request.node.usersCount > 0) {
+                                        root.core.dag.DAG.notifyChanged(request.node);
+                                    }
+                                }
+                            }
+                            if (hasChanges) {
+                                root.core.dag.DAG.propagate();
+                            }
+                            if (this.nodesToNotify.length!=0) {
+                                var node = this.nodesToNotify.shift();
+                                node.sendAllMessages();
+                                continue;
+                            }
+                            if (this.dependantsToNotify.length!=0) {
+                                var info = this.dependantsToNotify.shift();
+                                info.node.sendItsMessages(info.dependant);
+                                continue;
+                            }
+                        }
+                    
+                        this.active = false;
+                    };
+                    
+                }
+            },
+            {
                 path: ["core","lists","BaseList"],
                 content: function(root, expose) {
                     expose(BaseList, function() {
-                        uid = root.idgenerator;
-                        event_broker = root.tng.event_broker;
+                        uid = root.uid;
+                        event_broker = root.core.event_broker;
                         Matter = root.tng.Matter;
                         AggregatedCell = root.core.cells.AggregatedCell;
                         GroupReducer = root.core.algebra.GroupReducer;
@@ -1430,7 +1529,7 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose(LiftedList, function(){
                         BaseList = root.core.lists.BaseList;
-                        event_broker = root.tng.event_broker;
+                        event_broker = root.core.event_broker;
                         DAG = root.core.dag.DAG;
                     
                         SetLiftedPrototype();
@@ -1558,8 +1657,8 @@ var warp9 = (function(){
                 content: function(root, expose) {
                     expose(List, function(){
                         BaseList = root.core.lists.BaseList;
-                        uid = root.idgenerator;
-                        event_broker = root.tng.event_broker;
+                        uid = root.uid;
+                        event_broker = root.core.event_broker;
                         DAG = root.core.dag.DAG;
                     
                         SetListPrototype();
@@ -1723,150 +1822,7 @@ var warp9 = (function(){
                 }
             },
             {
-                path: ["idgenerator"],
-                content: function(root, expose) {
-                    expose(idgenerator);
-                    
-                    var id = 0;
-                    
-                    function idgenerator() {
-                        return id++;
-                    }
-                }
-            },
-            {
-                path: ["tng","Matter"],
-                content: function(root, expose) {
-                    expose(Matter);
-                    
-                    
-                    function Matter() {
-                        this._atoms = [];
-                        this.instanceof = of;
-                        this.attach = attach;
-                        this.metaType = Matter;
-                    }
-                    
-                    function attach(atom) {
-                        if (this.instanceof(atom)) {
-                            return;
-                        }
-                        this._atoms.push(atom);
-                    }
-                    
-                    function of(atom) {
-                        for (var i=0;i<this._atoms.length;i++) {
-                            if (this._atoms[i]===atom) return true;
-                        }
-                        return false;
-                    }
-                }
-            },
-            {
-                path: ["tng","do"],
-                content: function(root, expose) {
-                    expose(_do, function(){
-                        DependentCell = root.core.cells.DependentCell;
-                    });
-                    
-                    var DependentCell;
-                    
-                    function _do(f, context) {
-                        return new DependentCell(f, context);
-                    }
-                }
-            },
-            {
-                path: ["tng","empty"],
-                content: function(root, expose) {
-                    expose(empty);
-                    
-                    function empty() {
-                        throw new root.core.cells.EmptyError();
-                    }
-                }
-            },
-            {
-                path: ["tng","event_broker"],
-                content: function(root, expose) {
-                    expose(new EventBroker());
-                    
-                    function EventBroker() {
-                        this.changeRequests = [];
-                    
-                        // TODO: replace to set
-                        this.nodesToNotify = [];
-                        this.dependantsToNotify = [];
-                    
-                        this.active = false;
-                        this.isOnProcessCall = false;
-                    }
-                    
-                    EventBroker.prototype.postponeChange = function(node, change) {
-                        this.changeRequests.push({
-                            node: node,
-                            change: change
-                        });
-                        this.loop();
-                    };
-                    
-                    EventBroker.prototype.notify = function(node) {
-                        this.nodesToNotify.push(node);
-                    };
-                    
-                    EventBroker.prototype.notifySingle = function(node, dependant) {
-                        this.dependantsToNotify.push({node: node, dependant: dependant});
-                    };
-                    
-                    EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
-                        if (this.isOnProcessCall) {
-                            return f.apply(obj, args);
-                        } else {
-                            this.isOnProcessCall = true;
-                            var result = f.apply(obj, args);
-                            this.isOnProcessCall = false;
-                            this.loop();
-                            return result;
-                        }
-                    };
-                    
-                    EventBroker.prototype.loop = function() {
-                        if (this.active) return;
-                        this.active = true;
-                    
-                        while(this.changeRequests.length + this.nodesToNotify.length + this.dependantsToNotify.length > 0) {
-                            var hasChanges = false;
-                            while (this.changeRequests.length!=0) {
-                                var request = this.changeRequests.shift();
-                                if (request.node.applyChange(request.change)) {
-                                    hasChanges = true;
-                                    if (request.node.usersCount > 0) {
-                                        root.core.dag.DAG.notifyChanged(request.node);
-                                    }
-                                }
-                            }
-                            if (hasChanges) {
-                                root.core.dag.DAG.propagate();
-                            }
-                            if (this.nodesToNotify.length!=0) {
-                                var node = this.nodesToNotify.shift();
-                                node.sendAllMessages();
-                                continue;
-                            }
-                            if (this.dependantsToNotify.length!=0) {
-                                var info = this.dependantsToNotify.shift();
-                                info.node.sendItsMessages(info.dependant);
-                                continue;
-                            }
-                        }
-                    
-                        this.active = false;
-                    };
-                    
-                }
-            },
-            {
-                path: ["tng","tracker"],
+                path: ["core","tracker"],
                 content: function(root, expose) {
                     expose(new Tracker());
                     
@@ -1910,6 +1866,34 @@ var warp9 = (function(){
                 }
             },
             {
+                path: ["tng","Matter"],
+                content: function(root, expose) {
+                    expose(Matter);
+                    
+                    
+                    function Matter() {
+                        this._atoms = [];
+                        this.instanceof = of;
+                        this.attach = attach;
+                        this.metaType = Matter;
+                    }
+                    
+                    function attach(atom) {
+                        if (this.instanceof(atom)) {
+                            return;
+                        }
+                        this._atoms.push(atom);
+                    }
+                    
+                    function of(atom) {
+                        for (var i=0;i<this._atoms.length;i++) {
+                            if (this._atoms[i]===atom) return true;
+                        }
+                        return false;
+                    }
+                }
+            },
+            {
                 path: ["tng","unwrapObject"],
                 content: function(root, expose) {
                     expose(unwrapObject, function(){
@@ -1930,7 +1914,7 @@ var warp9 = (function(){
                         }
                         if (obj instanceof Skip) return new Cell(obj);
                         if (obj.metaType && obj.instanceof(BaseCell)) {
-                            return root.tng.do(function(){
+                            return root.do(function(){
                                 return unwrapObject(obj.unwrap()).unwrap();
                             });
                         }
@@ -2494,7 +2478,7 @@ var warp9 = (function(){
                         TextNode = root.ui.ast.TextNode;
                         jq = root.ui.jq;
                         hacks = root.ui.hacks;
-                        idgenerator = root.idgenerator;
+                        idgenerator = root.uid;
                     
                         addTag("div", root.ui.tags.TagParserFactory("div"));
                         addTag("a", root.ui.tags.TagParserFactory("a"));

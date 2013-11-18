@@ -4,8 +4,8 @@ expose(AggregatedCell, function(){
     BaseCell = root.core.cells.BaseCell;
     List = root.core.lists.List;
     DAG = root.core.dag.DAG;
-    event_broker = root.tng.event_broker;
-    tracker = root.tng.tracker;
+    event_broker = root.core.event_broker;
+    tracker = root.core.tracker;
     Matter = root.tng.Matter;
 
     SetPrototype();
