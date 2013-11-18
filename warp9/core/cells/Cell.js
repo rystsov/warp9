@@ -6,7 +6,7 @@ expose(Cell, function(){
     Some = root.core.adt.maybe.Some;
     event_broker = root.tng.event_broker;
     tracker = root.tng.tracker;
-    EmptyError = root.tng.reactive.EmptyError;
+    EmptyError = root.core.cells.EmptyError;
     DAG = root.core.dag.DAG;
 
     SetCellPrototype();

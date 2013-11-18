@@ -38,7 +38,7 @@ function None() {
     };
     this.unwrap = function(alt) {
         if (arguments.length==0) {
-            throw new root.tng.reactive.EmptyError();
+            throw new root.core.cells.EmptyError();
         }
         return alt;
     };

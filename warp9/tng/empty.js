@@ -1,5 +1,5 @@
 expose(empty);
 
 function empty() {
-    throw new root.tng.reactive.EmptyError();
+    throw new root.core.cells.EmptyError();
 }

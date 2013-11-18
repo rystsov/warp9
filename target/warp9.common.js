@@ -152,7 +152,7 @@ var warp9 = (function(){
                         };
                         this.unwrap = function(alt) {
                             if (arguments.length==0) {
-                                throw new root.tng.reactive.EmptyError();
+                                throw new root.core.cells.EmptyError();
                             }
                             return alt;
                         };
@@ -663,7 +663,7 @@ var warp9 = (function(){
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
-                        EmptyError = root.tng.reactive.EmptyError;
+                        EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
                         uid = root.idgenerator;
                         empty = root.tng.empty;
@@ -809,7 +809,7 @@ var warp9 = (function(){
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
-                        EmptyError = root.tng.reactive.EmptyError;
+                        EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
                     
                         SetCellPrototype();
@@ -919,7 +919,7 @@ var warp9 = (function(){
                         Some = root.core.adt.maybe.Some;
                         event_broker = root.tng.event_broker;
                         tracker = root.tng.tracker;
-                        EmptyError = root.tng.reactive.EmptyError;
+                        EmptyError = root.core.cells.EmptyError;
                         DAG = root.core.dag.DAG;
                         BaseCell = root.core.cells.BaseCell;
                     
@@ -1089,6 +1089,16 @@ var warp9 = (function(){
                             return this.isEmpty() ? alt : this.value();
                         }
                     }
+                }
+            },
+            {
+                path: ["core","cells","EmptyError"],
+                content: function(root, expose) {
+                    expose(EmptyError);
+                    
+                    function EmptyError() {
+                    }
+                    
                 }
             },
             {
@@ -1772,7 +1782,7 @@ var warp9 = (function(){
                     expose(empty);
                     
                     function empty() {
-                        throw new root.tng.reactive.EmptyError();
+                        throw new root.core.cells.EmptyError();
                     }
                 }
             },
@@ -1852,16 +1862,6 @@ var warp9 = (function(){
                     
                         this.active = false;
                     };
-                    
-                }
-            },
-            {
-                path: ["tng","reactive","EmptyError"],
-                content: function(root, expose) {
-                    expose(EmptyError);
-                    
-                    function EmptyError() {
-                    }
                     
                 }
             },
