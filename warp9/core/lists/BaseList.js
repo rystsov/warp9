@@ -5,7 +5,7 @@ expose(BaseList, function() {
     AggregatedCell = root.core.cells.AggregatedCell;
     GroupReducer = root.core.algebra.GroupReducer;
     MonoidReducer = root.core.algebra.MonoidReducer;
-    LiftedList = root.tng.reactive.lists.LiftedList;
+    LiftedList = root.core.lists.LiftedList;
     BaseCell = root.core.cells.BaseCell;
     checkBool = root.utils.checkBool;
 });

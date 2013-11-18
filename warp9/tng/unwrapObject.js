@@ -1,8 +1,8 @@
 expose(unwrapObject, function(){
     Cell = root.core.cells.Cell;
     BaseCell = root.core.cells.BaseCell;
-    BaseList = root.tng.reactive.lists.BaseList;
-    List = root.tng.reactive.lists.List;
+    BaseList = root.core.lists.BaseList;
+    List = root.core.lists.List;
 });
 
 var Cell, BaseCell, List, BaseList;

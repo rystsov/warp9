@@ -1,5 +1,5 @@
 expose(LiftedList, function(){
-    BaseList = root.tng.reactive.lists.BaseList;
+    BaseList = root.core.lists.BaseList;
     event_broker = root.tng.event_broker;
     DAG = root.core.dag.DAG;
 

@@ -1,5 +1,5 @@
 expose(List, function(){
-    BaseList = root.tng.reactive.lists.BaseList;
+    BaseList = root.core.lists.BaseList;
     uid = root.idgenerator;
     event_broker = root.tng.event_broker;
     DAG = root.core.dag.DAG;

@@ -1,6 +1,6 @@
 var warp9 = require('../target/warp9.common');
 
-var List = warp9.tng.reactive.lists.List;
+var List = warp9.core.lists.List;
 var Cell = warp9.core.cells.Cell;
 
 var unwrapObject = warp9.tng.unwrapObject;
