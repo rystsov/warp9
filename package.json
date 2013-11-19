@@ -1,0 +1,11 @@
+{
+    "name": "warp9",
+    "version": "0.0.1",
+    "devDependencies": {
+        "yamd": "https://github.com/rystsov/yamd/raw/master/target/yamd.tar.gz",
+
+        "grunt": "*",
+        "grunt-contrib-nodeunit": "*",
+        "nodeunit": "*"
+    }
+}
