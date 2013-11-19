@@ -1,9 +1,10 @@
 expose(InputCheckParser, function(){
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
+    Matter = root.core.Matter;
+    Cell = root.core.cells.Cell;
+    BaseCell = root.core.cells.BaseCell;
 });
 
-var Cell;
+var Matter, Cell, BaseCell;
 
 function InputCheckParser(type) {
     if (!type) {
@@ -27,7 +28,7 @@ function InputCheckParser(type) {
             state = new Cell();
         } else {
             if (args.children.length != 1) throw new Error();
-            if (!Cell.instanceof(args.children[0])) throw new Error();
+            if (!(args.children[0].metaType==Matter && args.children[0].instanceof(BaseCell))) throw new Error();
             state = args.children[0];
         }
 

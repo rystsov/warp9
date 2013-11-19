@@ -4,16 +4,16 @@ expose({
     render: render,
     addTag: addTag
 }, function() {
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
-    //List = root.reactive.List;
+    BaseCell = root.core.cells.BaseCell;
+    List = root.core.lists.List;
+    BaseList = root.core.lists.BaseList;
     Element = root.ui.ast.Element;
     Component = root.ui.ast.Component;
     Fragment = root.ui.ast.Fragment;
     TextNode = root.ui.ast.TextNode;
     jq = root.ui.jq;
     hacks = root.ui.hacks;
-    idgenerator = root.uid;
+    Matter = root.core.Matter;
 
     addTag("div", root.ui.tags.TagParserFactory("div"));
     addTag("a", root.ui.tags.TagParserFactory("a"));
@@ -32,7 +32,7 @@ expose({
     addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));
 });
 
-var Cell, List, Element, Component, Fragment, TextNode, jq, hacks, idgenerator;
+var Matter, BaseCell, List, BaseList, Element, Component, Fragment, TextNode, jq, hacks;
 
 var tags = {};
 
@@ -56,10 +56,10 @@ function parse(element) {
         return tags[tag](element.slice(1));
     }
     if (typeof element==="object") {
-        if (element.type==Cell) {
+        if (element.metaType==Matter && element.instanceof(BaseCell)) {
             return element.lift(parse);
         }
-        if (element.type==List) {
+        if (element.metaType==Matter && element.instanceof(BaseList)) {
             return element.lift(parse);
         }
         if (element.type==root.ui.Component) {
@@ -91,7 +91,7 @@ function bindDomTo(place, dom) {
         return bindElementTo(place, dom);
     } else if (dom instanceof Component) {
         return bindComponentTo(place, dom);
-    } else if (typeof dom==="object" && dom.type == Cell) {
+    } else if (dom.metaType==Matter && dom.instanceof(BaseCell)) {
         return bindCellTo(place, dom);
     }
     throw new Error();
@@ -118,7 +118,7 @@ function bindElementTo(place, element) {
             jq.remove(html);
             element.dispose();
         });
-    } else if (typeof element.children==="object" && element.children.type == List) {
+    } else if (element.children.metaType==Matter && element.children.instanceof(BaseList)) {
         var keyDispose = {};
         var stopChildren = function() {
             for (var key in keyDispose) {
@@ -127,8 +127,8 @@ function bindElementTo(place, element) {
             }
             keyDispose = {};
         };
-        var unsubscribe = element.children.onEvent(List.handler({
-            data: function(items) {
+        var dispose = element.children.onEvent(List.handler({
+            reset: function(items) {
                 stopChildren();
                 items.forEach(this.add);
             },
@@ -141,17 +141,14 @@ function bindElementTo(place, element) {
                 delete keyDispose[key];
             }
         }));
-        var id = idgenerator();
-        element.children.leak(id);
         element.onDraw.forEach(function(handler) {
             handler(element, html);
         });
         return hacks.once(function() {
-            unsubscribe();
+            dispose();
             stopChildren();
             jq.remove(html);
             element.dispose();
-            element.children.seal(id);
         });
     }
     throw new Error();
@@ -165,23 +162,20 @@ function bindCellTo(place, cell) {
     place(mark);
 
     var clean = function() {};
-    var unsubscribe = cell.onEvent(Cell.handler({
-        set: function(value) {
+    var dispose = cell.onChange(function(cell){
+        if (cell.hasValue()) {
             clean();
-            clean = bindDomTo(placeAfterMark, value);
-        },
-        unset: function() {
+            clean = bindDomTo(placeAfterMark, cell.get());
+        } else {
             clean();
             clean = function() {};
         }
-    }));
-    var id = idgenerator();
-    cell.leak(id);
+    });
+
     // TODO: why hacks.once, is it needed?
     return hacks.once(function() {
-        unsubscribe();
+        dispose();
         clean();
-        cell.seal(id);
     });
 }
 

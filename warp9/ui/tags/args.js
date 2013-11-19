@@ -3,13 +3,13 @@ expose({
     tryIntercept: tryIntercept,
     H: H
 }, function(){
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
-    //List = root.reactive.List;
+    Matter = root.core.Matter;
+    BaseCell = root.core.cells.BaseCell;
+    BaseList = root.core.lists.BaseList;
     register = root.ui.attributes.register;
 });
 
-var Cell, List, register;
+var Matter, BaseCell, BaseList, register;
 
 function H(element) {
     this.element = element
@@ -32,8 +32,8 @@ function parse(args) {
     while(true) {
         if (typeof args[0]==="string") break;
         if (args[0] instanceof Array) break;
-        if (args[0] instanceof Object && args[0].type==Cell) break;
-        if (args[0] instanceof Object && args[0].type==List) break;
+        if (args[0].metaType==Matter && args[0].instanceof(BaseCell)) break;
+        if (args[0].metaType==Matter && args[0].instanceof(BaseList)) break;
         if (args[0] instanceof H) break;
         children = [];
         attr = args[0];

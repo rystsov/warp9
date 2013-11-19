@@ -6,13 +6,11 @@
         <div id="canvas"></div>
     </body>
     <script type="text/javascript">
-        var Cell = warp9.reactive.Cell;
+        var Cell = warp9.Cell;
 
         function NAME(firstName, lastName) {
-            var fullName = firstName.bind(function(first){
-                return lastName.bind(function(last){
-                    return new Cell(first + " " + last);
-                });
+            var fullName = warp9.do(function(){
+                return firstName.get() + " " + lastName.get();
             });
             return ["div",
                 ["div",
@@ -23,7 +21,6 @@
             ];
         }
 
-        var renderer = warp9.ui.renderer;
-        renderer.render(canvas, NAME(new Cell("Denis"), new Cell("Rystsov")));
+        warp9.render(canvas, NAME(new Cell("Denis"), new Cell("Rystsov")));
     </script>
 </html>

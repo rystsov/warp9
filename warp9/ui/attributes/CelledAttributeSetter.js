@@ -1,10 +1,10 @@
 expose(CelledAttributeSetter, function(){
     AttributeSetter = root.ui.attributes.AttributeSetter;
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
+    Matter = root.core.Matter;
+    BaseCell = root.core.cells.BaseCell;
 });
 
-var AttributeSetter, Cell;
+var AttributeSetter, Matter, BaseCell;
 
 function CelledAttributeSetter(template) {
     AttributeSetter.apply(this, []);
@@ -12,20 +12,17 @@ function CelledAttributeSetter(template) {
 }
 
 CelledAttributeSetter.prototype.apply = function(attribute, element, view, value) {
-    if (Cell.instanceof(value)) {
+    if (value.metaType === Matter && value.instanceof(BaseCell)) {
         var self = this;
-        value.leak(element.elementId);
-        var dispose = value.onEvent(Cell.handler({
-            set: function(value) {
-                self._template.set(view, value);
-            },
-            unset: function() {
+        var dispose = value.onChange(function(value) {
+            if (value.hasValue()) {
+                self._template.set(view, value.get());
+            } else {
                 self._template.unset(view);
             }
-        }));
+        });
         return function() {
             dispose();
-            value.seal(element.elementId);
         };
     } else {
         this._template.set(view, value);

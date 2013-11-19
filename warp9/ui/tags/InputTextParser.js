@@ -1,9 +1,9 @@
 expose(InputTextParser, function() {
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
+    Matter = root.core.Matter;
+    Cell = root.core.cells.Cell;
 });
 
-var Cell;
+var Matter, Cell;
 
 function InputTextParser(args) {
     args = root.ui.tags.args.parse(args);
@@ -12,7 +12,7 @@ function InputTextParser(args) {
     if (args.children.length != 1) {
         throw new Error();
     }
-    if (!Cell.instanceof(args.children[0])) {
+    if (!(args.children[0].metaType==Matter && args.children[0].instanceof(Cell))) {
         throw new Error();
     }
 

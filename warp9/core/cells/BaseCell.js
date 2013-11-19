@@ -34,7 +34,7 @@ BaseCell.prototype.sendItsMessages = function(dependant) {
     if (dependant.mailbox.length==0) return;
     var event = dependant.mailbox[dependant.mailbox.length - 1];
     dependant.mailbox = [];
-    dependant.f(this, event);
+    dependant.f(this, event, dependant.dispose);
 };
 
 BaseCell.prototype.onChange = function(f) {
@@ -48,12 +48,20 @@ BaseCell.prototype.onChange = function(f) {
 
     var dependant = {
         key: uid(),
-        f: function(obj) {
+        f: function(obj, event, dispose) {
             if (this.disposed) return;
-            f(obj);
+            f(obj, event, dispose);
         },
         disposed: false,
-        mailbox: [ this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]]
+        mailbox: [ this.content.isEmpty() ? ["unset"] : ["set", this.content.value()]],
+        dispose: function() {
+            if (dependant.disposed) return;
+            self._seal(self.nodeId);
+            dependant.disposed = true;
+            self.dependants = self.dependants.filter(function(d) {
+                return d.key != dependant.key;
+            });
+        }
     };
 
     this.dependants.push(dependant);
@@ -62,14 +70,7 @@ BaseCell.prototype.onChange = function(f) {
         event_broker.notifySingle(this, dependant);
     }
 
-    return function() {
-        if (dependant.disposed) return;
-        self._seal(self.nodeId);
-        dependant.disposed = true;
-        self.dependants = self.dependants.filter(function(d) {
-            return d.key != dependant.key;
-        });
-    };
+    return dependant.dispose;
 };
 
 BaseCell.prototype._leak = function(id) {
@@ -137,4 +138,12 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
             return alt != null ? alt(value) : empty();
         }
     }, this);
+};
+
+BaseCell.prototype.on = function(value, callback) {
+    return this.onChange(function(cell){
+        if (cell.hasValue() && cell.get()===value) {
+            callback(cell);
+        }
+    });
 };

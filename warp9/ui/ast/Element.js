@@ -1,11 +1,11 @@
 expose(Element, function(){
     jq = root.ui.jq;
-    //TODO: TOTNG
-    //Cell = root.reactive.Cell;
+    Matter = root.core.Matter;
     register = root.ui.attributes.register;
+    BaseCell = root.core.cells.BaseCell;
 });
 
-var jq, Cell, register;
+var jq, register, Matter, BaseCell;
 
 var id = 0;
 
@@ -52,16 +52,13 @@ function Element(tag) {
             // TODO: unnecessary condition?!
             if (name.indexOf("warp9:")==0) continue;
             (function(name, value){
-                if (typeof value==="object" && value.type == Cell) {
+                if (value.metaType==Matter && value.instanceof(BaseCell)) {
                     this.cells[value.cellId] = value;
-                    var unsubscribe = value.onEvent(Cell.handler({
-                        set: function(e) { jq.css(view, name, e); },
-                        unset: function() { jq.css(view, name, null); }
-                    }));
-                    value.leak(this.elementId);
+                    var dispose = value.onChange(function(value){
+                        jq.css(view, name, value.hasValue() ? value.get() : null);
+                    });
                     this.disposes.push(function(){
-                        unsubscribe();
-                        value.seal(this.elementId);
+                        dispose();
                     }.bind(this));
                 } else {
                     jq.css(view, name, value);

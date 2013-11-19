@@ -1,9 +1,9 @@
 expose(TagParserFactory, function(){
-    //TODO: TOTNG
-    //List = root.reactive.List;
+    Matter = root.core.Matter;
+    BaseList = root.core.lists.BaseList;
 });
 
-var List;
+var Matter, BaseList;
 
 function TagParserFactory(tagName) {
     return function(args) {
@@ -18,13 +18,15 @@ function TagParserFactory(tagName) {
 
         if (args.children.length==1) {
             element.children = [root.ui.renderer.parse(args.children[0])];
-            if (List.instanceof(element.children[0])) {
+            if (element.children[0].metaType==Matter && element.children[0].instanceof(BaseList)) {
                 element.children = element.children[0]
             }
         } else {
             element.children = args.children.map(function(child) {
                 child = root.ui.renderer.parse(child);
-                if (List.instanceof(child)) throw new Error();
+                if (child.metaType==Matter && child.instanceof(BaseList)) {
+                    throw new Error();
+                }
                 return child;
             });
         }

@@ -15,7 +15,9 @@ expose(null, function() {
 
     root.Cell = root.core.cells.Cell;
 
-    root.List = root.core.cells.List;
+    root.List = root.core.lists.List;
+
+    root.render = root.ui.renderer.render;
 });
 
 var id = 0;
