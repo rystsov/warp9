@@ -6,16 +6,15 @@
         <div id="canvas"></div>
     </body>
     <script type="text/javascript">
-        var Cell = warp9.reactive.Cell;
         var Component = warp9.ui.Component;
 
         function COMPONENT() {
-            var trigger = new Cell(false);
+            var trigger = new warp9.Cell(false);
             return ["div",
                 ["div",
                     ["button", {
                         "!click": function() {
-                            trigger.set(!trigger.unwrap());
+                            trigger.set(!trigger.get());
                         }
                     }, "Click me!"]],
                 trigger.when(true, new Component(function(){
@@ -28,7 +27,6 @@
             ];
         }
 
-        var renderer = warp9.ui.renderer;
-        renderer.render(canvas, COMPONENT());
+        warp9.render(canvas, COMPONENT());
     </script>
 </html>
