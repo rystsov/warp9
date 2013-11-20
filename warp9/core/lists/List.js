@@ -149,6 +149,23 @@ function SetListPrototype() {
             f(this.data[i].value);
         }
     };
+
+    List.prototype.removeWhich = function(f) {
+        if (!event_broker.active) {
+            event_broker.call(this, this.removeWhich, [f]);
+            return;
+        }
+
+        var toRemove = [];
+        for (var i=0;i<this.data.length;i++) {
+            if (f(this.data[i].value)) {
+                toRemove.push(this.data[i].key);
+            }
+        }
+        for (var i=0;i<toRemove.length;i++) {
+            this.remove(toRemove[i]);
+        }
+    }
 }
 
 List.handler = function(handlers) {

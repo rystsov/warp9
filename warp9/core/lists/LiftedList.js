@@ -32,6 +32,7 @@ function SetLiftedPrototype() {
             hasChanges: true,
             changeSet: []
         };
+
         for (var i=0;i<changesIn.length;i++) {
             var change = changesIn[i];
             if (change[0]=="reset") {
@@ -54,7 +55,7 @@ function SetLiftedPrototype() {
                 this._putEventToDependants(["add", added]);
             } else if (change[0]=="remove") {
                 var nova = [];
-                for (var k=0;j<this.data.length;k++) {
+                for (var k=0;k<this.data.length;k++) {
                     if (this.data[k].key===change[1]) continue;
                     nova.push(this.data[k]);
                 }

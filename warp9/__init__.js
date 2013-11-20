@@ -20,7 +20,7 @@ expose(null, function() {
     root.render = root.ui.renderer.render;
 
     root.tx = function(f) {
-        root.core.event_broker.call(f);
+        root.core.event_broker.call(null, f, []);
     };
 });
 

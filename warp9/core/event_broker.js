@@ -23,12 +23,12 @@ EventBroker.prototype.notify = function(node) {
     this.nodesToNotify.push(node);
 };
 
-EventBroker.prototype.call = function(f) {
+EventBroker.prototype.call = function(context, f, args) {
     if (this.active) {
-        f();
+        f.apply(context, args);
     } else {
         this.active = true;
-        f();
+        f.apply(context, args);
         this.active = false;
         this.loop();
     }
@@ -38,6 +38,7 @@ EventBroker.prototype.notifySingle = function(node, dependant) {
     this.dependantsToNotify.push({node: node, dependant: dependant});
 };
 
+// TODO: merge with call
 EventBroker.prototype.invokeOnProcess = function(obj, f, args) {
     if (this.isOnProcessCall) {
         return f.apply(obj, args);

@@ -31,9 +31,10 @@ BaseList.prototype.sendAllMessages = function() {
 BaseList.prototype.sendItsMessages = function(dependant) {
     if (dependant.disabled) return;
     if (dependant.mailbox.length==0) return;
-    var event = dependant.mailbox[dependant.mailbox.length - 1];
+    for (var i=0;i<dependant.mailbox.length;i++) {
+        dependant.f(this, dependant.mailbox[i]);
+    }
     dependant.mailbox = [];
-    dependant.f(this, event);
 };
 
 BaseList.prototype.onEvent = function(f) {

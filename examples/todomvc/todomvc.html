@@ -49,8 +49,8 @@
                 ["input-text", {
                     id:"new-todo", placeholder:"What needs to be done?", autofocus: true,
                     "!key:enter": function() {
-                        if (newTaskName.unwrap()==="") return;
-                        todos.addTodo({mark: false, name: newTaskName.unwrap()});
+                        if (newTaskName.get()==="") return;
+                        todos.addTodo({mark: false, name: newTaskName.get()});
                         newTaskName.set("");
                     }
                 }, newTaskName]],
@@ -84,7 +84,7 @@
                     completed.when(function(x) { return x > 0; }, ["button", {
                         id: "clear-completed",
                         "!click": function(){
-                            todos.removeWhich(function(item){ return item.mark.unwrap(); });
+                            todos.removeWhich(function(item){ return item.mark.get(); });
                         }
                     }, "Clear completed (", completed, ")"])
                 ]

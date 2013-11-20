@@ -94,6 +94,22 @@ exports.addRemove = function(test) {
     test.done();
 };
 
+exports.removes = function(test) {
+    var list = new List([1,2,3,4]);
+    var add1 = list.lift(function(x){ return x + 1; });
+
+    var store = new ListStore(add1);
+
+    test.deepEqual(store.data(), [2,3,4,5]);
+    list.removeWhich(function(x){
+        return x<3;
+    });
+    test.deepEqual(store.data(), [4,5]);
+
+    store.dispose();
+    test.done();
+};
+
 exports.doubleLift = function(test) {
     test.expect(5);
     test.equal(DAG.length, 0);
