@@ -18,6 +18,10 @@ expose(null, function() {
     root.List = root.core.lists.List;
 
     root.render = root.ui.renderer.render;
+
+    root.tx = function(f) {
+        root.core.event_broker.call(f);
+    };
 });
 
 var id = 0;

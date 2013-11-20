@@ -23,6 +23,17 @@ EventBroker.prototype.notify = function(node) {
     this.nodesToNotify.push(node);
 };
 
+EventBroker.prototype.call = function(f) {
+    if (this.active) {
+        f();
+    } else {
+        this.active = true;
+        f();
+        this.active = false;
+        this.loop();
+    }
+};
+
 EventBroker.prototype.notifySingle = function(node, dependant) {
     this.dependantsToNotify.push({node: node, dependant: dependant});
 };
