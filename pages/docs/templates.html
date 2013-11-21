@@ -10,6 +10,9 @@
 
     <link href="../../lib/highlight.js/styles/default.css" rel="stylesheet" >
     <script src="../../lib/highlight.js/highlight.pack.js"></script>
+    <script src="../../lib/highlight.hack.js"></script>
+
+    <script src="../../lib/warp9/warp9.js"></script>
 
     <!-- Bootstrap core CSS -->
     <link href="../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
@@ -17,6 +20,7 @@
     <!-- Custom styles for this template -->
     <link href="../../css/common.css" rel="stylesheet">
     <link href="../../css/docs.css" rel="stylesheet">
+    <link href="../../css/templates.css" rel="stylesheet">
 </head>
 
 <body>
@@ -69,8 +73,174 @@
             </ul>
         </div>
         <div class="col-md-9">
+            <h3>Templates</h3>
+
             <p>
-                TODO
+                Template language in Warp9 is an internal DSL. This means that your markup
+                should be placed into javascript code. Such decision was made to allow
+                composability and modularization.
+            </p>
+
+            <p>
+                To study Warp9's templates we analyse a simple application - reactive hello world. This app has
+                an input box and when a user enter her name she immediately see a reaction (a greeting), also this
+                app has a button to clear the name. By the way, here it is:
+            </p>
+
+            <div>
+                <div id="nameApp" class="app"></div>
+                <script language="javascript">
+                    var Cell = warp9.reactive.Cell;
+
+                    warp9.ui.renderer.render(nameApp, NAME(new Cell("Denis")));
+
+                    function NAME(name) {
+                        var hello = name.when(
+                                function(name) { return name.length > 0; },
+                                function(name) { return "Hello, " + name + "!"; }
+                        );
+                        return ["div",
+                            ["div",
+                                ["input-text", {
+                                    "css/background": hello.isSet().when(false, "red")
+                                }, name],
+                                ["button", {"!click": function() {
+                                    name.unset();
+                                }}, "clear"]],
+                            hello.lift(function(hello) {
+                                return ["div", hello];
+                            })
+                        ];
+                    }
+                </script>
+            </div>
+
+            <p>
+                It's source:
+            </p>
+
+            <pre><code class="javascript">var Cell = warp9.reactive.Cell;
+
+warp9.ui.renderer.render(nameApp, NAME(new Cell("Denis")));
+
+function NAME(name) {
+    var hello = name.when(
+        function(name) { return name.length > 0; },
+        function(name) { return "Hello, " + name + "!"; }
+    );
+    return ["div",
+        ["div",
+            ["input-text", {
+                "css/background": hello.isSet().when(false, "red")
+            }, name],
+            ["button", {"!click": function() {
+                name.unset();
+            }}, "clear"]],
+        hello.lift(function(hello) {
+            return ["div", hello];
+        })
+    ];
+}</code></pre>
+
+            <p>
+                You can see that function NAME maps model (reactive variable) to markup which then is rendered to
+                to div with id 'nameApp'. If you are familiar with lisp you may recognise a structure similar to
+                s-expression, but with square brackets instead of parentheses I prefer to call them z-expression
+                ('z' relates to 's' as '[' to '(').
+            </p>
+
+            <p>
+                Z-expression has approximately the following grammar:
+            </p>
+
+            <pre>explicitChildren = '["' TAG_NAME '"' (',' ATTR)? (',' child)* ']'
+implicitChildren = '["' TAG_NAME '"' (',' ATTR)? (reactive-list-of node) "]
+child            = node | STRING | INT |
+                   (reactive-variable-of node) |
+                   (reactive-variable-of STRING) |
+                   (reactive-variable-of INT)
+node             = explicitChildren | implicitChildren</pre>
+
+            <p>
+                where TAG_NAME is a name of html or custom tag,
+                STRING - string literal, INT - integer literal, ATTR - object which describes tag's css, other attributes
+                and events.
+            </p>
+
+            <p>
+                If ATTR property's key starts with "css/" its value is processed as a value for css property which
+                name matches the tail of the key. When property's key is prefixed with "!" its body must be a function
+                and it is treated as handler for event named as the tail of the key, otherwise it is an attribute.
+                Values for attributes and css are allowed to be an reactive variable. Actually an css property may
+                be specified in two ways, one you've seen in the name app example:
+            </p>
+
+            <pre><code>["input-text", {
+    "css/background": name.isSet().when(false, "red")
+}, name]</code></pre>
+
+            <p>
+                and another way is to group all css properties to one object:
+            </p>
+
+            <pre><code>["input-text", {
+    "css": {
+        "background": name.isSet().when(false, "red")
+    }
+}, name]</code></pre>
+
+            <p>
+                Of cause you Warp9 supports
+                <a href="custom_attributes.html">custom attributes</a>
+                , so you can add some aspect to some elements via defining
+                an new attribute.
+            </p>
+
+            <p>
+                Now you have should have all information to understand the previous example. Lets make a bit harder
+                to study composability. Suppose we have an reactive list of reactive variables and we want to
+                start a copy of the previous example for each of variable. Here is an app:
+            </p>
+
+            <div>
+                <div id="namesApp" class="app"></div>
+                <script language="javascript">
+                    var List = warp9.reactive.List;
+
+                    var names = new List();
+                    warp9.ui.renderer.render(namesApp, NAMES(names));
+                    names.add(new Cell("Denis"));
+                    names.add(new Cell("Lisa"));
+
+                    function NAMES(names){
+                        return ["div", names.lift(NAME)];
+                    }
+                </script>
+            </div>
+
+
+            <pre><code>function NAMES(names){
+    return ["div", names.lift(NAME)];
+}</code></pre>
+
+            <p>и заменяем <code>warp9.ui.renderer.render(placeholder, NAME(new Cell("Denis")));</code> на</p>
+
+            <pre><code>var names = new List();
+warp9.ui.renderer.render(placeholder, NAMES(names));
+names.add(new Cell("Denis"));
+names.add(new Cell("Lisa"));</code></pre>
+
+            <p>
+                Мы увидили, как работают принципы композиции, но, помимо этого, warp9 предоставляет отличную поддержку
+                модульности. Однако, при создании warp9 не было написано ни строчки кода, чтобы осознано
+                этого добиться, по сути, модульность warp9 была открыта уже после того, как библиотека была написана.
+                Дело в том, что представление в warp9 описывается кодом, из этого следует автоматическая поддержка
+                модульности доступная для js файлов; получается, мы без проблем можем использовать, например, AMD для
+                дистрибьюции отдельных контролов. В качестве иллюстрации я переписал предыдущий пример со списком имен
+                с использованием AMD: само
+                <a href="http://rystsov.github.io/warp9/articles/habr/examples/modularized.html">приложение</a>
+                и его
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/examples/modularized.html">исходники</a>.
             </p>
         </div>
     </div>

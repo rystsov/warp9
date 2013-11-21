@@ -8,8 +8,11 @@
 
     <title>Wapr9 / Accidental memory leaks / Knockout</title>
 
-    <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
+    <script src="../../../lib/highlight.js/highlight.pack.js"></script>
+    <script src="../../../lib/highlight.hack.js"></script>
+
+    <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="../../../css/common.css" rel="stylesheet">
     <link href="leak.css" rel="stylesheet">
 </head>
@@ -141,8 +144,6 @@ function ViewModel() {
 <script src="../../../lib/jquery/jquery-2.0.3.min.js"></script>
 <script src="../../../lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="../../../lib/knockout/knockout-3.0.0rc.js"></script>
-<script src="../../../lib/highlight.js/highlight.pack.js"></script>
-<script src="leak.js"></script>
 
 <script language="JavaScript">
     hljs.initHighlightingOnLoad();
@@ -164,17 +165,17 @@ function ViewModel() {
                 return this.driver() + offset;
             }, this);
             this.items.push({value: nova});
-            this.handlers(this.driver.F.change.length);
+            this.handlers(this.driver.getSubscriptionsCount());
         };
 
         this.inc = function() {
             this.driver(this.driver()+1);
-            this.handlers(this.driver.F.change.length);
+            this.handlers(this.driver.getSubscriptionsCount());
         };
 
         this.clear = function() {
             this.items.removeAll();
-            this.handlers(this.driver.F.change.length);
+            this.handlers(this.driver.getSubscriptionsCount());
         };
     }
 </script>

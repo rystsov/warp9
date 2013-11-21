@@ -2,7 +2,7 @@
     margin-top: 50px;
 }
 
-p {
+p, blockquote {
     font-size: 17px;
     font-weight: 200;
 }

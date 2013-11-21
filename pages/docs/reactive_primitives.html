@@ -69,9 +69,149 @@
             </ul>
         </div>
         <div class="col-md-9">
+            <h3>Reactive primitives</h3>
+            <iframe src="http://www.slideshare.net/slideshow/embed_code/27451134?rel=0" width="597" height="486" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC;border-width:1px 1px 0;margin-bottom:5px" allowfullscreen> </iframe>
+
             <p>
-                TODO
+                Presentation's
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/primitives/examples.js">examples</a>
+                and
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/primitives/primitives.tex">xelatex source</a>
+                are provided.
             </p>
+
+            <h4>Reactivity and leaks</h4>
+
+            <p>
+                Reactive model (aka observer pattern, publish-subscribe pattern, etc.) is great, it solves a lot of problems,
+                for example it allows to build composable applications, but you should use it carefully, because  it has its
+                own pitfalls. One of them is memory leaks. If we look through a wiki article about
+                <a href="http://en.wikipedia.org/wiki/Memory_leak">memory leaks</a>, we'll see:
+            </p>
+            <blockquote>
+                To prevent this (<i>memory leaks</i>), the developer is responsible for cleaning up references
+                after use ... and, if necessary, by deregistering any event listeners that maintain strong references to
+                the object
+            </blockquote>
+            <p>
+                This problem is actual for most observer pattern implementations. Martin Fowler
+                <a href="http://martinfowler.com/eaaDev/OrganizingPresentations.html#observer-gotchas">mentions</a>
+                and a lot of
+                <a href="http://www.codeproject.com/Articles/16182/Observable-property-pattern-memory-leaks-and-weak">articles</a>
+                are dedicated to it.
+            </p>
+
+            <p>
+                I believe when there are a lot problems of particular kind with code which uses a library
+                this is the library's problem (even there is a workaround in the docs). So if you are
+                designing a library you should think how to prevent errors or make them visible at least.
+                I followed this principle when designed Warp9 and since the common pitfall for reactive application
+                is memory leak I choose that a code that <b>may</b> leak <b>must</b> looks suspicious or doesn't
+                work.
+            </p>
+
+            <p>
+                I'll describe you following this principle affect the design of Warp9. Look at that code:
+            </p>
+
+            <pre><code>var cell = new Cell(0);
+var lifted = cell.lift(function(x) { return x+1; });</code></pre>
+
+            <p>
+                If you don't know about the reactive pitfall, it is natural to except that cell doesn't hold link to
+                lifted and with Warp9 it is actually so. Here you should be surprised how reactivity works. Lets
+                take a look on a bit complexer example.
+            </p>
+
+        <pre><code>var cell = new Cell();
+var lifted = cell.lift(function(x) { return x+1; });
+var dispose = lifted.onEvent(Cell.handler({
+    set: function(value) { console.info(“set: ” + value); },
+    unset: function() { console.info(“unset”); }
+}));
+cell.set(3);
+cell.set(5);
+cell.unset();
+dispose();
+cell.set(1);</code></pre>
+
+            <p>
+                It would be natural to except the following output:
+            </p>
+<pre><code>> unset
+> set: 4
+> set: 6
+> unset</code></pre>
+
+            <p>
+                But wait such "natural" behaviour would provoke cell to store link to lifted, which would be
+                potential memory leak we can't afford. So I've made a decision it is better to have code
+                that looks fine, but doesn't work, that code which works but has a potential leak, since
+                <i>it is incredible harder to find a memory leak compared to finding an unworking code</i>.
+            </p>
+
+            <p>
+                To make the previous example work we should make it looks suspicious:
+            </p>
+
+        <pre><code>var cell = new Cell();
+var lifted = cell.lift(function(x) { return x+1; });
+var dispose = lifted.onEvent(Cell.handler({
+    set: function(value) { console.info(“set: ” + value); },
+    unset: function() { console.info(“unset”); }
+}));
+lifted.leak();
+cell.set(3);
+cell.set(5);
+cell.unset();
+dispose();
+lifted.seal();
+cell.set(1);</code></pre>
+
+            <p>
+                We added <code>lifted.leak()</code> and <code>lifted.seal()</code>, code becomes suspicious
+                and now it produces the excepted output. It doesn't magic, with <code>leak</code> we just
+                activate the lifted variable. When a variable is activated it subscribes to its dependencies
+                and activate them (it is transitive). After we finish work with an reactive variable we should
+                leave it in a state we got it, so we invoke <code>seal</code> to revert the effect of <code>leak</code>
+                calling.
+            </p>
+
+            <p>
+                You can call <code>leak</code> several times before calling <code>seal</code>, the second and following
+                calls don't propagate to variable's dependencies but increase inner counter. Each call to <code>seal</code>
+                decreases the counter and when it reaches zero the variable will be deactivated and <code>seal</code>
+                call will propagate to variable's dependencies. If this counter goes negative an exception would be thrown.
+                This nesting nature of <code>leak/seal</code> allows you don't think about the state of variable you
+                working with - just call <code>leak</code> when you need to work with variable and <code>seal</code> when
+                you finish and all be alright.
+            </p>
+
+            <p>
+                From previous example you could get that with <code>onEvent</code> you can subscribe to reactive
+                variable and get a method as a result value, call it to remove subscription. When you subscribe to
+                variable you should except 'set' and 'unset' events, but if you are dealing with list you have another
+                set of events 'data', 'add', 'remove'.
+            </p>
+        <pre><code>var list = new List();
+list.leak();
+list.onEvent(List.handler({
+    data: function(items) {
+        // This event occurs time to time, items contains elements
+        // from the list on the moment of event emitting.
+        // A event should be considered as "forget all what you know, now the
+        // content of the list is this". Each item has the form { key: key, value: value }
+        // where value is an inserted to list element and key is its id, with
+        // which you can remove it.
+    },
+    add: function(item) {
+        // This event is emitted when an element is added, item also has the same
+        // form {key: key, value:value}, where value - is a new element and key is its id
+    },
+    remove: function(key) {
+        // Emitted when an element is deleted, key is an id of removed element
+    }
+}));</code></pre>
         </div>
     </div>
 </div>

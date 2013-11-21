@@ -1,0 +1,11 @@
+.app {
+    margin: 20px;
+}
+
+.app input {
+    margin-right: 7px;
+}
+
+.app > div > div  {
+    margin-top: 5px;
+}
