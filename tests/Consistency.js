@@ -19,7 +19,7 @@ exports.transfer = function(test) {
     warp9.tx(function(){
         a.set(10);
         b.set(-10);
-    });
+    })();
 
     test.equal(a.get(), 10);
     test.equal(b.get(), -10);
