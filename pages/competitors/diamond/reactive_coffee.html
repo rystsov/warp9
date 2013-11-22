@@ -6,12 +6,12 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Accidental memory leaks / ReactiveCoffee</title>
+    <title>Wapr9 / Repeated diamonds shape / ReactiveCoffee</title>
 
     <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
     <link href="../../../css/common.css" rel="stylesheet">
-    <link href="leak.css" rel="stylesheet">
+    <link href="diamond.css" rel="stylesheet">
 </head>
 
 <body>
@@ -29,7 +29,7 @@
                     <ul class="dropdown-menu">
                         <li><a href="../matrix.html">Matrix</a></li>
                         <li class="divider"></li>
-                        <li><a href="leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
                     </ul>
                 </li>
@@ -49,14 +49,12 @@
 <div class="container">
     <!-- Main component for a primary marketing message or call to action -->
     <div class="jumbotron">
-        <h1>Accidental memory leaks</h1>
+        <h1>Repeated diamonds shape</h1>
         <p>
-            Simple ReactiveCoffee app leaks as well as Knockout version.
-            Moreover due to its internal design it leaks pretty fast and just like knockout app it
-            doesn't look suspicious at all.
+            ReactiveCoffee suffers from repeated diamonds shape problem as well as Knockout
         </p>
         <p>
-            <a class="btn btn-lg btn-primary btn-info" href="leaks.html">Details</a>
+            <a class="btn btn-lg btn-primary btn-info" href="../diamond/diamond.html">Details</a>
             <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary btn-warning" href="reactive_coffee.html">Reactive Coffee</a>
             <a class="btn btn-lg btn-primary" href="warp9.html">Warp9</a>
@@ -70,9 +68,8 @@
             <div class="col-md-6">
                 <div class="app">
                     <p>
-                        This app leaks incredible fast: click several times on 'add'
-                        button, few times on 'inc' button and then on 'clear' button and repeat the process.
-                        You'll see that the number of subscriptions only increases and does it fast.
+                        Enter number of "diamonds" from source to target and click "Calc updates" to
+                        calculate how much times the target will be updated when the source is updated.
                     </p>
                     <div class="coffee"></div>
                 </div>
@@ -82,41 +79,40 @@
                 <pre><code>bind = rx.bind
 rxt.importTags()
 
-adds = 0
-handlers = rx.cell(0)
-driver = rx.cell(0)
-items = rx.array()
+diamonds = rx.cell(1);
 
-clear = (list) ->
-  while list.raw().length!=0
-    list.remove(list.raw()[0])
+repeatDiamondShape = (seed,n) ->
+  if n==0
+    seed
+  else
+    s1 = bind -> seed.get() + 1
+    s2 = bind -> seed.get() + 1
+    repeatDiamondShape (bind -> s1.get() + s2.get()), n-1
 
 $ ->
   $('.coffee').prepend(
     div [
-      div bind -> ["Number of subscriptions to 'driver': #{handlers.get()}"]
-      div [
-        button {
-          click: ->
-            driver.set(driver.get()+1)
-            handlers.set(driver.onSet.subs.length)
-        }, "inc"
-        button {
-          click: ->
-            offset = adds++
-            item = bind -> driver.get() + offset
-            items.push(item)
-            handlers.set(driver.onSet.subs.length)
-        }, "add"
-        button {
-          click: ->
-            clear(items)
-            handlers.set(driver.onSet.subs.length)
-        }, "clear"
-        div items.map (item) ->
-          div bind -> ["#{item.get()}"]
-      ]
+      label {"for": "diamonds"}, ["Enter number of diamonds:"]
+      diamondsInput = input {type: "text", value: "1"}
+      button {
+        click: ->
+          value = parseInt(diamondsInput.val())
+          diamonds.set(value)
+      }, "Calc updates"
     ]
+    span bind ->
+      if diamonds.get()>0
+        source = rx.cell(1)
+        target = repeatDiamondShape(source, diamonds.get())
+        updates = 0
+        handler = target.onSet.sub ->
+          updates += 1
+        updates = 0
+        source.set(2)
+        target.onSet.unsub handler
+        "Expected one update, but got " + updates
+      else
+        "Should be an integer above 0"
   )</code></pre>
             </div>
         </div>

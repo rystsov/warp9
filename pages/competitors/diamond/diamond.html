@@ -31,6 +31,7 @@
                         <li><a href="../matrix.html">Matrix</a></li>
                         <li class="divider"></li>
                         <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -51,19 +52,29 @@
     <div class="jumbotron">
         <h1>Repeated diamonds shape</h1>
         <p>
-            The common pitfalls of applications that use reactive libraries are accidental memory leaks.
-            Usually, they are caused by someone who didn't remove a event handler or it's equivalent.
-            This results in a application which works, its source code looks good, but the app has a
-            leak, that is hard to find.
+            The repeated diamonds shape problem is an another pitfall of reactive programming. It
+            is typical for straightforward reactive library implementations. It describes a situation
+            when an update to one reactive variable causes multiple updates to another.
         </p>
+
         <p>
-            Warp9 follows two idea to eliminate such leaks: code that <b>may</b> leak <b>must</b> look
-            suspicious or doesn't work.
+            For example suppose we use a straightforward reactive library and have the following dependency
+            graph with 2 "diamonds"
         </p>
+
+        <img src="diamond.png" style="display: block; margin-left: auto; margin-right: auto" />
+
         <p>
-            Those pages illustrate leaks in knockout and reactive coffee on the same application where
-            warp9 works great.
+            Then if we update the "source", the "target" will be updated 4 times.
+            If had n "diamonds" the "target" would be updated 2<sup>n</sup> times.
         </p>
+
+        <p>
+            <b>Why does it matter?</b> For example, if we do an AJAX call to the server on each variable
+            update, then we flood it with extra queries, moreover, all queries but the last deliver
+            inconsistent data, so if the last query fails we end with corrupted model on the server.
+        </p>
+
         <p>
             <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>

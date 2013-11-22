@@ -1,0 +1,42 @@
+.app {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 17px;
+}
+
+.app .accounts-title {
+    float: left;
+}
+
+.app .accounts-value {
+    float: left;
+    margin-left: 50px;
+}
+
+.app .clear {
+    clear: both;
+}
+
+.app .transfer {
+    margin-top: 10px;
+}
+
+.app .transfer input {
+    width: 50px;
+}
+
+.app .history {
+    margin-top: 10px;
+}
+
+.app .history .snapshots {
+    margin-left: 50px;
+}
+
+
+.coffee button {
+    margin: 3px;
+}
+
+.warp9 button {
+    margin: 3px;
+}

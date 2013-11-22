@@ -6,7 +6,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Accidental memory leaks / Knockout</title>
+    <title>Wapr9 / Repeated diamonds shape / Knockout</title>
 
     <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
     <script src="../../../lib/highlight.js/highlight.pack.js"></script>
@@ -14,7 +14,7 @@
 
     <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="../../../css/common.css" rel="stylesheet">
-    <link href="leak.css" rel="stylesheet">
+    <link href="diamond.css" rel="stylesheet">
 </head>
 
 <body>
@@ -32,7 +32,7 @@
                     <ul class="dropdown-menu">
                         <li><a href="../matrix.html">Matrix</a></li>
                         <li class="divider"></li>
-                        <li><a href="leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
                     </ul>
                 </li>
@@ -52,15 +52,12 @@
 <div class="container">
     <!-- Main component for a primary marketing message or call to action -->
     <div class="jumbotron">
-        <h1>Accidental memory leaks</h1>
+        <h1>Repeated diamonds shape</h1>
         <p>
-            Innocent Knockout app illustrates how easy a memory leak can be archived. Of course, a
-            workaround exists (combination of <code>disposeWhen</code> & <code>getSubscriptionsCount</code>)
-            but you should have known about the memory leak to start searching it, but this
-            app doesn't look suspicious to start worry.
+            Knockout suffers from repeated diamonds shape problem
         </p>
         <p>
-            <a class="btn btn-lg btn-primary btn-info" href="leaks.html">Details</a>
+            <a class="btn btn-lg btn-primary btn-info" href="diamond.html">Details</a>
             <a class="btn btn-lg btn-primary btn-warning" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>
             <a class="btn btn-lg btn-primary" href="warp9.html">Warp9</a>
@@ -74,68 +71,64 @@
             <div class="col-md-6">
                 <div class="app">
                     <p>
-                        This innocent app demonstrates the work with observable list. You can see sources of the app
-                        in the right column. They look fine, but the app has a memory leak: click several times on 'add'
-                        button, then on 'clear' button and repeat the process. You'll see that the number
-                        of subscriptions only increases, so we obviously have a memory leak.
+                        Enter number of "diamonds" from source to target and click "Calc updates" to
+                        calculate how much times the target will be updated when the source is updated.
                     </p>
                     <div class="knockout">
                         <div>
-                            Number of subscriptions to 'this.driver':
-                            <span data-bind="text: handlers"></span>
+                            <label for="in">Enter number of diamonds:</label>
+                            <input id="in" type="text" data-bind="value: diamonds" />
+                            <button data-bind="click: update">Calc updates</button>
                         </div>
-                        <div>
-                            <button onclick="model.inc();">inc</button>
-                            <button onclick="model.add();">add</button>
-                            <button onclick="model.clear();">clear</button>
-                        </div>
-                        <div data-bind="foreach: items">
-                            <div data-bind="text: value"></div>
-                        </div>
+                        <span data-bind="text: result"></span>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
                 <p>HTML</p>
                 <pre><code id="html"><!--<div>
-    Number of subscriptions to 'this.driver':
-    <span data-bind="text: handlers"></span>
+    <label for="in">Enter number of diamonds:</label>
+    <input id="in" type="text" data-bind="value: diamonds" />
+    <button data-bind="click: update">Calc updates</button>
 </div>
-<button onclick="model.inc();">inc</button>
-<button onclick="model.add();">add</button>
-<button onclick="model.clear();">clear</button>
-<div data-bind="foreach: items">
-    <div data-bind="text: value"></div>
-</div>--></code></pre>
+<span data-bind="text: result"></span>--></code></pre>
 
                 <p>JS</p>
                 <pre><code>var model = new ViewModel();
+model.update();
 ko.applyBindings(model);
 
 function ViewModel() {
-    this.adds = 0;
-    this.handlers = ko.observable(0);
-    this.driver = ko.observable(0);
-    this.items = ko.observableArray([]);
+    this.diamonds = ko.observable("2");
+    this.result = ko.observable();
 
-    this.add = function() {
-        var offset = this.adds++;
-        var nova = ko.computed(function(){
-            return this.driver() + offset;
-        }, this);
-        this.items.push({value: nova});
-        this.handlers(this.driver.getSubscriptionsCount());
-    };
+    this.update = function() {
+        var value = parseInt(this.diamonds());
+        if (value>0) {
+            var source = ko.observable(1);
+            var target = repeatDiamondShape(source, value);
 
-    this.inc = function() {
-        this.driver(this.driver()+1);
-        this.handlers(this.driver.getSubscriptionsCount());
-    };
+            var updates = 0;
+            var handler = target.subscribe(function(){
+                updates++;
+            });
+            updates = 0;
+            source(2);
+            handler.dispose();
+            this.result("Expected one update, but got "+updates);
+        } else {
+            this.result("Should be an integer above 0");
+        }
+    }
+}
 
-    this.clear = function() {
-        this.items.removeAll();
-        this.handlers(this.driver.getSubscriptionsCount());
-    };
+function repeatDiamondShape(seed, n) {
+    if (n==0) return seed;
+    var s1 = ko.computed(function(){ return seed() + 1; });
+    var s2 = ko.computed(function(){ return seed() + 1; });
+    return repeatDiamondShape(ko.computed(function(){
+        return s1() + s2();
+    }), n-1);
 }</code></pre>
             </div>
         </div>
@@ -149,36 +142,42 @@ function ViewModel() {
 
 <script language="JavaScript">
     hljs.initHighlightingOnLoad();
-
     uncommentAndHighlight(html);
 
     var model = new ViewModel();
+    model.update();
     ko.applyBindings(model);
 
     function ViewModel() {
-        this.adds = 0;
-        this.handlers = ko.observable(0);
-        this.driver = ko.observable(0);
-        this.items = ko.observableArray([]);
+        this.diamonds = ko.observable("2");
+        this.result = ko.observable();
 
-        this.add = function() {
-            var offset = this.adds++;
-            var nova = ko.computed(function(){
-                return this.driver() + offset;
-            }, this);
-            this.items.push({value: nova});
-            this.handlers(this.driver.getSubscriptionsCount());
-        };
+        this.update = function() {
+            var value = parseInt(this.diamonds());
+            if (value>0) {
+                var source = ko.observable(1);
+                var target = repeatDiamondShape(source, value);
+                var updates = 0;
+                var handler = target.subscribe(function(){
+                    updates++;
+                });
+                updates = 0;
+                source(2);
+                handler.dispose();
+                this.result("Expected one update, but got " + updates);
+            } else {
+                this.result("Should be an integer above 0");
+            }
+        }
+    }
 
-        this.inc = function() {
-            this.driver(this.driver()+1);
-            this.handlers(this.driver.getSubscriptionsCount());
-        };
-
-        this.clear = function() {
-            this.items.removeAll();
-            this.handlers(this.driver.getSubscriptionsCount());
-        };
+    function repeatDiamondShape(seed, n) {
+        if (n==0) return seed;
+        var s1 = ko.computed(function(){ return seed() + 1; });
+        var s2 = ko.computed(function(){ return seed() + 1; });
+        return repeatDiamondShape(ko.computed(function(){
+            return s1() + s2();
+        }), n-1);
     }
 </script>
 </body>

@@ -6,7 +6,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Accidental memory leaks</title>
+    <title>Wapr9 / Atomic updates</title>
 
     <!-- Bootstrap core CSS -->
     <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
@@ -30,7 +30,7 @@
                     <ul class="dropdown-menu">
                         <li><a href="../matrix.html">Matrix</a></li>
                         <li class="divider"></li>
-                        <li><a href="leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
                     </ul>
                 </li>
@@ -50,21 +50,22 @@
 <div class="container">
     <!-- Main component for a primary marketing message or call to action -->
     <div class="jumbotron">
-        <h1>Accidental memory leaks</h1>
+        <h1>Atomic updates</h1>
         <p>
-            The common pitfalls of applications that use reactive libraries are accidental memory leaks.
-            Usually, they are caused by someone who didn't remove a event handler or it's equivalent.
-            This results in a application which works, its source code looks good, but the app has a
-            leak, that is hard to find.
+            Observable inconsistent state of reactive system is an another pitfall of reactive programming. If
+            the library doesn't provide an way to do an atomic update on several variables at once you end with
+            an sequential updates an each update immediately affect all the system.
         </p>
+
         <p>
-            Warp9 follows two idea to eliminate such leaks: code that <b>may</b> leak <b>must</b> look
-            suspicious or doesn't work.
+            Suppose you dealing with bank accounts and each account is represented as a reactive variable, also
+            you have a component which tracks all accounts, aggregate them to a snapshot and send the snapshot
+            to a server. It is natural to think that the sum of money from all account is a const.
+            If your reactive library doesn't provide a way to do atomic updates and you want to do a money transfer
+            via sequential updates you will observe an inconsistent state of snapshot, the sum will fluctuate. If
+            something nasty happens with the network you will have an inconsistent state on the server.
         </p>
-        <p>
-            Those pages illustrate leaks in knockout and reactive coffee on the same application where
-            warp9 works great.
-        </p>
+
         <p>
             <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>

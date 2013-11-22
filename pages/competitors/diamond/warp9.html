@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Wapr9 / Repeated diamonds shape / Warp9</title>
+
+    <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
+    <link href="../../../css/common.css" rel="stylesheet">
+    <link href="diamond.css" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="../../../index.html">WARP9</a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="../../docs/docs.html">Docs</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Competitor analysis <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="../matrix.html">Matrix</a></li>
+                        <li class="divider"></li>
+                        <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="../../../examples/todomvc/todomvc.html">TodoMVC</a></li>
+                    </ul>
+                </li>
+                <li><a href="../../download.html">Download</a></li>
+                <li><a href="https://github.com/rystsov/warp9">Sources</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Main component for a primary marketing message or call to action -->
+    <div class="jumbotron">
+        <h1>Repeated diamonds shape</h1>
+        <p>
+            Warp9 was designed to avoid common pitfalls related to reactivity, so it is no surprise that
+            it doesn't suffer from repeated diamonds shape problem.
+        </p>
+        <p>
+            <a class="btn btn-lg btn-primary btn-info" href="diamond.html">Details</a>
+            <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
+            <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>
+            <a class="btn btn-lg btn-primary btn-warning" href="warp9.html">Warp9</a>
+        </p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="starter-template">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="app">
+                    <p>
+                        The target update rate doesn't depend on the diamonds count and is updates
+                        only once per each source update.
+                    </p>
+                    <div id="placeholder" class="warp9"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <p>JS</p>
+                <pre><code>var diamonds = new warp9.Cell("1");
+var result = new warp9.Cell(1);
+var dispose, updates;
+
+warp9.render(placeholder, ["div",
+    ["div",
+        ["label", {"for": "d"}, "Enter number of diamonds:"],
+        ["input-text", {"id": "d"}, diamonds],
+        ["button", {"!click": function(){
+            if (dispose) dispose();
+            if (parseInt(diamonds.get())>0) {
+                var source = new warp9.Cell();
+                var target = repeatDiamondShape(source, parseInt(diamonds.get()));
+                updates = 0;
+                dispose = target.onSet(function(){
+                    result.set(++updates);
+                });
+                source.set(2);
+            } else result.unset();
+        }}, "Calc updates"]
+    ],
+    result.lift(function(result){
+        return ["span", "Expected one update & got " + result]
+    }).coalesce(["span", "Should be an integer above 0"])
+]);
+
+function repeatDiamondShape(seed, n) {
+    if (n==0) return seed;
+    var s1 = warp9.do(function(){ return seed.get() + 1; });
+    var s2 = warp9.do(function(){ return seed.get() + 1; });
+    return repeatDiamondShape(warp9.do(function(){
+        return s1.get() + s2.get();
+    }), n-1);
+}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="../../../lib/jquery/jquery-2.0.3.min.js"></script>
+<script src="../../../lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="../../../lib/knockout/knockout-3.0.0rc.js"></script>
+<script src="../../../lib/highlight.js/highlight.pack.js"></script>
+<script src="../../../lib/warp9/warp9.js"></script>
+
+<script language="JavaScript">
+    var diamonds = new warp9.Cell("1");
+    var result = new warp9.Cell(1);
+    var dispose, updates;
+
+    warp9.render(placeholder, ["div",
+        ["div",
+            ["label", {"for": "d"}, "Enter number of diamonds:"],
+            ["input-text", {"id": "d"}, diamonds],
+            ["button", {"!click": function(){
+                if (dispose) dispose();
+                if (parseInt(diamonds.get())>0) {
+                    var source = new warp9.Cell();
+                    var target = repeatDiamondShape(source, parseInt(diamonds.get()));
+                    updates = 0;
+                    dispose = target.onSet(function(){
+                        result.set(++updates);
+                    });
+                    source.set(2);
+                } else result.unset();
+            }}, "Calc updates"]
+        ],
+        result.lift(function(result){
+            return ["span", "Expected one update & got " + result]
+        }).coalesce(["span", "Should be an integer above 0"])
+    ]);
+
+    function repeatDiamondShape(seed, n) {
+        if (n==0) return seed;
+        var s1 = warp9.do(function(){ return seed.get() + 1; });
+        var s2 = warp9.do(function(){ return seed.get() + 1; });
+        return repeatDiamondShape(warp9.do(function(){
+            return s1.get() + s2.get();
+        }), n-1);
+    }
+</script>
+</body>
+</html>
