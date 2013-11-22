@@ -31,6 +31,28 @@ exports.getEmpty = function(test) {
     test.done();
 };
 
+
+exports.onSet = function(test) {
+    test.expect(5);
+    test.equal(DAG.length, 0);
+
+    var cell = new warp9.Cell();
+    var updates = 0;
+    var dispose = cell.onSet(function(){
+        updates++;
+    });
+    test.equal(updates, 0);
+    cell.set(42);
+    test.equal(updates, 1);
+    cell.unset();
+    test.equal(updates, 1);
+    cell.set(13);
+    test.equal(updates, 2);
+
+    dispose();
+    test.done();
+};
+
 exports.doubleSubscribe = function(test) {
     test.equal(DAG.length, 0);
 

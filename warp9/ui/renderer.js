@@ -27,6 +27,7 @@ expose({
     addTag("li", root.ui.tags.TagParserFactory("li"));
     addTag("label", root.ui.tags.TagParserFactory("label"));
     addTag("button", root.ui.tags.TagParserFactory("button"));
+    addTag("b", root.ui.tags.TagParserFactory("b"));
 
     addTag(root.ui.tags.InputTextParser.TAG, root.ui.tags.InputTextParser);
     addTag(root.ui.tags.InputCheckParser.TAG, root.ui.tags.InputCheckParser("checkbox"));

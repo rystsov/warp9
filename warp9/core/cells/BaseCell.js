@@ -140,6 +140,14 @@ BaseCell.prototype.when = function(condition, transform, alternative) {
     }, this);
 };
 
+BaseCell.prototype.onSet = function(callback) {
+    return this.onChange(function(cell, event){
+        if (event[0]==="set") {
+            callback(cell, event);
+        }
+    });
+};
+
 BaseCell.prototype.on = function(value, callback) {
     return this.onChange(function(cell){
         if (cell.hasValue() && cell.get()===value) {
