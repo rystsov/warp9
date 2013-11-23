@@ -169,13 +169,13 @@ function SetListPrototype() {
 }
 
 List.handler = function(handlers) {
-    return function(e) {
+    return function(list, e) {
         while(true) {
             if (e[0]==="reset") break;
             if (e[0]==="add") break;
             if (e[0]==="remove") break;
             throw new Error();
         }
-        handlers[e[0]].call(handlers, e[1]);
+        handlers[e[0]].apply(handlers, [e[1]]);
     };
 };

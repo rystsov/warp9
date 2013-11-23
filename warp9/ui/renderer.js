@@ -128,7 +128,7 @@ function bindElementTo(place, element) {
             }
             keyDispose = {};
         };
-        var dispose = element.children.onEvent(List.handler({
+        var dispose = element.children.onChange(List.handler({
             reset: function(items) {
                 stopChildren();
                 items.forEach(this.add);

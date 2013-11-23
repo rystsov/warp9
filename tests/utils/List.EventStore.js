@@ -7,7 +7,7 @@ function ListEventStore(list) {
     this.changes = 0;
     this.store = [];
 
-    var dispose = list.onEvent(List.handler(this));
+    var dispose = list.onChange(List.handler(this));
     this.dispose = function() {
         dispose();
         this.clear();

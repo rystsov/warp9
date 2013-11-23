@@ -37,9 +37,9 @@ BaseList.prototype.sendItsMessages = function(dependant) {
     dependant.mailbox = [];
 };
 
-BaseList.prototype.onEvent = function(f) {
+BaseList.prototype.onChange = function(f) {
     if (!event_broker.isOnProcessCall) {
-        return event_broker.invokeOnProcess(this, this.onEvent, [f]);
+        return event_broker.invokeOnProcess(this, this.onChange, [f]);
     }
 
     this._leak(this.nodeId);
@@ -50,7 +50,7 @@ BaseList.prototype.onEvent = function(f) {
         key: uid(),
         f: function(list, event) {
             if (this.disposed) return;
-            f(event);
+            f(list, event);
         },
         disposed: false,
         mailbox: [ ["reset", this.data.slice()] ]
