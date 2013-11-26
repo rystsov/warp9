@@ -115,6 +115,12 @@ BaseCell.prototype.lift = function(f) {
     }, this);
 };
 
+BaseCell.prototype.isSet = function() {
+    return root.do(function(){
+        return this.hasValue();
+    }, this);
+};
+
 BaseCell.prototype.when = function(condition, transform, alternative) {
     var test = typeof condition === "function" ? condition : function(value) {
         return value === condition;
