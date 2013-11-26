@@ -32,6 +32,8 @@
                         <li><a href="matrix.html">Matrix</a></li>
                         <li class="divider"></li>
                         <li><a href="leaks/leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -105,8 +107,28 @@
             <td>no</td>
             <td>yes</td>
             <td>no</td>
+            <td>?</td>
+            <td>?</td>
+            <td>yes</td>
             <td>no</td>
+        </tr>
+        <tr>
+            <td><a href="#diamond_shape_problem">diamond shape problem</a></td>
             <td>no</td>
+            <td>yes</td>
+            <td>no</td>
+            <td>?</td>
+            <td>?</td>
+            <td>yes</td>
+            <td>no</td>
+        </tr>
+        <tr>
+            <td><a href="#observable_inconsistent_state">observable inconsistent state</a></td>
+            <td>no</td>
+            <td>yes/no<a href="#ref_6">[6]</a></td>
+            <td>no</td>
+            <td>?</td>
+            <td>?</td>
             <td>yes</td>
             <td>no</td>
         </tr>
@@ -117,7 +139,7 @@
             <td>yes</td>
             <td>no</td>
             <td>maybe</td>
-            <td>yes/no<a href="#ref_6">[6]</a></td>
+            <td>yes/no<a href="#ref_7">[7]</a></td>
             <td>yes</td>
         </tr>
         <tr>
@@ -134,7 +156,7 @@
             <td><a href="#pure_js">pure js</a></td>
             <td>yes</td>
             <td>yes</td>
-            <td>yes<a href="#ref_7">[7]</a></td>
+            <td>yes<a href="#ref_8">[8]</a></td>
             <td>no</td>
             <td>yes</td>
             <td>no</td>
@@ -142,7 +164,7 @@
         </tr>
         <tr>
             <td><a href="#mixing_markup_and_logic">mixing markup and logic</a></td>
-            <td>yes/no<a href="#ref_8">[8]</a></td>
+            <td>yes/no<a href="#ref_9">[9]</a></td>
             <td>no</td>
             <td>yes</td>
             <td>yes</td>
@@ -162,11 +184,11 @@
         </tr>
         <tr>
             <td><a href="#rich_reactive_list">rich reactive list</a></td>
+            <td></td>
             <td>no</td>
-            <td>no</td>
-            <td>no</td>
-            <td>no</td>
-            <td>no</td>
+            <td></td>
+            <td>?</td>
+            <td></td>
             <td>no</td>
             <td>yes</td>
         </tr>
@@ -256,11 +278,38 @@
         <p>
             I've written simple application using Knockout and ReactiveCoffee to demonstrate how easy a leaks can be
             achieved:
-            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/knockout.html">app on Knockout</a> и
-            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/reactive_coffee.html">app on ReactiveCoffee</a>.
+            <a href="leaks/knockout.html">app on Knockout</a> и
+            <a href="leaks/reactive_coffee.html">app on ReactiveCoffee</a>.
             And of cause the same
-            <a href="http://rystsov.github.io/warp9/pages/competitors/leaks/warp9.html">app on Warp9 without leaks</a>.
+            <a href="leaks/warp9.html">app on Warp9 without leaks</a>.
         </p>
+    </section>
+
+    <section id="diamond_shape_problem" class="property">
+        <h3>Repeated diamond shape problem</h3>
+        <p>
+            Whether it possible to form a dependency graph in such way that a single update to a one reactive variable
+            causes multiple updates to another.
+        </p>
+        <p>
+            I described that situation <a href="diamond/diamond.html">a bit more</a> and demonstrate with
+            Knockout and ReactiveCoffee.
+        </p>
+    </section>
+
+    <section id="observable_inconsistent_state" class="property">
+        <h3>Observable inconsistent state</h3>
+        <p>
+            Whether it possible to observe an inconsistent state due to the lack of atomic updates. Also this
+            problem is described a bit more on a <a href="consistency/consistency.html">separate page</a>.
+        </p>
+        <section id="ref_6" class="note">
+            <p>
+                <b>[6]</b> Knockout has a workaround to simulate atomic updates but such workaround violates
+                locality of change and breaks composability. <a href="consistency/knockout.html">There</a> is
+                an information on the topic.
+            </p>
+        </section>
     </section>
 
 
@@ -271,8 +320,8 @@
             library's author to provide an TodoMVC among examples.
         </p>
 
-        <section id="ref_6" class="note">
-            <b>[6]</b> TodoMVC on ReactiveCoffee isn't follow the spec properly, it lacks for
+        <section id="ref_7" class="note">
+            <b>[7]</b> TodoMVC on ReactiveCoffee isn't follow the spec properly, it lacks for
             tabs ('All', 'Active', 'Completed') and work with local storage (at least on 5 Nov 2013).
         </section>
     </section>
@@ -292,8 +341,8 @@
             Has author assumed that the library would be used basically with javascript language?
         </p>
 
-        <section id="ref_7" class="note">
-            <b>[7]</b> React offer to use javascript's dialect with build in support for xml literals
+        <section id="ref_8" class="note">
+            <b>[8]</b> React offer to use javascript's dialect with build in support for xml literals
             and compile it to javascript, nevertheless it is possible to use pure javascript.
         </section>
     </section>
@@ -331,8 +380,8 @@
             modularization.
         </p>
 
-        <section id="ref_8" class="note">
-            <b>[8]</b> You may meet the need of mixing markup and code during developing a directive
+        <section id="ref_9" class="note">
+            <b>[9]</b> You may meet the need of mixing markup and code during developing a directive
             in Angular.
         </section>
     </section>

@@ -32,6 +32,7 @@
                         <li class="divider"></li>
                         <li><a href="pages/competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="pages/competitors/diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="pages/competitors/consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -51,10 +52,16 @@
 <div class="jumbotron">
     <div class="container">
         <h1>Warp9</h1>
-        <h2>one step beyond existing reactive js libraries</h2>
-        <p>Warp9 is a reactive javascript library for building complex UI. To deal with complexity it provides
-            composability and modularization of views. Also warp9 is built to avoid common pitfall of
-        reactive libraries like memory leaks.</p>
+        <h2>The next generation of reactive js libraries</h2>
+        <p>
+            Many existing reactive javascript libraries (Knockout, ReactiveCoffee...) use eager approach to
+            reactivity, but such approach has pitfalls, like, memory leaks, repeated diamond shape problem
+            & observable inconsistent. Warp9 uses explicit graph model, so it avoids them.
+        </p>
+        <p>
+            Another feature of Warp9 is that it doesn't separate the UI markup and the UI logic, just like
+            React.js. It allows provide composability & modularization.
+        </p>
 
         <p><a class="btn btn-primary btn-lg" href="pages/docs/docs.html">Learn more &raquo;</a></p>
     </div>
@@ -66,13 +73,13 @@
         <div class="col-lg-4">
             <h2>Composability</h2>
             <p>When we write code our default method to handle complexity is a divide and conquer approach.
-                It can be functional decomposition or aggregation in OOP. Warp9 provides the same concept for
-            UI decomposition/aggregation</p>
+                It can be functional decomposition or aggregation in OOP.
+                Since the UI in Warp9 is the code we can use the same approach to manage complexity here.
             <p><a class="btn btn-default" href="pages/docs/docs.html">View details &raquo;</a></p>
         </div>
         <div class="col-lg-4">
             <h2>Modularization</h2>
-            <p>When you break UI into pieces the good question is how to reuse and distribute it. With warp9 you
+            <p>When you break UI into pieces the good question is how to reuse and distribute it. With Warp9 you
             can use AMD to distribute not only logic, but a view too.</p>
             <p><a class="btn btn-default" href="pages/docs/docs.html">View details &raquo;</a></p>
         </div>

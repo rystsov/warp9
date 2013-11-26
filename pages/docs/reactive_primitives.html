@@ -36,6 +36,7 @@
                         <li class="divider"></li>
                         <li><a href="../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../competitors/diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../competitors/consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -57,7 +58,7 @@
             <ul class="nav nav-pills nav-stacked">
                 <li><a href="docs.html">Basic idea</a></li>
                 <li class="active"><a href="reactive_primitives.html">Reactive primitives</a></li>
-                <li><a href="templates.html">Templates</a></li>
+                <li><a href="markup.html">Markup</a></li>
                 <li><span>Special elements</span>
                     <ul class="nav nav-pills nav-stacked sub-stacked-nav">
                         <li><a href="elements/input-text.html">input-text</a></li>
@@ -71,15 +72,498 @@
         </div>
         <div class="col-md-9">
             <h3>Reactive primitives</h3>
-            <iframe src="http://www.slideshare.net/slideshow/embed_code/27451134?rel=0" width="597" height="486" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC;border-width:1px 1px 0;margin-bottom:5px" allowfullscreen> </iframe>
+
+            <h4>Cell</h4>
+            <p>
+                Reactive variable in Warp9 may have a value or be empty, by
+                default it empty
+            </p>
+            <pre><code>var a = new warp9.Cell();</code></pre>
 
             <p>
-                Presentation's
-                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/primitives/examples.js">examples</a>
-                and
-                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/primitives/primitives.tex">xelatex source</a>
-                are provided.
+                To put a value to reactive variable you should use a "set"
+                method
             </p>
+
+            <pre><code>var a = new warp9.Cell();
+a.set(42);</code></pre>
+
+            <p>The alternative is to pass a value via constructor</p>
+
+            <pre><code>var a = new warp9.Cell(42)</code></pre>
+
+            <p>At any moment a variable may be set empty</p>
+
+            <pre><code>var a = new wapr9.Cell(42);
+a.unset()</code></pre>
+
+            <p>A variable can be asked whether it has value</p>
+            <pre><code>var a = new wapr9.Cell(42);
+console.info(a.hasValue());
+//> true</code></pre>
+
+            <p>If a variable has value it can be gotten</p>
+            <pre><code>var a = new wapr9.Cell(42);
+console.info(a.get());
+//> 42</code></pre>
+
+            <p>
+                If you try to get value of empty variable an exception
+                will be thrown, unless you pass an default value to the
+                <code>get</code>
+            </p>
+            <pre><code>console.info(new warp9.Cell().get(42));
+//> 42</code></pre>
+
+            <h4>Cell.lift</h4>
+            <p>
+                You can apply a function to a reactive variable to get a new reactive
+                variable which is bound with the first with that function. If
+                the first is updated the second will be equal to a result of the function
+                applied to the first's value.
+            </p>
+            <pre><code>var a = new warp9.Cell(); // a is empty
+var b = a.lift(function(a){
+    return a+2;
+}); // b is empty
+a.set(1); // a has 1, b has 3
+a.set(5); // a has 5, b has 7
+a.unset(); // a is empty, b is empty</code></pre>
+
+            <p>There is a law for lift - for all f,x:</p>
+            <pre><code>new warp9.Cell(x).lift(f).get()===f(x);</code></pre>
+
+            <p>
+                We can't use set & unset against variable we got as a result of lift call.
+                Actually we can use set & unset only against reactive variables we got as
+                a result of calling a warp9.Cell constructor.
+            </p>
+
+            <h4>Cell.coalesce</h4>
+            <p>
+                Each reactive variable has a <code>coalesce</code> method. It accepts one argument and
+                returns a new reactive variable which has the same value as the first one,
+                but if the first is empty, the second has a value equal to the argument.
+            </p>
+
+            <pre><code>var a = new warp9.Cell();
+var b = a.coalesce(42); // b has 42
+a.set(13); // a has 13, b has 13
+a.unset(); // a is empty, b has 42</code></pre>
+
+            <h4>Cell.isSet</h4>
+            <p>
+                <code>isSet</code> returns a reactive variable which has true when a source
+                has a value and false otherwise
+            </p>
+
+            <pre><code>var a = new warp9.Cell();
+var b = a.isSet(); // b has false
+a.set(13); // a has 13, b has true
+a.unset(); // a is empty, b has false</code></pre>
+
+            <h4>Cell.when</h4>
+            <p>
+                Another way to create a variable is to call <code>when</code> method. If it
+                is called with one argument, its argument is regarded as a filter. The filter
+                is executed on each value change of a source variable, if the result is true
+                then the created would have the same value or it would be empty otherwise.
+            </p>
+
+            <pre><code>var a = new warp9.Cell();
+var b = a.when(function(a){
+    return a>3;
+}); // b is empty
+a.set(42); // a has 42, b has 42
+a.set(1); // a has 1, b is empty
+a.set(4); // a has 4, b has 4
+a.unset(); // a is empty, b is empty</code></pre>
+
+            <p>
+                You can use a value as the function. In such case it will be compared via ===
+                with the argument.
+            </p>
+
+            <p>
+                It is possible to pass two arguments to <code>when</code> method. The first
+                is regarded as filter, the second as transformer. The transformer is applied
+                to a value if the filter returns true, a result is written as a value to
+                a created reactive variable. If the value of source variable is changed, the
+                process if repeated.
+            </p>
+
+            <pre><code>var a = new warp9.Cell();
+var b = a.when(
+    function(a) { return a>3; },
+    function(x) { x+1; },
+); // b is empty
+a.set(42); // a has 42, b has 43
+a.set(1); // a has 1, b is empty
+a.set(4); // a has 4, b has 5
+a.unset(); // a is empty, b is empty</code></pre>
+
+            <p>
+                Such version of <code>when(…, …)</code> is almost equivalent to a combination of
+                <code>when(…)</code> and <code>lift(…)</code>. We may say that there is a law, for
+                all f,t,cell:
+            </p>
+            <pre><code>cell.when(f,t)==cell.when(f).lift(t)</code></pre>
+
+            <p>
+                I say almost because instead of transformer-function we may pass a transformer-value,
+                which yields itself on each "invocation".
+            </p>
+            <pre><code>var a = new warp9.Cell();
+var b = a.when(42,13); // b is empty
+a.set(42); // a has 42, b has 13
+a.set(4); // a has 4, b is empty</code></pre>
+
+            <p>
+                The last form of <code>when(…, …, …)</code> accepts three arguments: filter,
+                transformer and alternative transformer, which is applied if the result of
+                the filter is false.
+            </p>
+            <pre><code>var a = new warp9.Cell();
+var b = a.when(
+    function(a) { return a>=0; },
+    function(x) { return x+1; }
+    function(x) { return x-1; }
+); // b is empty
+a.set(0); // a has 0, b has 1
+a.set(-1); // a has -1, b has -2
+a.unset(); // a is empty, b is empty</code></pre>
+            <p>
+                You also can pass a value instead of filter, transformer or alternative
+                transformer, but if we omit it we may say that there a law, for all cell,
+                f, t, a:
+            </p>
+            <pre><code>cell.when(f,t,a)==cell.lift(function(c) { return f(c) ? t(c) : a(c) });</code></pre>
+
+            <h4>warp9.do</h4>
+            <p>
+                The most powerful way to create reactive variables is to use
+                <code>warp9.do(…)</code> construct. All previous ways (isSet, coalesce, lift
+                and when) are implement via <code>warp9.do(…)</code>.
+            </p>
+
+            <p>
+                Suppose you want to define a new reactive variable which value is equal to
+                the sum of values of two another reactive variables. Also you want your
+                new reactive variable to be automatically updated when any of two others
+                changes. It can be done easily with <code>warp9.do(…)</code>:
+            </p>
+            <pre><code>var a = new warp9.Cell(1);
+var b = new warp9.Cell(2);
+var sum = warp9.do(function(){
+    return a.get() + b.get();
+}); // sum has 3
+a.set(2); // sum has 4
+b.set(-2); // sum has 0</code></pre>
+
+            <p>
+                Warp9 tracks all variable you access inside the lambda and reevaluate it
+                each time a dependency changes.
+            </p>
+
+            <p>
+                On any invocation the lambda may change its dependency. Lets see on example:
+            </p>
+            <pre><code>var a = new warp9.Cell();
+var b = new warp9.Cell(1);
+var c = new warp9.Cell(2);
+var ternary = warp9.do(function(){
+    return a.get() ? b.get() : c.get();
+}); // ternary's only dependency is a
+a.set(true); // ternary's dependencies are a,b
+b.set(4);
+a.set(false); // ternary's dependencies are a,c
+a.unset(); // ternary's only dependency is a
+            </code></pre>
+
+            <p>
+                I told that all form of <code>when</code> are implemented via <code>warp9.do</code>.
+                Lets see how the <code>when(…)</code> may be implemented:
+            </p>
+            <pre><code>var cell = new warp9.Cell(42);
+cell.when = function(filter) {
+    return warp9.do(function(){
+        return filter(this.get()) ? this.get() : warp9.empty();
+    }, this);
+};</code></pre>
+
+            <p>
+                You can see that <code>warp9.do</code> has two argument form, where the second
+                argument is an context. Another thing you haven't seen before is <code>warp9.empty()</code>.
+                Call it inside the warp9.do's lambda to unset the created reactive value.
+            </p>
+
+            <h4>List</h4>
+            <p>By default list is empty</p>
+            <pre><code>var list = new warp9.List();</code></pre>
+
+            <p>You can add values to list via constructor</p>
+            <pre><code>var list = new warp9.List([1,2,3]);</code></pre>
+
+            <p>Or using an <code>add</code> method</p>
+            <pre><code>var list = new warp9.List();
+list.add("Warp9");
+list.add("React");</code></pre>
+
+            <p>You can access to the values of list via <code>get</code></p>
+            <pre><code>var list = new warp9.List();
+list.add("Warp9");
+list.add("React");
+console.info(list.get());
+// ["Warp9", "React"]</code></pre>
+
+            <p>
+                Method <code>add</code> returns an id, which can be used to
+                remove as element.
+            </p>
+            <pre><code>var list = new warp9.List();
+var warpId = list.add("Warp9");
+var reactId = list.add("React");
+console.info(list.get()) ;
+// ["Warp9", "React"]
+list.remove(reactId);
+console.info(list.get());
+// ["Warp9"]</code></pre>
+
+            <p>
+                Often it is needed to have an id as a part of an element, to
+                achieve that you can pass a function to <code>add</code> method
+                which will be executed by add method, the function will receive
+                an id and the returned value will be inserted to the list.
+            </p>
+            <pre><code>var list = new warp9.List();
+list.add(function(id) {
+    return {id: id, name: "Warp9"};
+});
+console.info(list.get());
+// [{id:15, name: "Warp9"}];</code></pre>
+
+            <p>
+                There is an another method to remove elements beside <code>remove</code> -
+                <code>removeWhich</code>. It removes elements by predicate.
+            </p>
+            <pre><code>var list = new List([1,2,3]);
+list.removeWhich(function(x){
+    return x<2;
+});
+// list contains 2,3</code></pre>
+
+            <p>
+                Just like js's array warp9.List has forEach method
+            </p>
+            <pre><code>var list = new warp9.List(["Warp9", "React"]);
+list.forEach(function(x){
+    console.info(x);
+});
+// Warp9
+// React</code></pre>
+
+            <p>
+                <code>remove</code>, <code>removeWhich</code> and <code>forEach</code>
+                execute immediately and once, they do not have long reactive effect like
+                Cell's lift.
+            </p>
+
+            <h4>List.lift</h4>
+            <p>
+                By the way List has its own version of lift, you may think of it as a
+                reactive version of map.
+            </p>
+            <pre><code>var a = new warp9.List();
+var b = a.lift(function(x) { return 2+x; });
+var id1 = a.add(1);
+// a has values [1], a has values [3]
+var id2 = a.add(2);
+// a has values [1, 2], a has values [3, 4]
+a.remove(id1);
+// a has values [2], a has values [4]</code></pre>
+
+            <p>
+                You can't call <code>add</code>, <code>remove</code>, <code>removeWhich</code>
+                on list you got as a result of <code>lift</code> method.
+            </p>
+
+            <h4>List.reduce</h4>
+            <p>
+                <a href="../competitors/matrix.html#rich_reactive_list">Here</a> I mentioned
+                that support of reactive lists in Knockout and ReactiveCoffee is very limited
+                if we compare it to Warp9. Let explore it. For a start we calculate the sum of
+                elements in a list.
+            </p>
+
+            <pre><code>var list = new warp9.List();
+var sum = list.reduce(0, function(a,b){
+    return a+b;
+}); // reduce returns a reactive variable
+list.add(41); // sum has 41
+list.add(1); // sum has 42</code></pre>
+
+            <p>
+                As we saw the sum reflects the changes to the list. Lets now calculate
+                the count of the list elements.
+            </p>
+            <pre><code>var list = new warp9.List();
+var count = list.lift(function(x){
+    return 1;
+}).reduce(0, function(a,b){
+    return a+b;
+});
+var id41 = list.add(41); // count has 1
+list.add(1); // count has 2
+list.remove(id41); // count has 1</code></pre>
+            <p>
+                This code does what it should do, but it is not optimal. For
+                example it creates an intermediate list. Warp9 provides an api
+                to avoid it.
+            </p>
+            <pre><code>var list = new warp9.List();
+var count = list.reduce(0, function(a,b){
+    return a+b;
+}, {
+    wrap: function(x) { return 1; }
+});
+var id41 = list.add(41); // count has 1
+list.add(1); // count has 2
+list.remove(id41); // count has 1</code></pre>
+            <p>
+                <code>wrap</code> is executed for each element and the result is passed
+                to further reduce logic.
+            </p>
+            <p>
+                Since we start talking about performance, what is the complexity of
+                updating the "reduced" variable during list manipulation?
+            </p>
+            <p>
+                It it were
+                Knockout the complexity would be O(n) in term of list length, because
+                a reactive list in Knockout is an reactive variable whose value is an
+                array and if you want to do a reactive aggregation you should subscribe
+                and reevaluate aggregation on each change.
+            </p>
+            <p>
+                It Warp9 reactive list is an first class entity.
+                Such approach allows to do some optimisation. For example, a complexity
+                of updating a reduced value during list insert/remove is O(ln n).
+            </p>
+            <p>
+                But O(ln n) complexity is still too high for calculating count or sum
+                during each list update, so Warp9 provides api to do it in O(1). If you
+                see to Warp9's reduce method implementation, you will find
+                something similar to
+            </p>
+            <pre><code>BaseList.prototype.reduce = function(identity, add, opt) {
+    return this.reduceMonoid({
+        identity: function() {return identity; },
+        add: add
+    }, opt);
+};</code></pre>
+            <p>
+                If you are familiar with functional programming or abstract algebra
+                you may guess that if we have <code>reduceMonoid</code> we may have
+                <code>reduceGroup</code>. If you do so, you are right. So we can
+                rewrite our example with sum from <code>reduceMonoid</code> (<code>reduce</code>)
+                to <code>reduceGroup</code>
+            </p>
+            <pre><code>var sum = new list.reduceGroup({
+    identity: function() { return 0; },
+    add: function(a,b) { return a+b; },
+    invert: function(x) { return -x; }
+});</code></pre>
+            <p>
+                And the complexity falls from O(ln n) to O(1). The same we can do with
+                count example
+            </p>
+            <pre><code>var count = new list.reduceGroup({
+    identity: function() { return 0; },
+    add: function(a,b) { return a+b; },
+    invert: function(x) { return -x; }
+}, {
+    wrap: function(x) { return 1; }
+});</code></pre>
+            <p>
+                Lets implement a bit sophisticated aggregator. Suppose our list contains
+                boolean values and we want to do logical AND operation over a list's
+                values. Since if know an aggregated value and a element to remove from
+                aggregation we can't calculate a new aggregated value it seems that we
+                should use <code>reduceMonoid</code>
+            </p>
+            <pre><code>var all = new list.reduceMonoid({
+    identity: function() { return true; },
+    add: function(a,b) { return a & b; }
+});</code></pre>
+            <p>
+                But if we think we may come to idea to count "true" and "false" value
+                independently. It allows us to calculate a new aggregated value if
+                we know the last and removing element, so we can use <code>reduceGroup</code>
+            </p>
+            <pre><code>var all = new list.reduceGroup({
+    identity: function() { return [0,0]; },
+    add: function(x,y) { return [x[0]+y[0], x[1]+y[1]]; }
+    invert: function(x) { return [-x[0], -x[1]]; }
+}, {
+    wrap: function(x) {
+        return x ? [1,1] : [0,1];
+    }
+}).lift(function(x){
+    return x[0]==x[1];
+});</code></pre>
+            <p>
+                This code is much better since it is O(1) compared to O(ln n),
+                but it still sucks because it needs an intermediate variable
+                (we call lift on it), lets fix it, Warp9 provides a api for
+                that
+            </p>
+            <pre><code>var all = new list.reduceGroup({
+    identity: function() { return [0,0]; },
+    add: function(x,y) { return [x[0]+y[0], x[1]+y[1]]; }
+    invert: function(x) { return [-x[0], -x[1]]; }
+}, {
+    wrap: function(x) {
+        return x ? [1,1] : [0,1];
+    },
+    unwrap: function(x) {
+        return x[0]==x[1];
+    }
+});</code></pre>
+            <h4>Reactive list of reactive variables</h4>
+            <p>
+                The best part about <code>reduceMonoid</code> and <code>reduceGroup</code>
+                is that they take into account if a list's element is a reactive variable.
+                It means you can put a reactive variable to a reactive list, do aggregation
+                and get a reactive variable which will be updated when the list changes or
+                the reactive variable put to list changes. See an example
+            </p>
+            <pre><code>var list = new warp9.List();
+var it1 = new warp9.Cell(0);
+var it2 = new warp9.Cell(1);
+var sum = list.reduce(0, function(a,b){
+    return a+b;
+}); // sum has 0
+var itId1 = list.add(it1); // sum has 0
+var itId2 = list.add(it2); // sum has 1
+it1.set(5); // sum has 6
+it2.set(2); // sum has 7
+it1.unset(); // sum is empty
+list.remove(it1); // sum has 2</code></pre>
+            <p>
+                You can see that if a reactive variable is empty in a list, then
+                a reduced value is empty too. Sometimes it is useful to consider
+                an empty variable as an identity element, you can do it with
+                ignoreUnset option
+            </p>
+            <pre><code>var item1 = new warp9.Cell();
+var item2 = new warp9.Cell(1);
+var list = new warp9.List([item1, item2]);
+var sum = list.reduce(0, function(a,b) {
+    return a + b;
+},{
+    ignoreUnset : true
+}); // sum has 1
+item1.set(3); // sum has 4</code></pre>
 
             <h4>Reactivity and leaks</h4>
 
@@ -105,114 +589,89 @@
             <p>
                 I believe when there are a lot problems of particular kind with code which uses a library
                 this is the library's problem (even there is a workaround in the docs). So if you are
-                designing a library you should think how to prevent errors or make them visible at least.
-                I followed this principle when designed Warp9 and since the common pitfall for reactive application
-                is memory leak I choose that a code that <b>may</b> leak <b>must</b> looks suspicious or doesn't
-                work.
+                designing a library you should think how to prevent errors or at least make them visible.
+                I followed this principle when designed Warp9. <b>With Warp9 your code has a leak related to
+                reactivity if and only if you forget to remove subscription to variable you have subscribed to.</b>
+                It means you have an explicit way to test your code for memory leaks and a rule to avoid them.
+            </p>
+
+            <h4>Subscriptions</h4>
+
+            <p>
+                To subscribe to a reactive variable (Cell or List) you should call <code>onChange</code> method
+                and pass a handler (a function) as an argument. This function will be called once after subscription
+                and then each time the variable changes. On each invocation handler receives an object it subscribed to
+                and an event.
             </p>
 
             <p>
-                I'll describe you following this principle affect the design of Warp9. Look at that code:
-            </p>
-
-            <pre><code>var cell = new Cell(0);
-var lifted = cell.lift(function(x) { return x+1; });</code></pre>
-
-            <p>
-                If you don't know about the reactive pitfall, it is natural to except that cell doesn't hold link to
-                lifted and with Warp9 it is actually so. Here you should be surprised how reactivity works. Lets
-                take a look on a bit complexer example.
-            </p>
-
-        <pre><code>var cell = new Cell();
-var lifted = cell.lift(function(x) { return x+1; });
-var dispose = lifted.onEvent(Cell.handler({
-    set: function(value) { console.info(“set: ” + value); },
-    unset: function() { console.info(“unset”); }
-}));
-cell.set(3);
-cell.set(5);
-cell.unset();
-dispose();
-cell.set(1);</code></pre>
-
-            <p>
-                It would be natural to except the following output:
-            </p>
-<pre><code>> unset
-> set: 4
-> set: 6
-> unset</code></pre>
-
-            <p>
-                But wait such "natural" behaviour would provoke cell to store link to lifted, which would be
-                potential memory leak we can't afford. So I've made a decision it is better to have code
-                that looks fine, but doesn't work, that code which works but has a potential leak, since
-                <i>it is incredible harder to find a memory leak compared to finding an unworking code</i>.
+                To remove a subscription you should call a method returned by <code>onChange</code>.
             </p>
 
             <p>
-                To make the previous example work we should make it looks suspicious:
+                When you deal with Cell, you can ignore the event and use cell's methods to recognise its state.
             </p>
 
-        <pre><code>var cell = new Cell();
-var lifted = cell.lift(function(x) { return x+1; });
-var dispose = lifted.onEvent(Cell.handler({
-    set: function(value) { console.info(“set: ” + value); },
-    unset: function() { console.info(“unset”); }
-}));
-lifted.leak();
-cell.set(3);
-cell.set(5);
-cell.unset();
-dispose();
-lifted.seal();
-cell.set(1);</code></pre>
-
-            <p>
-                We added <code>lifted.leak()</code> and <code>lifted.seal()</code>, code becomes suspicious
-                and now it produces the excepted output. It doesn't magic, with <code>leak</code> we just
-                activate the lifted variable. When a variable is activated it subscribes to its dependencies
-                and activate them (it is transitive). After we finish work with an reactive variable we should
-                leave it in a state we got it, so we invoke <code>seal</code> to revert the effect of <code>leak</code>
-                calling.
-            </p>
-
-            <p>
-                You can call <code>leak</code> several times before calling <code>seal</code>, the second and following
-                calls don't propagate to variable's dependencies but increase inner counter. Each call to <code>seal</code>
-                decreases the counter and when it reaches zero the variable will be deactivated and <code>seal</code>
-                call will propagate to variable's dependencies. If this counter goes negative an exception would be thrown.
-                This nesting nature of <code>leak/seal</code> allows you don't think about the state of variable you
-                working with - just call <code>leak</code> when you need to work with variable and <code>seal</code> when
-                you finish and all be alright.
-            </p>
-
-            <p>
-                From previous example you could get that with <code>onEvent</code> you can subscribe to reactive
-                variable and get a method as a result value, call it to remove subscription. When you subscribe to
-                variable you should except 'set' and 'unset' events, but if you are dealing with list you have another
-                set of events 'data', 'add', 'remove'.
-            </p>
-        <pre><code>var list = new List();
-list.leak();
-list.onEvent(List.handler({
-    data: function(items) {
-        // This event occurs time to time, items contains elements
-        // from the list on the moment of event emitting.
-        // A event should be considered as "forget all what you know, now the
-        // content of the list is this". Each item has the form { key: key, value: value }
-        // where value is an inserted to list element and key is its id, with
-        // which you can remove it.
-    },
-    add: function(item) {
-        // This event is emitted when an element is added, item also has the same
-        // form {key: key, value:value}, where value - is a new element and key is its id
-    },
-    remove: function(key) {
-        // Emitted when an element is deleted, key is an id of removed element
+            <pre><code>var cell = new warp9.Cell();
+var dispose = cell.onChange(function(cell, event){
+    if (!cell.hasValue()) {
+        console.info("unset: event = " + JSON.stringify(event))
+    } else {
+        console.info("set: value = " + cell.get() + ", event = " + JSON.stringify(event));
     }
-}));</code></pre>
+});
+cell.set(1);
+cell.unset();
+dispose(); // <-- to prevent memory leak
+cell.set(2);</code></pre>
+
+            <p>This yields to console:</p>
+            <pre><code>unset: event = ["unset"]
+set: value = 1, event = ["set",1]
+unset: event = ["unset"]</code></pre>
+
+            <p>
+                If your reactive object is variable (Cell) you have another methods to subscribe:
+                <code>.onSet(handler)</code> and <code>.on(obj, handler)</code>. Those methods also
+                returns a method that removes the subscription. If you subscribe via <code>onSet</code>
+                to a variable then your handler may be called once after subscription (if the variable
+                has value) and then each time the variable is set, so you can be sure that it has value.
+                <code>on(obj, handler)</code> has event stronger condition, your handler may be called once
+                after subscription (if the variable has value equal to obj) and then each time when
+                the variable is set to a value equal to obj.
+            </p>
+
+            <p>
+                Lets exam List's events
+            </p>
+
+            <pre><code>var list = new warp9.List();
+var dispose = list.onChange(function(list, event){
+    console.info(JSON.stringify(event));
+});
+var key42 = list.add(42);
+var key13 = list.add(13);
+list.remove(key13);
+list.setData([1910, 1948]);
+dispose(); // <-- to prevent memory leak
+list.add(1900);</code></pre>
+
+            <p>This yields to console something similar to:</p>
+
+            <pre><code>["reset",[]]
+["add",{"key":34,"value":42}]
+["add",{"key":35,"value":13}]
+["remove",35]
+["reset",[{"key":36,"value":1910},{"key":37,"value":1948}]]</code></pre>
+
+            <p>
+                After subscription a handler will be called with "reset" event which argument reflects
+                the content of the list at that moment (for each value a key is also provided). When an
+                element is added the handler will be called with "add" event, also when an element is
+                deleted it will be call with "remove" event, which argument is a key of removed element.
+                The events are ordered, it means you can take the value of the last "reset" event, apply
+                all subsequent "add" & "remove" events and get the current value of the list.
+            </p>
         </div>
     </div>
 </div>

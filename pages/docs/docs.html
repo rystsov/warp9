@@ -36,6 +36,7 @@
                         <li class="divider"></li>
                         <li><a href="../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../competitors/diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../competitors/consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -57,7 +58,7 @@
             <ul class="nav nav-pills nav-stacked">
                 <li class="active"><a href="docs.html">Basic idea</a></li>
                 <li><a href="reactive_primitives.html">Reactive primitives</a></li>
-                <li><a href="templates.html">Templates</a></li>
+                <li><a href="markup.html">Markup</a></li>
                 <li><span>Special elements</span>
                     <ul class="nav nav-pills nav-stacked sub-stacked-nav">
                         <li><a href="elements/input-text.html">input-text</a></li>
@@ -70,6 +71,7 @@
             </ul>
         </div>
         <div class="col-md-9">
+            <h3>Basic idea</h3>
             <p>
                 Warp9 is based on very simple idea: lets take reactive model (observable viewmodel) and map it to observable
                 DOM, then when model is changed the dom would be updated automatically. If the map is a simple js function,
@@ -78,16 +80,23 @@
             </p>
 
             <p>
+                Warp9 is consists of warp9.core and warp9.ui. warp9.core is a set of reactive primitives and a reactivity
+                engine, it doesn't depend on anything and can be used as a basic for a reactive solutions. warp9.ui is a
+                ui library which is created to be composable, it depends on browser's DOM and warp9.core, but hasn't any
+                external dependencies.
+            </p>
+
+            <p>
                 Example of mapping of reactive model to reactive DOM with Warp9 -
-                <a href="http://rystsov.github.io/warp9/articles/habr/examples/reactive_dom.html">app itself</a>
+                <a href="../../articles/habr/examples/reactive_dom.html">app itself</a>
                 (<a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/examples/reactive_dom.html">its source</a>):
             </p>
         <pre><code>// creates a reactive model (in this case it is just a list)
-var model = new List();
+var model = new warp9.List();
 // maps it to DOM
 var dom = TRANSFORM(model);
 // render the reactive DOM to screen
-warp9.ui.renderer.render(placeholder, dom);
+warp9.render(placeholder, dom);
 
 // when we change the model and have a screen updated
 model.add("React.js");
@@ -99,9 +108,9 @@ function TRANSFORM(model) {
     return hasItems.when(true, ["div",
         ["div", "Reactive libraries:"],
         ["div", {"css/margin-left": "10px"},
-        model.lift(function(item){
-            return ["div", item]
-        })]
+            model.lift(function(item){
+                return ["div", item]
+            })]
     ]);
 }</code></pre>
         </div>

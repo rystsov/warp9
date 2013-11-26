@@ -34,6 +34,7 @@
                         <li class="divider"></li>
                         <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -60,7 +61,7 @@
             is an interval in ms to await all dependencies to be updated.
         </p>
         <p>
-            <a class="btn btn-lg btn-primary btn-info" href="diamond.html">Details</a>
+            <a class="btn btn-lg btn-primary btn-info" href="consistency.html">Details</a>
             <a class="btn btn-lg btn-primary btn-warning" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary" href="reactive_coffee.html">Reactive Coffee</a>
             <a class="btn btn-lg btn-primary" href="warp9.html">Warp9</a>
@@ -86,7 +87,7 @@
                     </p>
                     <div class="knockout">
                         <div>
-                            <div class="accounts-title" style="float: left;">
+                            <div class="accounts-title">
                                 <div><b>Alice's account</b></div>
                                 <div><b>Bob's account</b></div>
                             </div>
@@ -144,17 +145,15 @@ function ViewModel() {
     this.history = ko.observableArray([]);
     ko.computed(function(){
         this.history.push(JSON.stringify({
-            alice: this.alice() + "$",
-            bob: this.bob() + "$"
+            Alice: this.alice() + "$",
+            Bob: this.bob() + "$",
+            sum: (this.alice() + this.bob()) + "$"
         }));
     }, this).extend({ throttle: 50 });
 
     this.update = function() {
-        var value = parseInt(this.parcel());
-        if (value!=0) {
-            this.alice(this.alice() - value);
-            this.bob(this.bob() + value);
-        }
+        this.alice(this.alice() - parseInt(this.parcel()));
+        this.bob(this.bob() + parseInt(this.parcel()));
     }
 }</code></pre>
             </div>
@@ -181,17 +180,15 @@ function ViewModel() {
         this.history = ko.observableArray([]);
         ko.computed(function(){
             this.history.push(JSON.stringify({
-                alice: this.alice() + "$",
-                bob: this.bob() + "$"
+                Alice: this.alice() + "$",
+                Bob: this.bob() + "$",
+                sum: (this.alice() + this.bob()) + "$"
             }));
         }, this).extend({ throttle: 50 });
 
         this.update = function() {
-            var value = parseInt(this.parcel());
-            if (value!=0) {
-                this.alice(this.alice() - value);
-                this.bob(this.bob() + value);
-            }
+            this.alice(this.alice() - parseInt(this.parcel()));
+            this.bob(this.bob() + parseInt(this.parcel()));
         }
     }
 </script>

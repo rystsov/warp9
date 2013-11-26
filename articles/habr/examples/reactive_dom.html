@@ -6,20 +6,18 @@
     <div id="placeholder"></div>
 </body>
 <script language="javascript" type="text/javascript">
-    var List = warp9.reactive.List;
-
-    // создаем реактивную модель (в данном случае список)
-    var model = new List();
-    // отображаем её в реактивный DOM
+    // creates a reactive model (in this case it is just a list)
+    var model = new warp9.List();
+    // maps it to DOM
     var dom = TRANSFORM(model);
-    // отображаем реактивный DOM
-    warp9.ui.renderer.render(placeholder, dom);
+    // render the reactive DOM to screen
+    warp9.render(placeholder, dom);
 
-    // изменяем модель
-    // и изменения отображаются на экране
+    // when we change the model and have a screen updated
     model.add("React.js");
     model.add("Warp9");
 
+    // here is the map itself
     function TRANSFORM(model) {
         var hasItems = model.count().when(function(count) { return count>0 }, true);
         return hasItems.when(true, ["div",

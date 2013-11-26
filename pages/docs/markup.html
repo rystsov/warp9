@@ -6,7 +6,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Docs / Templates</title>
+    <title>Wapr9 / Docs / Markup</title>
 
     <link href="../../lib/highlight.js/styles/default.css" rel="stylesheet" >
     <script src="../../lib/highlight.js/highlight.pack.js"></script>
@@ -20,7 +20,7 @@
     <!-- Custom styles for this template -->
     <link href="../../css/common.css" rel="stylesheet">
     <link href="../../css/docs.css" rel="stylesheet">
-    <link href="../../css/templates.css" rel="stylesheet">
+    <link href="../../css/markup.css" rel="stylesheet">
 </head>
 
 <body>
@@ -40,6 +40,7 @@
                         <li class="divider"></li>
                         <li><a href="../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../competitors/diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../competitors/consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -61,7 +62,7 @@
             <ul class="nav nav-pills nav-stacked">
                 <li><a href="docs.html">Basic idea</a></li>
                 <li><a href="reactive_primitives.html">Reactive primitives</a></li>
-                <li class="active"><a href="templates.html">Templates</a></li>
+                <li class="active"><a href="markup.html">Markup</a></li>
                 <li><span>Special elements</span>
                     <ul class="nav nav-pills nav-stacked sub-stacked-nav">
                         <li><a href="elements/input-text.html">input-text</a></li>
@@ -74,16 +75,16 @@
             </ul>
         </div>
         <div class="col-md-9">
-            <h3>Templates</h3>
+            <h3>Markup</h3>
 
             <p>
-                Template language in Warp9 is an internal DSL. This means that your markup
+                Markup in Warp9 is an internal DSL. This means that your markup
                 should be placed into javascript code. Such decision was made to allow
                 composability and modularization.
             </p>
 
             <p>
-                To study Warp9's templates we analyse a simple application - reactive hello world. This app has
+                To study Warp9's markup we analyse a simple application - reactive hello world. This app has
                 an input box and when a user enter her name she immediately see a reaction (a greeting), also this
                 app has a button to clear the name. By the way, here it is:
             </p>
@@ -91,9 +92,7 @@
             <div>
                 <div id="nameApp" class="app"></div>
                 <script language="javascript">
-                    var Cell = warp9.reactive.Cell;
-
-                    warp9.ui.renderer.render(nameApp, NAME(new Cell("Denis")));
+                    warp9.render(nameApp, NAME(new warp9.Cell("Lisa")));
 
                     function NAME(name) {
                         var hello = name.when(
@@ -120,14 +119,12 @@
                 It's source:
             </p>
 
-            <pre><code class="javascript">var Cell = warp9.reactive.Cell;
-
-warp9.ui.renderer.render(nameApp, NAME(new Cell("Denis")));
+            <pre><code class="javascript">warp9.render(nameApp, NAME(new warp9.Cell("Denis")));
 
 function NAME(name) {
     var hello = name.when(
-        function(name) { return name.length > 0; },
-        function(name) { return "Hello, " + name + "!"; }
+            function(name) { return name.length > 0; },
+            function(name) { return "Hello, " + name + "!"; }
     );
     return ["div",
         ["div",
@@ -206,12 +203,10 @@ node             = explicitChildren | implicitChildren</pre>
             <div>
                 <div id="namesApp" class="app"></div>
                 <script language="javascript">
-                    var List = warp9.reactive.List;
-
-                    var names = new List();
-                    warp9.ui.renderer.render(namesApp, NAMES(names));
-                    names.add(new Cell("Denis"));
-                    names.add(new Cell("Lisa"));
+                    var names = new warp9.List();
+                    warp9.render(namesApp, NAMES(names));
+                    names.add(new warp9.Cell("Denis"));
+                    names.add(new warp9.Cell("Lisa"));
 
                     function NAMES(names){
                         return ["div", names.lift(NAME)];
@@ -219,29 +214,43 @@ node             = explicitChildren | implicitChildren</pre>
                 </script>
             </div>
 
+            <p>
+                The app is extremely similar to the previous one, so we can reuse the previous to compose
+                the new one. All we need to do is add NAMES function
+            </p>
 
             <pre><code>function NAMES(names){
     return ["div", names.lift(NAME)];
 }</code></pre>
 
-            <p>и заменяем <code>warp9.ui.renderer.render(placeholder, NAME(new Cell("Denis")));</code> на</p>
+            <p>and replace <code>warp9.render(nameApp, NAME(new warp9.Cell("Denis")));</code> to</p>
 
-            <pre><code>var names = new List();
-warp9.ui.renderer.render(placeholder, NAMES(names));
-names.add(new Cell("Denis"));
-names.add(new Cell("Lisa"));</code></pre>
+            <pre><code>var names = new warp9.List();
+warp9.render(namesApp, NAMES(names));
+names.add(new warp9.Cell("Denis"));
+names.add(new warp9.Cell("Lisa"));</code></pre>
 
             <p>
-                Мы увидили, как работают принципы композиции, но, помимо этого, warp9 предоставляет отличную поддержку
-                модульности. Однако, при создании warp9 не было написано ни строчки кода, чтобы осознано
-                этого добиться, по сути, модульность warp9 была открыта уже после того, как библиотека была написана.
-                Дело в том, что представление в warp9 описывается кодом, из этого следует автоматическая поддержка
-                модульности доступная для js файлов; получается, мы без проблем можем использовать, например, AMD для
-                дистрибьюции отдельных контролов. В качестве иллюстрации я переписал предыдущий пример со списком имен
-                с использованием AMD: само
-                <a href="http://rystsov.github.io/warp9/articles/habr/examples/modularized.html">приложение</a>
-                и его
-                <a href="https://github.com/rystsov/warp9/blob/gh-pages/articles/habr/examples/modularized.html">исходники</a>.
+                The best part about it is that an app is a component itself and we can build another apps/components
+                on top of it. It is great that we don't think should I implement this part as a template or it is
+                better to wrap it to partial template or directive.
+            </p>
+
+            <p>
+                We saw how composability works in Warp9. But composability is not enough to create reusable
+                apps/components - we need a way to modularize and distribute them. It is interesting that
+                modularization wasn't on mind during Warp9 design process, moreover no line of code was written
+                to support it, but it was discovered after the code was written. I think it proves that the right
+                principles were chosen in the beginning. Since we don't separate UI markup and
+                UI logic to fight with complexity (we use divide and conquer principle instead), at any level
+                application/component is just a JS code, so we can use <a href="http://requirejs.org/">AMD</a>
+                to modularize and distribute controls.
+            </p>
+
+            <p>
+                To illustrate this I rewrote previous example (list of names) using an AMD,
+                <a href="../../examples/modularized/modularized.html">the app</a> and
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/examples/modularized">the sources</a>.
             </p>
         </div>
     </div>

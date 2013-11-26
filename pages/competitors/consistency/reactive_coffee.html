@@ -6,12 +6,12 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Wapr9 / Accidental memory leaks / ReactiveCoffee</title>
+    <title>Wapr9 / Atomic Updates / ReactiveCoffee</title>
 
     <link href="../../../lib/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="../../../lib/highlight.js/styles/default.css" rel="stylesheet" >
     <link href="../../../css/common.css" rel="stylesheet">
-    <link href="leak.css" rel="stylesheet">
+    <link href="consistency.css" rel="stylesheet">
 </head>
 
 <body>
@@ -29,7 +29,7 @@
                     <ul class="dropdown-menu">
                         <li><a href="../matrix.html">Matrix</a></li>
                         <li class="divider"></li>
-                        <li><a href="leaks.html">Accidental memory leaks</a></li>
+                        <li><a href="../leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
                         <li><a href="../consistency/consistency.html">Atomic updates</a></li>
                     </ul>
@@ -50,14 +50,13 @@
 <div class="container">
     <!-- Main component for a primary marketing message or call to action -->
     <div class="jumbotron">
-        <h1>Accidental memory leaks</h1>
+        <h1>Atomic Updates</h1>
         <p>
-            Simple ReactiveCoffee app leaks as well as Knockout version.
-            Moreover due to its internal design it leaks pretty fast and just like knockout app it
-            doesn't look suspicious at all.
+            ReactiveCoffee provides neither atomic updates nor any equivalent so observable inconsistent
+            can be easily achieved.
         </p>
         <p>
-            <a class="btn btn-lg btn-primary btn-info" href="leaks.html">Details</a>
+            <a class="btn btn-lg btn-primary btn-info" href="../diamond/diamond.html">Details</a>
             <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>
             <a class="btn btn-lg btn-primary btn-warning" href="reactive_coffee.html">Reactive Coffee</a>
             <a class="btn btn-lg btn-primary" href="warp9.html">Warp9</a>
@@ -71,9 +70,7 @@
             <div class="col-md-6">
                 <div class="app">
                     <p>
-                        This app leaks incredible fast: click several times on 'add'
-                        button, few times on 'inc' button and then on 'clear' button and repeat the process.
-                        You'll see that the number of subscriptions only increases and does it fast.
+                        This system is closed but the sum of money is fluctuating.
                     </p>
                     <div class="coffee"></div>
                 </div>
@@ -83,39 +80,44 @@
                 <pre><code>bind = rx.bind
 rxt.importTags()
 
-adds = 0
-handlers = rx.cell(0)
-driver = rx.cell(0)
-items = rx.array()
-
-clear = (list) ->
-  while list.raw().length!=0
-    list.remove(list.raw()[0])
+alice = rx.cell(10)
+bob = rx.cell(15)
+history = rx.array()
+snapshot = bind ->
+  JSON.stringify {
+    Alice: alice.get() + "$",
+    Bob: bob.get() + "$",
+    sum: (alice.get() + bob.get()) + "$"
+  }
+snapshot.onSet.sub ([old, val]) ->
+  history.push(val)
 
 $ ->
   $('.coffee').prepend(
     div [
-      div bind -> ["Number of subscriptions to 'driver': #{handlers.get()}"]
       div [
+        div {"class": "accounts-title"}, [
+          div [ b "Alice's account" ]
+          div [ b "Bob's account" ]
+        ]
+        div {"class": "accounts-value"}, [
+          div [ span bind -> [alice.get() + "$"] ]
+          div [ span bind -> [bob.get() + "$"] ]
+        ]
+        div {"class": "clear"}
+      ]
+      div {"class": "transfer"}, [
+        parcel = input {"type": "text", "value": "2"}
         button {
           click: ->
-            driver.set(driver.get()+1)
-            handlers.set(driver.onSet.subs.length)
-        }, "inc"
-        button {
-          click: ->
-            offset = adds++
-            item = bind -> driver.get() + offset
-            items.push(item)
-            handlers.set(driver.onSet.subs.length)
-        }, "add"
-        button {
-          click: ->
-            clear(items)
-            handlers.set(driver.onSet.subs.length)
-        }, "clear"
-        div items.map (item) ->
-          div bind -> ["#{item.get()}"]
+            alice.set(alice.get()-parseInt(parcel.val()))
+            bob.set(bob.get()+parseInt(parcel.val()))
+        }, "Transfer from Alice to Bob"
+      ]
+      div {"class": "history"}, [
+        div [b "Account history"]
+        div {"class": "snapshots"}, history.map (item) ->
+          div item
       ]
     ]
   )</code></pre>

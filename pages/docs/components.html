@@ -36,6 +36,7 @@
                         <li class="divider"></li>
                         <li><a href="../competitors/leaks/leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../competitors/diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../competitors/consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -57,7 +58,7 @@
             <ul class="nav nav-pills nav-stacked">
                 <li><a href="docs.html">Basic idea</a></li>
                 <li><a href="reactive_primitives.html">Reactive primitives</a></li>
-                <li><a href="templates.html">Templates</a></li>
+                <li><a href="markup.html">Markup</a></li>
                 <li><span>Special elements</span>
                     <ul class="nav nav-pills nav-stacked sub-stacked-nav">
                         <li><a href="elements/input-text.html">input-text</a></li>
@@ -70,9 +71,20 @@
             </ul>
         </div>
         <div class="col-md-9">
+            <h3>Components</h3>
+
             <p>
-                TODO
+                The simplest way to extract something into a component for reusing is to extract is to a
+                function as it was done with TodoMVC example (sources):
             </p>
+            <pre><code>function tabSwitch(tabName) {
+    return ["a", {
+        "href": "#/" + tabName, "class": activeTab.when(tabName, "selected")
+    }, tabName];
+}</code></pre>
+
+
+
         </div>
     </div>
 </div>

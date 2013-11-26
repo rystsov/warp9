@@ -32,6 +32,7 @@
                         <li class="divider"></li>
                         <li><a href="leaks.html">Accidental memory leaks</a></li>
                         <li><a href="../diamond/diamond.html">Repeated diamonds shape</a></li>
+                        <li><a href="../consistency/consistency.html">Atomic updates</a></li>
                     </ul>
                 </li>
                 <li class="dropdown">
@@ -52,18 +53,22 @@
     <div class="jumbotron">
         <h1>Accidental memory leaks</h1>
         <p>
-            The common pitfalls of applications that use reactive libraries are accidental memory leaks.
-            Usually, they are caused by someone who didn't remove a event handler or it's equivalent.
-            This results in a application which works, its source code looks good, but the app has a
-            leak, that is hard to find.
+            The common pitfall of applications that use reactive libraries is an accidental memory leaks.
+            Some part of responsibility for that lays on the shoulders of the library's authors,
+            since they often omit the right procedures to release resource in the examples because
+            the library looses a part of its elegance when it is used correctly.
         </p>
         <p>
-            Warp9 follows two idea to eliminate such leaks: code that <b>may</b> leak <b>must</b> look
-            suspicious or doesn't work.
+            Warp9 is designed with simple idea that you don't have to worry about memory leaks unless
+            you go to the low level and subscribe to reactive variable explicitly (if you do so
+            you should finally remove such subscription to avoid memory leaks).
         </p>
         <p>
-            Those pages illustrate leaks in knockout and reactive coffee on the same application where
-            warp9 works great.
+            This simple idea provides you a way to test your code: if it doesn't have explicit
+            subscription then it doesn't have memory leaks of reactive nature. Without similar
+            rule you can't guarantee the absence of leaks, so even small and simple apps can have
+            them. To demonstrate it I've implemented the same app with Knockout, ReactiveCoffee
+            and Warp9.
         </p>
         <p>
             <a class="btn btn-lg btn-primary" href="knockout.html">Knockout</a>

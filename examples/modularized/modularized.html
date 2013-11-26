@@ -1,0 +1,17 @@
+<html>
+<body>
+    <div id="placeholder"></div>
+</body>
+<script src="../../lib/requirejs-2.1.9/require.js"></script>
+<script language="javascript" type="text/javascript">
+    require([
+        "../../lib/warp9/warp9.amd.js",
+        "NAMES"
+    ], function(warp9, NAMES) {
+        var names = new warp9.List();
+        warp9.render(placeholder, NAMES(names));
+        names.add(new warp9.Cell("Denis"));
+        names.add(new warp9.Cell("Lisa"));
+    });
+</script>
+</html>
