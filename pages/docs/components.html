@@ -59,15 +59,8 @@
                 <li><a href="docs.html">Basic idea</a></li>
                 <li><a href="reactive_primitives.html">Reactive primitives</a></li>
                 <li><a href="markup.html">Markup</a></li>
-                <li><span>Special elements</span>
-                    <ul class="nav nav-pills nav-stacked sub-stacked-nav">
-                        <li><a href="elements/input-text.html">input-text</a></li>
-                        <li><a href="elements/input-check.html">input-check</a></li>
-                    </ul>
-                </li>
                 <li class="active"><a href="components.html">Components</a></li>
                 <li><a href="custom_tags.html">Custom tags</a></li>
-                <li><a href="custom_attributes.html">Custom attributes</a></li>
             </ul>
         </div>
         <div class="col-md-9">
@@ -75,7 +68,7 @@
 
             <p>
                 The simplest way to extract something into a component for reusing is to extract is to a
-                function as it was done with TodoMVC example (sources):
+                function as it was done with TodoMVC example (<a href="https://github.com/rystsov/warp9/blob/gh-pages/examples/todomvc/todomvc.html">sources</a>):
             </p>
             <pre><code>function tabSwitch(tabName) {
     return ["a", {
@@ -83,8 +76,36 @@
     }, tabName];
 }</code></pre>
 
+            <p>
+                Sometimes it is needed to subscribe to a reactive variable inside a component, but we
+                know that it leads to memory leaks if we don't remove the subscription. Usually the best
+                moment to remove it is the moment when the component is removed from the screen, so we need a
+                callback that notifies us. For this propose we can use <code>warp9.ui.Component</code>. Lets
+                rewrite <code>tabSwitch</code> to use it
+            </p>
 
+            <pre><code>function tabSwitch(tabName) {
+    return new Component(function(){
+        this.dispose = function(){
+            // place to get rid of subscription
+            console.info("The component is removed.");
+        };
 
+        return ["a", {
+            "href": "#/" + tabName, "class": activeTab.when(tabName, "selected")
+        }, tabName];
+    });
+}</code></pre>
+
+            <p>
+                This example is far-fetched (we don't have a subscription to remove), but in the
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/examples/todomvc/todomvc.html">TodoMVC sources</a>
+                you'll find a real world usage.
+            </p>
+
+            <p>
+                Also you can encapsulate your control to <a href="custom_tags.html">custom tag</a>.
+            </p>
         </div>
     </div>
 </div>
