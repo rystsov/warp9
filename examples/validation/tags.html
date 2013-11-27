@@ -1,0 +1,72 @@
+<html>
+<head>
+    <script src="../../lib/warp9/warp9.js"></script>
+</head>
+<body>
+<div id="placeholder"></div>
+</body>
+<script type="text/javascript">
+    addVF(warp9);
+
+    var email = new warp9.Cell();
+    warp9.render(placeholder, ["div",
+        ["input-email", email],
+        ["validation", email, function(message){
+            return ["div", {"class": "error"}, message];
+        }]
+    ]);
+
+    function addVF(warp9) {
+        warp9.ui.renderer.addTag("validation", function(args) {
+            var value = args[0];
+            var builder = args[1];
+            return warp9.ui.renderer.parse(value.when(
+                    function(value) { return !value.isValid; },
+                    function(value) { return builder(value.message); }
+            ));
+        });
+
+        warp9.ui.renderer.addTag("input-email", function(args) {
+            args = warp9.ui.tags.args.parse(args);
+            args = warp9.ui.tags.args.tryIntercept("input-email", args);
+
+            if (args.children.length != 1) {
+                throw new Error();
+            }
+            if (!warp9.core.Matter.instanceOf(args.children[0], warp9.Cell)) {
+                throw new Error();
+            }
+
+            if (!args.children[0].hasValue()) {
+                args.children[0].set(checkEmail(""));
+            }
+
+            var element = new warp9.ui.ast.Element("input", args);
+            element.attributes.type = "text";
+            element.attributes.value = args.children[0].lift(function(validated){
+                return validated.value;
+            });
+            element.events.input = function(control, view) {
+                args.children[0].set(checkEmail(view.value));
+            };
+
+            return element;
+
+            function checkEmail(value) {
+                var obj = {
+                    isValid: value.indexOf("@") > 0 && value.indexOf("@") + 1 < value.length,
+                    value: value
+                };
+                if (!obj.isValid) {
+                    if (value.length==0) {
+                        obj.message = "You should enter a valid email";
+                    } else {
+                        obj.message = "\"" + value + "\" is not a valid email";
+                    }
+                }
+                return obj;
+            }
+        });
+    }
+</script>
+</html>

@@ -17,6 +17,7 @@
     <!-- Custom styles for this template -->
     <link href="../../css/common.css" rel="stylesheet">
     <link href="../../css/docs.css" rel="stylesheet">
+    <link href="../../css/custom_tags.css" rel="stylesheet">
 </head>
 
 <body>
@@ -64,9 +65,73 @@
             </ul>
         </div>
         <div class="col-md-9">
+            <h3>Custom tags</h3>
             <p>
-                TODO
+                When you ask Wapr9 to render a z-expression with <code>warp9.render</code> it
+                parses the z-expression into a tree (reactive DOM), where each node may be
+                either an Element (which corresponds to a html tag) or a reactive variable. Of
+                cause an Element may have children (another nodes) represented as a js array or
+                as a reactive list. A reactive variable's value is a subtree of a tree.
             </p>
+            <p>
+                When parser recognises a z-expression, it takes the first value (pseudo tag)
+                and search a sub parser that can parse that z-expression. Warp9 provides a
+                way to register a new sub parser to process new z-expression, so this a way
+                you can introduce a new custom tag.
+            </p>
+            <h4>Validation framework</h4>
+            <p>
+                Lets reinvent a simple validation framework to understand how to create custom tags.
+                You may notice, that <code>["input-text", rv]</code> is a textbox which updates a
+                reactive variable <code>rv</code> with textbox's value on each textbox update. Lets
+                imagine a <code>["input-email", rv]</code>, a textbox which does a email validation and
+                writes to rv textbox's value, a validation flag and an error message if needed.
+                Something similar to:
+            </p>
+            <pre><code class="json">{
+    isValid: true,
+    value: "email@example.org"
+}</code></pre>
+            <p>or</p>
+            <pre><code class="json">{
+    isValid: true,
+    value: "email@",
+    message: "\"email@\" is not a valid email"
+}</code></pre>
+            <p>
+                Also image we have a tag to display and decorate a validation message:
+            </p>
+            <pre><code>["validation", rv, function(message){
+    return ["div", {"class": "error"}, message];
+}]</code></pre>
+            <p>
+                Having this we may write a simple UI piece to validate email
+            </p>
+            <div class="app" >
+                <div id="placeholder"></div>
+            </div>
+            <p>
+                And it's source might be similar to
+            </p>
+            <pre><code>var email = new warp9.Cell();
+warp9.render(placeholder, ["div",
+    ["input-email", email],
+    ["validation", email, function(message){
+        return ["div", {"class": "error"}, message];
+    }]
+]);</code></pre>
+            <p>
+                Lets implement this and with an approach you already know - with functions. The code for
+                UI piece would transform into
+            </p>
+            <pre><code>var email = new warp9.Cell();
+warp9.render(placeholder, ["div",
+    inputEmail(email),
+    validation(email, function(message){
+        return ["div", {"class": "error"}, message];
+    })
+]);</code></pre>
+
         </div>
     </div>
 </div>
@@ -74,8 +139,72 @@
 
 <script src="../../lib/jquery/jquery-2.0.3.min.js"></script>
 <script src="../../lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="../../lib/warp9/warp9.js"></script>
 <script language="JavaScript">
     hljs.initHighlightingOnLoad();
+
+    addVF(warp9);
+
+    var email = new warp9.Cell();
+    warp9.render(placeholder, ["div",
+        ["input-email", email],
+        ["validation", email, function(message){
+            return ["div", {"class": "error"}, message];
+        }]
+    ]);
+
+    function addVF(warp9) {
+        warp9.ui.renderer.addTag("validation", function(args) {
+            var value = args[0];
+            var builder = args[1];
+            return warp9.ui.renderer.parse(value.when(
+                    function(value) { return !value.isValid; },
+                    function(value) { return builder(value.message); }
+            ));
+        });
+
+        warp9.ui.renderer.addTag("input-email", function(args) {
+            args = warp9.ui.tags.args.parse(args);
+            args = warp9.ui.tags.args.tryIntercept("input-email", args);
+
+            if (args.children.length != 1) {
+                throw new Error();
+            }
+            if (!warp9.core.Matter.instanceOf(args.children[0], warp9.Cell)) {
+                throw new Error();
+            }
+
+            if (!args.children[0].hasValue()) {
+                args.children[0].set(checkEmail(""));
+            }
+
+            var element = new warp9.ui.ast.Element("input", args);
+            element.attributes.type = "text";
+            element.attributes.value = args.children[0].lift(function(validated){
+                return validated.value;
+            });
+            element.events.input = function(control, view) {
+                args.children[0].set(checkEmail(view.value));
+            };
+
+            return element;
+
+            function checkEmail(value) {
+                var obj = {
+                    isValid: value.indexOf("@") > 0 && value.indexOf("@") + 1 < value.length,
+                    value: value
+                };
+                if (!obj.isValid) {
+                    if (value.length==0) {
+                        obj.message = "You should enter a valid email";
+                    } else {
+                        obj.message = "\"" + value + "\" is not a valid email";
+                    }
+                }
+                return obj;
+            }
+        });
+    }
 </script>
 </body>
 </html>
