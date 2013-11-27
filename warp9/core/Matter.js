@@ -8,6 +8,10 @@ function Matter() {
     this.metaType = Matter;
 }
 
+Matter.instanceOf = function(obj, type) {
+    return obj.metaType === Matter && obj.instanceof(type);
+}
+
 function attach(atom) {
     if (this.instanceof(atom)) {
         return;

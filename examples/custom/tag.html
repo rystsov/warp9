@@ -3,77 +3,81 @@
         <script src="../../target/warp9.js"></script>
     </head>
     <body>
-        <div id="canvas"></div>
+        <div id="placeholder"></div>
     </body>
     <script type="text/javascript">
-        // TODO: adapt to new internal api
-//        var List = warp9.reactive.List;
-//        var Cell = warp9.reactive.Cell;
-//
-//        warp9.ui.renderer.addTag("linkbutton", function(opt) {
-//            var args = warp9.ui.tags.utils.parseTagArgs(opt);
-//            var attr = warp9.ui.tags.utils.normalizeAttributes(args.attr);
-//
-//            var css = {};
-//            warp9.ui.tags.utils.tryEnrich(css, attr.attributes.css);
-//            warp9.ui.tags.utils.tryEnrich(css, {
-//                "text-decoration": "none",
-//                "border-bottom": "1px dashed",
-//                "color": "blue",
-//                "cursor": "pointer",
-//                "warp9:disabled": {
-//                    "cursor": "default",
-//                    "color": "#585858"
-//                }
-//            });
-//
-//            var disabled;
-//            if ("warp9:disabled" in attr.attributes) {
-//                disabled = attr.attributes["warp9:disabled"];
-//                if (typeof disabled=="boolean") disabled = new Cell(disabled);
-//                delete attr.attributes["warp9:disabled"];
-//            } else {
-//                disabled = new Cell();
-//            }
-//            disabled = disabled.coalesce(false);
-//
-//            var click = attr.events.click ? attr.events.click : function(){};
-//            attr.events.click = function() {
-//                if (disabled.unwrap()) return;
-//                click();
-//            };
-//
-//            for (var key in css["warp9:disabled"]) {
-//                if (!css["warp9:disabled"].hasOwnProperty(key)) continue;
-//                if (!css.hasOwnProperty(key)) throw new Error(key + " in css/warp9:disabled but not in css");
-//                css[key] = disabled.when(false, css[key]).coalesce(css["warp9:disabled"][key]);
-//            }
-//            delete css["warp9:disabled"];
-//
-//            attr.attributes.css = css;
-//            attr.attributes.href = "#";
-//
-//            attr = warp9.ui.tags.utils.denormalizeAttributes(attr);
-//
-//            return warp9.ui.renderer.parse(["a", attr, args.attr==null ? opt[0] : opt[1]]);
-//        });
-//
-//        function LIST_TEST() {
-//            var list = new List([]);
-//            return ["div",
-//                ["linkbutton", {
-//                    "!click": function() {
-//                        list.add(function(id){ return id; });
-//                    }
-//                }, "click me"],
-//
-//                ["div", list.lift(function(item){
-//                    return ["div", "item #" + item];
-//                })]
-//            ];
-//        }
-//
-//        var renderer = warp9.ui.renderer;
-//        renderer.render(canvas, LIST_TEST());
+        addVF(warp9);
+
+        var email = new warp9.Cell();
+        warp9.render(placeholder, ["div",
+            ["input-email", email],
+            ["validation", email, function(message){
+                return ["div", {"class": "error"}, message];
+            }]
+            /*,
+            validation(email, function(message){
+                return ["div", {"class": "error"}, message];
+            })*/
+        ]);
+
+        function validation(value, builder) {
+            return value.when(
+                    function(value) { return !value.isValid; },
+                    function(value) { return builder(value.message); }
+            )
+        }
+
+        function addVF(warp9) {
+            warp9.ui.renderer.addTag("validation", function(args) {
+                var value = args[0];
+                var builder = args[1];
+                return warp9.ui.renderer.parse(value.when(
+                        function(value) { return !value.isValid; },
+                        function(value) { return builder(value.message); }
+                ));
+            });
+
+            warp9.ui.renderer.addTag("input-email", function(args) {
+                args = warp9.ui.tags.args.parse(args);
+                args = warp9.ui.tags.args.tryIntercept("input-email", args);
+
+                if (args.children.length != 1) {
+                    throw new Error();
+                }
+                if (!warp9.core.Matter.instanceOf(args.children[0], warp9.Cell)) {
+                    throw new Error();
+                }
+
+                if (!args.children[0].hasValue()) {
+                    args.children[0].set(checkEmail(""));
+                }
+
+                var element = new warp9.ui.ast.Element("input", args);
+                element.attributes.type = "text";
+                element.attributes.value = args.children[0].lift(function(validated){
+                    return validated.value;
+                });
+                element.events.input = function(control, view) {
+                    args.children[0].set(checkEmail(view.value));
+                };
+
+                return element;
+
+                function checkEmail(value) {
+                    var obj = {
+                        isValid: value.indexOf("@") > 0 && value.indexOf("@") + 1 < value.length,
+                        value: value
+                    };
+                    if (!obj.isValid) {
+                        if (value.length==0) {
+                            obj.message = "You should enter a valid email";
+                        } else {
+                            obj.message = "\"" + value + "\" is not a valid email";
+                        }
+                    }
+                    return obj;
+                }
+            });
+        }
     </script>
 </html>

@@ -9,20 +9,33 @@ var jq, register, Matter, BaseCell;
 
 var id = 0;
 
-function Element(tag) {
+function Element(tag, attr) {
     this.type = Element;
 
     this.tag = tag;
-    this.events = {};
     this.children = [];
-    this.attributes = {};
-    this.css = {};
-    this.onDraw = [];
+
+    if (arguments.length==1) {
+        this.events = {};
+        this.attributes = {};
+        this.css = {};
+        this.onDraw = [];
+    } else if (arguments.length==2) {
+        this.events = attr.events;
+        this.attributes = attr.attributes;
+        this.css = attr.css;
+        this.onDraw = attr.onDraw;
+    } else {
+        throw new Error();
+    }
 
     this.elementId = "warp9/" + (id++);
 
     this.disposes = [];
     this.cells = {};
+
+
+
     this.dispose = function() {
         this.disposes.forEach(function(x) { x(); });
 
