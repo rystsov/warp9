@@ -35,6 +35,7 @@ function parse(args) {
         if (args[0].metaType==Matter && args[0].instanceof(BaseCell)) break;
         if (args[0].metaType==Matter && args[0].instanceof(BaseList)) break;
         if (args[0] instanceof H) break;
+        if (args[0] instanceof root.ui.Component) break;
         children = [];
         attr = args[0];
         break;
