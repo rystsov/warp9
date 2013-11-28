@@ -131,7 +131,120 @@ warp9.render(placeholder, ["div",
         return ["div", {"class": "error"}, message];
     })
 ]);</code></pre>
+            <p>
+                The
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/examples/validation/functions.html">full sources</a>
+                of function based VF is available. But I want to focus you attention to <code>validation</code> method,
+                which is the first to be rewritten to custom tag.
+            </p>
+            <pre><code>function validation(value, builder) {
+    return value.when(
+            function(value) { return !value.isValid; },
+            function(value) { return builder(value.message); }
+    )
+}</code></pre>
+            <p>
+                Above all we must register a new sub-parser for "validation" tag, it can be done with
+                <code>warp9.ui.renderer.addTag</code> method. A provided handler will be called by the
+                parser each time it meets <code>["validator", ...]</code> and the handler must return a
+                reactive DOM which becomes sub-tree in the final reactive DOM.
+            </p>
+            <pre><code>warp9.ui.renderer.addTag("validation", function(args) {
+    return ...
+});</code></pre>
+            <p>
+                <code>args</code> is the tail of <code>["validator", ...]</code> array. For example
+                if a z-expression is <code>["validator", a, b]</code> then the <code>args</code> is
+                <code>[a, b]</code>. Also you should know that <code>warp9.ui.renderer.parse</code> is
+                the entry point for the parser. Now we have all information to fill the ellipsis.
+            </p>
+            <pre><code>warp9.ui.renderer.addTag("validation", function(args) {
+    var value = args[0];
+    var builder = args[1];
+    return warp9.ui.renderer.parse(value.when(
+            function(value) { return !value.isValid; },
+            function(value) { return builder(value.message); }
+    ));
+});</code></pre>
+            <p>
+                Actually it is direct a wrap of validation function-like component into a custom tag.
+                Translation of <code>inputEmail</code> is far more interesting - we will construct
+                an Element I mentioned before. The full sources are
+                <a href="https://github.com/rystsov/warp9/blob/gh-pages/examples/validation/tags.html">available</a>,
+                here is the main part, I hope this code will be clear to you find my comments below.
+            </p>
+            <pre><code>warp9.ui.renderer.addTag("input-email", function(args) {
+    args = warp9.ui.tags.args.parse(args);
+    args = warp9.ui.tags.args.tryIntercept("input-email", args);
 
+    if (args.children.length != 1) {
+        throw new Error();
+    }
+    if (!warp9.core.Matter.instanceOf(args.children[0], warp9.Cell)) {
+        throw new Error();
+    }
+
+    if (!args.children[0].hasValue()) {
+        args.children[0].set(checkEmail(""));
+    }
+
+    var element = new warp9.ui.ast.Element("input", args);
+    element.attributes.type = "text";
+    element.attributes.value = args.children[0].lift(function(validated){
+        return validated.value;
+    });
+    element.events.input = function(control, view) {
+        args.children[0].set(checkEmail(view.value));
+    };
+
+    return element;
+
+    function checkEmail(value) {
+        ...
+    }
+});</code></pre>
+        <p>
+            <code>warp9.ui.tags.args.parse</code> tries to reinterpret the first element as a
+            element attributes (attributes, css, events). For example, if the args is
+        </p>
+        <pre><code>[{id: 15, "css/margin": "5px", "!click": function() {...} }, b]</code></pre>
+        <p>the output of warp9.ui.tags.args.parse is</p>
+        <pre><code>{
+    events: {
+        click: function() {...}
+    },
+    // onDraw has "warp9:draw" handler if it is provided
+    onDraw: [],
+    attributes: {
+        id: 15
+    },
+    css: {
+        margin: "5px"
+    },
+    children: [b]
+}</code></pre>
+            <p>
+                if the args is <code>[a, b]</code> and "a" cant be interpreted as a set of
+                attributes then the output is
+            </p>
+            <pre><code>{
+    events: { },
+    onDraw: [],
+    attributes: { },
+    css: { },
+    children: [a, b]
+}</code></pre>
+            <p>
+                <code>warp9.ui.tags.args.tryIntercept</code> is an another way to provide
+                Warp9's extensibility. You can register a handler which shuffles
+                attributes for a specific tag. For example, custom event "key:enter" is
+                mapped to keypress with filter via tryIntercept.
+            </p>
+            <p>
+                <code>new warp9.ui.ast.Element("input", args);</code> constructs a new element
+                which corresponds to html "input" tag and sets attributes (css, events) from args
+                object (but not children).
+            </p>
         </div>
     </div>
 </div>
