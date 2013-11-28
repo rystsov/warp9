@@ -1,21 +1,9 @@
 # Warp9
 
-> Warp9 is being engineered now, use it on your own risk.
-
-Yes, this is yet another reactive js-library for builing dynamic applications.
-It is similar to AngularJS, KnockoutJS, React and many others by tasks it solves.
-The key difference is in an approach.
+Warp9 is a concept car of JavaScript FRP libraries. It avoids many pitfalls which the other libraries
+prefer to ignore.
 
 Project's pages: http://rystsov.github.io/warp9
-
-An [article](http://habrahabr.ru/post/198158/) (in russian) about warp9.
-
-###Roadmap
-  * Documentation
-  * Avoid reactive's version of diamond problem
-    * poor's man solution to reduce multiple exernal calls to one as a reaction to one update
-    * implicit dag and pull model
-  * Adds server side html generation
 
 ###Author
 Denis Rystsov (@rystsov) - rystsov.denis@gmail.com
